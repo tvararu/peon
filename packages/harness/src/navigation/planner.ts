@@ -67,8 +67,11 @@ export type Navigation = {
   height: (mapId: number, x: number, y: number, from?: NavPoint) => number;
   stepHeight: (mapId: number, x: number, y: number, from: NavPoint) => number;
   clear: (mapId: number, from: NavPoint, to: NavPoint) => boolean;
+  snap: (mapId: number, from: NavPoint) => MeshSnap | undefined;
   close: () => void;
 };
+
+export type MeshSnap = { point: NavPoint; onMesh: boolean };
 
 const ADT_STEP = 64;
 
@@ -236,6 +239,11 @@ export function createNavigation(
       checkStart(map, from);
       map.loadAdtAt(to.x, to.y);
       return planDestination(map, from, to);
+    },
+    snap(mapId, from) {
+      const map = open(mapId, from);
+      map.loadAdtAt(from.x, from.y);
+      return meshSnap(map, from);
     },
     stepHeight(mapId, x, y, from) {
       validateNativeXY(x, y);
@@ -474,6 +482,25 @@ function loadCorridor(map: NativeMap, from: NavPoint, to: NavPoint): void {
       from.x + (to.x - from.x) * ratio,
       from.y + (to.y - from.y) * ratio,
     );
+  }
+}
+
+function meshSnap(map: NativeMap, raw: NavPoint): MeshSnap | undefined {
+  const from = settleStart(map, raw);
+  let point: NavPoint | undefined;
+  try {
+    point = map.findPath(from, from)[0];
+  } catch (error) {
+    if (!isGroundError(error)) throw error;
+  }
+  if (point === undefined) return undefined;
+  validateNativePoint(point);
+  try {
+    rejectSnap("start", from, point);
+    checkStart(map, from);
+    return { onMesh: true, point };
+  } catch {
+    return { onMesh: false, point };
   }
 }
 

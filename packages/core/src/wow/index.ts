@@ -59,6 +59,7 @@ export type {
 } from "#wow/control-input";
 export {
   type GroundOracle,
+  groundStep,
   isStepRefusal,
   MAX_DURATION_MS,
 } from "#wow/control-motion";

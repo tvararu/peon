@@ -3,8 +3,10 @@ import type { LegStatus } from "#harness/contract/details";
 import type { OpsCtx } from "#harness/contract/services";
 import type { PoseView } from "#harness/contract/views";
 import type { GotoTarget } from "#harness/navigation/goto";
+import { NUDGE_REACH_YD } from "#harness/navigation/nudge";
 import {
   logRouteEnd,
+  logRouteNudged,
   logRouteReplaced,
   logRouteStart,
 } from "#harness/ops/nav-log";
@@ -24,10 +26,12 @@ export type LegResult = {
   floors: number[] | undefined;
   nextStep: string | undefined;
   traveledYd: number;
+  nudgedYd: number;
   floorRetried: boolean;
   pose: PoseView | undefined;
 };
 
+const NUDGE_YD = NUDGE_REACH_YD;
 const WITHIN_POLL_MS = 250;
 const CODE_WORDS = 3;
 const CANCEL_CODES = new Set(["human_stop", "esc", "quit", "stopped_by_tool"]);
@@ -79,6 +83,7 @@ function fromEnd(ctx: OpsCtx, end: GotoEnd, near: boolean): LegResult {
     floorRetried: false,
     floors: end.floors,
     nextStep: end.nextStep,
+    nudgedYd: 0,
     pose: poseView(ctx),
     traveledYd: end.traveledYd,
   };
@@ -120,6 +125,7 @@ async function legOnce(
       floorRetried: false,
       floors: undefined,
       nextStep: undefined,
+      nudgedYd: 0,
       pose: start,
       reason: undefined,
       status: "arrived",
@@ -187,6 +193,24 @@ export async function travelLeg(
   init: { goal: LegGoal; within: number },
 ): Promise<LegResult> {
   const first = await legOnce(ctx, init.goal, init.within);
+  if (first.status === "refused" && first.reason === "start_off_mesh") {
+    const pose = poseView(ctx);
+    const nudged = await ctx.handle.nudge(
+      { kind: "point", x: pose?.x ?? 0, y: pose?.y ?? 0, z: 0 },
+      NUDGE_YD,
+      ctx.signal,
+    );
+    if (nudged.arrived && nudged.movedYd > 0) {
+      logRouteNudged(ctx, init.goal, nudged.movedYd);
+      const second = await legOnce(ctx, init.goal, init.within, false);
+      return {
+        ...second,
+        nudgedYd: nudged.movedYd,
+        traveledYd: first.traveledYd + nudged.movedYd + second.traveledYd,
+      };
+    }
+    return first;
+  }
   if (first.status !== "refused" || first.reason !== "ambiguous_floor")
     return first;
   const point =

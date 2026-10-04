@@ -304,9 +304,10 @@ function refusedReport(init: {
 }): Report {
   const { ctx, goal, to, leg, after } = init;
   const walked = `Walked ${yd(leg.traveledYd)} yd.`;
-  const planner = leg.floorRetried
-    ? "planner twice (floor retry)"
-    : "planner once";
+  let planner = "planner once";
+  if (leg.floorRetried) planner = "planner twice (floor retry)";
+  else if (leg.nudgedYd > 0)
+    planner = `planner twice (off-mesh nudge ${yd(leg.nudgedYd)})`;
   const tried = `Tried: ${planner}.`;
   const ask = askHuman(
     `I cannot reach ${goalLabel(goal)} from here. Is there another way?`,

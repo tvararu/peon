@@ -1,4 +1,4 @@
-import { describe, expect, test } from "bun:test";
+import { describe, expect, mock, test } from "bun:test";
 import { refusalCode, travelLeg } from "#harness/ops/travel-leg";
 import {
   driveGoto,
@@ -378,5 +378,48 @@ describe("travelLeg", () => {
       status: "cancelled",
     });
     expect(t.handle.halt).toHaveBeenCalled();
+  });
+});
+
+describe("off-mesh nudge", () => {
+  test("a refused off-mesh start nudges then replans to arrival", async () => {
+    const t = await createTestRuntime();
+    setSelf(t.handle);
+    const goTo = driveGoto(t.handle, [
+      { refuse: "stop: start snapped off the requested ground position" },
+      { arrive: { x: 50, y: 0 } },
+    ]);
+    const nudge = mock(async () => ({ arrived: true, movedYd: 1 }));
+    t.handle.nudge = nudge;
+    const leg = await travelLeg(toolCtx(t), {
+      goal: { kind: "point", x: 50, y: 0 },
+      within: 1,
+    });
+    expect(leg).toMatchObject({
+      nudgedYd: 1,
+      reason: undefined,
+      status: "arrived",
+    });
+    expect(nudge).toHaveBeenCalledTimes(1);
+    expect(goTo).toHaveBeenCalledTimes(2);
+  });
+
+  test("a blocked nudge keeps the off-mesh refusal", async () => {
+    const t = await createTestRuntime();
+    setSelf(t.handle);
+    const goTo = driveGoto(t.handle, [
+      { refuse: "stop: start snapped off the requested ground position" },
+    ]);
+    const leg = await travelLeg(toolCtx(t), {
+      goal: { kind: "point", x: 50, y: 0 },
+      within: 1,
+    });
+    expect(leg).toMatchObject({
+      nudgedYd: 0,
+      reason: "start_off_mesh",
+      status: "refused",
+    });
+    expect(t.handle.nudge).toHaveBeenCalled();
+    expect(goTo).toHaveBeenCalledTimes(1);
   });
 });

@@ -6,6 +6,7 @@ import {
   walkTowardTarget,
 } from "#harness/navigation/goto";
 import type { NavigationSource } from "#harness/navigation/native";
+import { nudgeTarget } from "#harness/navigation/nudge";
 import {
   type NavigationObservation,
   observeNavigation,
@@ -26,7 +27,14 @@ export type Travel = {
     yards: number,
     signal?: AbortSignal,
   ) => Promise<WalkOutcome>;
+  nudge: (
+    target: WalkTarget,
+    yards: number,
+    signal?: AbortSignal,
+  ) => Promise<NudgeResult>;
 };
+
+export type NudgeResult = { movedYd: number; arrived: boolean };
 
 export type TravelSession = Travel & {
   dispose: () => void;
@@ -81,10 +89,36 @@ export function createTravel(
       open();
       routeTo(deps, target);
     },
+    async nudge(_target, yards, signal) {
+      open();
+      return await nudgeOntoMesh(deps, yards, signal);
+    },
     observeNavigation: () => observeNavigation(routes.state()),
     async walkToward(target, yards, signal) {
       open();
       return await walkTowardTarget(deps, target, yards, signal);
     },
   };
+}
+
+export async function nudgeOntoMesh(
+  deps: {
+    handle: Pick<WorldHandle, "getControlState" | "walkTowardPoint">;
+    navigation: () => Navigation;
+  },
+  yards: number,
+  signal?: AbortSignal,
+): Promise<NudgeResult> {
+  const navigation = deps.navigation();
+  const pose = deps.handle.getControlState().pose;
+  if (!pose) throw new Error("no_pose");
+  if (navigation.snap(pose.mapId, pose)?.onMesh !== false)
+    return { arrived: false, movedYd: 0 };
+  const spot = nudgeTarget(navigation, pose.mapId, pose);
+  if (!spot) return { arrived: false, movedYd: 0 };
+  const outcome = await deps.handle.walkTowardPoint(spot, yards, signal);
+  const landed = outcome.pose ?? pose;
+  if (navigation.snap(landed.mapId, landed)?.onMesh !== true)
+    return { arrived: false, movedYd: outcome.traveled };
+  return { arrived: true, movedYd: outcome.traveled };
 }
