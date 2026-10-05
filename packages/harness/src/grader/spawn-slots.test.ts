@@ -104,18 +104,29 @@ describe("startSlots", () => {
       expect(Math.hypot(x - 9808, y + 7478)).toBeLessThanOrEqual(16);
   });
 
-  test("the kite grids start 28 to 35 yd from their lone Elder Springpaw", () => {
+  test("every kite start has three lone creatures 28 to 45 yd away and a point for each replica", () => {
     const creatures = {
-      "eversong-kite-hold": [9785.11, -7919.97],
-      "eversong-kite-train": [9371.24, -8059.13],
+      "eversong-kite-hold": [
+        [8504.61, -7109.27],
+        [8560.83, -7114.68],
+        [8497.95, -7151.96],
+      ],
+      "eversong-kite-train": [
+        [8885.98, -6521.18],
+        [8853.21, -6486.6],
+        [8885.47, -6454.98],
+        [8913.3, -6482.37],
+      ],
     } as const;
-    for (const [name, [cx, cy]] of Object.entries(creatures)) {
+    for (const [name, spots] of Object.entries(creatures)) {
       const spawn = spawnOf({ id: "t3-pilot-kite", spawn: name } as never);
-      expect(spawn?.points).toHaveLength(4);
+      expect(spawn?.points).toHaveLength(8);
       for (const [x, y] of spawn?.points ?? []) {
-        const yards = Math.hypot(x - (cx ?? 0), y - (cy ?? 0));
-        expect(yards).toBeGreaterThanOrEqual(28);
-        expect(yards).toBeLessThanOrEqual(35);
+        const inRing = spots.filter(([cx, cy]) => {
+          const yards = Math.hypot(x - (cx ?? 0), y - (cy ?? 0));
+          return yards >= 28 && yards <= 45;
+        });
+        expect(inRing.length).toBeGreaterThanOrEqual(3);
       }
     }
   });
