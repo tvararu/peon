@@ -4,7 +4,7 @@ import type { ViewCtx } from "#harness/contract/services";
 import { grayLevel } from "#harness/loops/combat-actions-credit";
 import { MIN_HP_PCT } from "#harness/loops/cycle-gate";
 import type { CycleState } from "#harness/loops/cycle-types";
-import { DEFAULT_FIGHT_INSTRUCTION } from "#harness/loops/tactics";
+import { fightInstruction } from "#harness/loops/fight-instruction";
 import { dangerView } from "#harness/ops/danger";
 import { ITEM_NAME_WAIT_MS, nameLootLines } from "#harness/ops/item-names";
 import { lootCorpseOp } from "#harness/ops/loot";
@@ -72,7 +72,7 @@ const NO_ATTACK = "no_supported_combat_actions";
 const OUT_OF_REACH = "objective_targets_out_of_reach";
 
 function instruction(scene: Scene): string {
-  return scene.args.how ?? DEFAULT_FIGHT_INSTRUCTION;
+  return fightInstruction(scene.args.how, scene.args.kite);
 }
 
 async function single(scene: Scene): Promise<ModeEnd> {
@@ -448,7 +448,7 @@ export async function fight(init: FightInit): Promise<Report> {
   const tally = newTally(init.ops);
   const scene: Scene = {
     ...init,
-    how: init.args.how ?? DEFAULT_FIGHT_INSTRUCTION,
+    how: fightInstruction(init.args.how, init.args.kite),
     tally,
     walk: undefined,
   };

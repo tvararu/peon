@@ -43,6 +43,7 @@ export type CheckMeasure =
   | "answer_values"
   | "kill_after_answer"
   | "kill_xp"
+  | "kite_clean"
   | "max_attackers"
   | "no_fight_after_stop"
   | "talents_spent"
@@ -241,6 +242,8 @@ export const ROUND_1: readonly string[] = [
   "t3-pilot-camp-holdout-travel",
   "t3-pilot-camp-greedy",
   "t3-pilot-camp-holdout-greedy",
+  "t3-pilot-kite",
+  "t3-pilot-kite-holdout",
 ];
 const DIR = `${import.meta.dir}/scenarios`;
 const JSON_FILE = /\.json$/;

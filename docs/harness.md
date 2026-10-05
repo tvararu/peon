@@ -174,7 +174,7 @@ A result that is not `DONE` ends with a `Next:` step.
 |---|---|
 | `look` | Self, place, target, the running action, and the nearest units with short ids like `u7`; `find: object` lists game objects as `o<n>` with kind and quest, locked and busy flags; `find: flight_master` lists flight masters, also one that left view. |
 | `travel` | Walks to a unit (`to: o<n>` reaches a game object), the corpse or a point (`to: 10 yd north` walks ten yards north), uses the hearthstone (`to: hearth`), flies to a discovered flight destination (`to: fly Silvermoon City`), rides a boat or zeppelin to a named stop (`to: ride Thunder Bluff`), explores in a direction, or unsticks. On the ground, a point without a z walks to the one floor of its column that the navmesh routes and refuses with the routable floors when several remain; a creature target walks to the floor nearest its observed height. A route across swim-depth water swims: the planner follows the liquid surface and the follower sends `MSG_MOVE_START_SWIM` on entering and `MSG_MOVE_STOP_SWIM` on leaving. An explore leg refused for an ambiguous navmesh column first retries the same point on the floor nearest the walker, then other distances on the same bearing, and one exhausted bearing counts as a single obstruction. A leg that starts just off the navmesh first nudges up to 1.5 yd back onto the mesh with a direct walk and then replans once; `unstick` nudges before trying its radial goals. |
-| `engage` | Chooses a target, walks to it, fights it with Jev and loots it; the result line gives damage dealt and taken, avoided swings and refused spells. An unnamed engage that only sees gray hostiles refuses with a `Next:` step that travels to explore for non-gray hostiles. A named engage that cannot reach its target names another reachable hostile in view, or explores when none is in view. When a target that could not be reached is still attacking, the fight stops and reports that attacker instead of pulling another unit. Near Tranquillien, targets on ziggurat tiers and cliff faces refuse as unreachable because the navmesh marks their steep faces as walkable ground while the planner rejects climbs steeper than its walkable slope; the agent explores for a reachable target instead. |
+| `engage` | Chooses a target, walks to it, fights it with Jev and loots it; the result line gives damage dealt and taken, avoided swings and refused spells. An unnamed engage that only sees gray hostiles refuses with a `Next:` step that travels to explore for non-gray hostiles. A named engage that cannot reach its target names another reachable hostile in view, or explores when none is in view. When a target that could not be reached is still attacking, the fight stops and reports that attacker instead of pulling another unit. Near Tranquillien, targets on ziggurat tiers and cliff faces refuse as unreachable because the navmesh marks their steep faces as walkable ground while the planner rejects climbs steeper than its walkable slope; the agent explores for a reachable target instead. With `kite: true` the fight instruction tells Jev to keep the target outside its melee reach by slowing or rooting it, moving away and casting when it cannot reach the character; `fight/start` records `kite`. |
 | `pilot` | Lets Jev steer the character toward a point (`to: { x, y }`) or around a circle (`circle: { x, y, radius, direction }`) for `minutes` (default 3, at most 10); see [Pilot](#pilot). |
 | `loot` | Loots one corpse, one slot at a time. |
 | `interact` | Talks to an NPC (`npc: o<n>` talks to a quest-giver object): quests, gossip, buy, sell junk, buyback, train, repair, bind at an inn, reset talents at a class trainer (pays only up to `max_cost`), bank with a banker (open, deposit, withdraw, buy a bag slot); talking to a flight master lists the known destinations with their list prices. |
@@ -286,6 +286,39 @@ the decisions taken, the jumps, the yards walked and the final distance.
 The game log records `pilot/started` (objective and position), one
 `pilot/decision` per applied option (call, action, position, airborne) and
 `pilot/ended` (status, reason, decisions, jumps and yards walked).
+
+### Moves in a fight
+
+The fight loop (`engage`) offers the pilot's moves while the character can
+move and no cast is under way: `run_ahead`, `veer_left`, `veer_right`,
+`turn_left`, `turn_right`, `turn_around`, `strafe_left`, `strafe_right`,
+`back_up` and `stop`; `jump_ahead` is not offered. The pilot's ground scans
+remove a move whose heading is blocked inside two yards, and the inferred
+aggro ranges of other hostile creatures remove or annotate moves the same
+way, from every qualifying creature in view and not only the five listed.
+The fight target and the creatures already attacking the character add no
+range. Each move applies like a pilot move: it faces the heading and drives
+it under the 1.5 s dead-man lease, the same id renews the lease, and `stop`
+halts. `wait` renews nothing, so a move the next decision does not choose
+again lapses. The fight loop discards an answer older than 1 s, because a
+move that stale has carried the character about 7 yd.
+
+Each move's text gives where the target would be after a second of the move,
+if it stood still: its distance, its bearing, and whether that ends outside
+its melee reach. The observation carries `targetReach`, for example `Elder
+Springpaw is 14 yd away, 9 yd outside its melee reach (5 yd; 7.7 yd while you
+both move); closing at 4 yd/s (observed)`, and `targetImpaired`, the target's
+observed auras that root, stun or slow it. Melee reach is the larger of 5 yd
+and the two combat reaches plus 4/3 yd, as AzerothCore's
+`Unit::IsWithinMeleeRange` computes it; both units moving add 2.66 yd of
+leeway. The closing speed comes from the distance between successive
+observations. Backing up runs at 4.5 yd/s and running at the character's run
+speed, and a creature that closes at more than that cannot be kited by
+moving alone.
+
+The game log records `combat/swung_at` once per melee swing at the character,
+hit or miss, with the attacker, its name, the outcome (`hit`, `crit`,
+`miss`, `dodge`, `parry`, `block`, ...) and the damage.
 
 ## Stopping the agent
 

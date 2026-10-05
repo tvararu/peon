@@ -122,14 +122,24 @@ describe("pilot units", () => {
     expect(units[0]?.marginYd).toBeLessThan(units[1]?.marginYd ?? 0);
   });
 
-  test("caps the list at five units", () => {
+  test("keeps every qualifying creature, so the circles cover more than the five shown", () => {
     const rows = [
       selfRow(),
       ...Array.from({ length: 7 }, (_, index) =>
         mob(BigInt(index + 2), 20 + index, 0),
       ),
     ];
-    expect(buildPilotUnits(rows, pose())).toHaveLength(5);
+    expect(buildPilotUnits(rows, pose())).toHaveLength(7);
+  });
+
+  test("five gray creatures nearby do not hide an aggressive creature's circle", () => {
+    const grays = Array.from({ length: 5 }, (_, index) =>
+      mob(BigInt(index + 2), 0, 1 + index * 0.2, { level: 4 }),
+    );
+    const rows = [selfRow(), ...grays, mob(9n, 40, 0, { level: 10 })];
+    const circles = aggroCircles(buildPilotUnits(rows, pose()));
+    expect(circles).toHaveLength(1);
+    expect(circles[0]?.x).toBe(40);
   });
 
   test("ignores creatures beyond 60 yd", () => {

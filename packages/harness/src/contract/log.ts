@@ -53,6 +53,7 @@ export type CoreLogEvent =
   | "combat/attack_start"
   | "combat/pet_attack"
   | "combat/attacked"
+  | "combat/swung_at"
   | "combat/target_died"
   | "xp/gain"
   | "xp/level_up"

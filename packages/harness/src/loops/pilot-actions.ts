@@ -33,6 +33,7 @@ import {
   aggroCircles,
   buildPilotUnits,
   dangerAlong,
+  PILOT_UNIT_LIMIT,
   unitLines,
 } from "#harness/loops/pilot-units";
 import type { ControlPort } from "#harness/loops/ports";
@@ -322,7 +323,7 @@ function liveFrame({
       objective: `${framed.detail}; ${lineText(line, span, hazard)}`,
       self: selfText(state, memory),
       surroundings: describeSurroundings(cache, pilotPose),
-      units: unitLines(units, pilotPose),
+      units: unitLines(units.slice(0, PILOT_UNIT_LIMIT), pilotPose),
     },
   };
 }

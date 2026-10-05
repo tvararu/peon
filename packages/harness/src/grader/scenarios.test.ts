@@ -399,6 +399,20 @@ describe("checks measure what they name", () => {
     expect(loadScenario("t3-pilot-camp-travel").env).toBeUndefined();
   });
 
+  test("the kite scenarios grade a swing-free kill on their own spawns", () => {
+    for (const id of ["t3-pilot-kite", "t3-pilot-kite-holdout"]) {
+      expect(loadScenario(id).preset).toBe("eversong10-mage");
+      expect(checkOf(id, "kite-clean")).toMatchObject({
+        measure: "kite_clean",
+        source: "game_log",
+      });
+    }
+    expect(loadScenario("t3-pilot-kite").spawn).toBe("eversong-kite-train");
+    expect(loadScenario("t3-pilot-kite-holdout").spawn).toBe(
+      "eversong-kite-hold",
+    );
+  });
+
   test("an unknown env key is refused", () => {
     const scenario = loadScenario("t3-pilot-camp-greedy");
     expect(() =>

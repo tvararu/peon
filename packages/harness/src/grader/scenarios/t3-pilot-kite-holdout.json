@@ -1,0 +1,41 @@
+{
+  "botRisk": "low",
+  "budget": {
+    "minutes": 6,
+    "tools": 30,
+    "turns": 12
+  },
+  "checks": [
+    {
+      "expect": "GL first fight (fight/start to its fight/end) ended completed on its target, with no combat/swung_at row in the fight window (Jev never let the Elder Springpaw hit in melee, hit or miss) and no life/dead row in the run",
+      "id": "kite-clean",
+      "measure": "kite_clean",
+      "source": "game_log"
+    },
+    {
+      "evidence": {
+        "truth": ["alive"]
+      },
+      "expect": "alive at the end (T final alive)",
+      "id": "alive",
+      "source": "truth"
+    },
+    {
+      "expect": "the session shows the character calling the engage tool on the Elder Springpaw with kite true (the GL fight/start row for it has data.kite true), and that call not ending REFUSED",
+      "id": "engage-kite",
+      "source": "session"
+    }
+  ],
+  "field": "kite-eversong-hold",
+  "id": "t3-pilot-kite-holdout",
+  "navBound": false,
+  "needsWatcher": false,
+  "paneMinutes": 9,
+  "partner": null,
+  "preset": "eversong10-mage",
+  "setup": [],
+  "spawn": "eversong-kite-hold",
+  "steers": [],
+  "task": "Kill the Elder Springpaw near you with engage, kiting it: use kite true and do not let it hit you in melee.",
+  "tier": 3
+}

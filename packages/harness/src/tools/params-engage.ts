@@ -16,6 +16,12 @@ export const engageParams = Type.Object({
       maxLength: 120,
     }),
   ),
+  kite: Type.Optional(
+    Type.Boolean({
+      description:
+        "Keep the target outside its melee reach: slow or root it, move away, cast when safe. Default false.",
+    }),
+  ),
   loot: Type.Optional(
     Type.Boolean({ description: "Loot each kill. Default true." }),
   ),

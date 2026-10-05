@@ -102,12 +102,19 @@ export function cachedScan(cache: ScanCache, heading: number): PilotScan {
   return scan;
 }
 
+export type GoalText = (after: {
+  facing: number;
+  moved: number | undefined;
+}) => string;
+
 export type OptionBuild = {
   ground: GroundOracle | undefined;
   objective: PilotObjective;
   pose: PilotPose;
   cache?: ScanCache;
   circles?: readonly AggroCircle[];
+  goalText?: GoalText;
+  jumps?: boolean;
 };
 
 export function buildOptions({
@@ -116,16 +123,18 @@ export function buildOptions({
   pose,
   cache,
   circles = [],
+  goalText,
+  jumps = true,
 }: OptionBuild): PilotOption[] {
   if (pose.airborne) return [];
   const scans = cache ?? scanCache(ground, pose);
   const ahead = cachedScan(scans, pose.orientation);
-  const canJump = jumpOffered(ground, pose, ahead);
+  const canJump = jumps && jumpOffered(ground, pose, ahead);
   return PILOT_OPTION_IDS.flatMap((id) => {
     if (id === "stop")
       return [
         {
-          description: stopText(objective, pose),
+          description: stopText({ goalText, objective, pose }),
           goalDeg: goalDegAfterTurn(objective, pose, pose.orientation),
           heading: pose.orientation,
           id,
@@ -137,7 +146,9 @@ export function buildOptions({
       ahead,
       canJump,
       circles,
+      goalText,
       id,
+      jumps,
       objective,
       pose,
       scans,
@@ -151,13 +162,15 @@ type MoveBuild = {
   ahead: PilotScan;
   canJump: boolean;
   circles: readonly AggroCircle[];
+  goalText: GoalText | undefined;
+  jumps: boolean;
   objective: PilotObjective;
   pose: PilotPose;
   scans: ScanCache;
 };
 
 function moveOption(build: MoveBuild): PilotOption | undefined {
-  const { ahead, canJump, circles, id, pose, scans } = build;
+  const { ahead, canJump, circles, id, jumps, pose, scans } = build;
   if (id === "jump_ahead" && !canJump) return undefined;
   const turnDeg = OPTION_TURNS[id];
   const heading = normalizeAngle(pose.orientation + (turnDeg * Math.PI) / 180);
@@ -168,7 +181,7 @@ function moveOption(build: MoveBuild): PilotOption | undefined {
       ? ahead
       : cachedScan(scans, moved);
   const tooClose = id !== "jump_ahead" && scan.freeYd < PILOT_MIN_CLEAR_YD;
-  if (tooClose && !(motion === undefined && jumpableTop(scan.blocker)))
+  if (tooClose && !(motion === undefined && jumps && jumpableTop(scan.blocker)))
     return undefined;
   const hazard = dangerAlong(
     pose,
@@ -186,7 +199,7 @@ function moveOption(build: MoveBuild): PilotOption | undefined {
   });
   if (masked) return undefined;
   return {
-    description: optionText({ ...build, hazard, scan, turnDeg }),
+    description: optionText({ ...build, hazard, moved, scan, turnDeg }),
     goalDeg: goalDegAfterTurn(build.objective, pose, normalizeAngle(moved)),
     heading,
     id,
@@ -245,6 +258,9 @@ type OptionTextInput = {
   scan: PilotScan;
   ahead: PilotScan;
   canJump: boolean;
+  goalText: GoalText | undefined;
+  jumps: boolean;
+  moved: number;
   turnDeg: number;
   hazard: DangerHit | undefined;
 };
@@ -254,6 +270,9 @@ function optionText({
   canJump,
   hazard,
   id,
+  goalText,
+  jumps,
+  moved,
   objective,
   pose,
   scan,
@@ -272,13 +291,17 @@ function optionText({
     veer_right: "Veer 30° right and run",
   };
   const after = normalizeAngle(pose.orientation + (turnDeg * Math.PI) / 180);
-  const goal = goalAfterTurn(objective, pose, after);
+  const goal = goalText
+    ? goalText({ facing: after, moved: normalizeAngle(moved) })
+    : goalAfterTurn(objective, pose, after);
   const danger = hazardText(hazardWithinRange(hazard, scan));
   if (id === "jump_ahead")
     return `Run at ${blockerText(scan)} ${scan.freeYd} yd ahead and jump it as you reach it; ${goal}${danger}.`;
   if (scan.freeYd < PILOT_MIN_CLEAR_YD)
-    return `${actions[id]}: faces ${blockerText(scan)} ${scan.freeYd} yd away, too close to jump; back up first for a run-up; ${goal}${danger}.`;
-  if (id === "back_up" && !canJump && jumpableTop(ahead.blocker))
+    return jumps
+      ? `${actions[id]}: faces ${blockerText(scan)} ${scan.freeYd} yd away, too close to jump; back up first for a run-up; ${goal}${danger}.`
+      : `${actions[id]}: faces ${blockerText(scan)} ${scan.freeYd} yd away, so it turns without moving; ${goal}${danger}.`;
+  if (id === "back_up" && !canJump && jumps && jumpableTop(ahead.blocker))
     return `Back up: clear for ${scan.freeYd} yd; gains run-up to jump ${blockerText(ahead)} ahead; ${goal}${danger}.`;
   return `${actions[id]}: clear for ${scan.freeYd} yd; ${goal}${danger}.`;
 }
@@ -295,8 +318,17 @@ function hazardWithinRange(
     : undefined;
 }
 
-function stopText(objective: PilotObjective, pose: PilotPose): string {
-  return `Stop and stand still; ${goalAfterTurn(objective, pose, pose.orientation)}.`;
+type StopInput = {
+  goalText: GoalText | undefined;
+  objective: PilotObjective;
+  pose: PilotPose;
+};
+
+function stopText({ goalText, objective, pose }: StopInput): string {
+  const goal = goalText
+    ? goalText({ facing: pose.orientation, moved: undefined })
+    : goalAfterTurn(objective, pose, pose.orientation);
+  return `Stop and stand still; ${goal}.`;
 }
 
 function goalAfterTurn(

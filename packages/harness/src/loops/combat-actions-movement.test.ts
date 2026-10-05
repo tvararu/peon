@@ -42,51 +42,39 @@ test("movement candidates are offered exactly when movement is allowed", () => {
   }
 });
 
-test("wait holds the current movement direction by refreshing its lease", () => {
-  const { actions, combat, control } = setup();
-  const definition = jest.spyOn(combat, "definition").mockReturnValue(spell());
-  try {
-    actions.execute("move_forward", context);
-    expect(control.snapshot().moving).toBe(true);
-    const drive = jest.spyOn(control, "drive");
-    try {
-      actions.execute("wait", context);
-      expect(drive).toHaveBeenCalledWith({ move: "forward" }, 2500);
-      expect(control.snapshot().moving).toBe(true);
-      expect(control.snapshot().input).toEqual({ move: "forward" });
-    } finally {
-      drive.mockRestore();
-    }
-  } finally {
-    definition.mockRestore();
-  }
-});
-
-test("wait is a no-op while stationary", () => {
-  const { actions, combat, control } = setup();
-  const definition = jest.spyOn(combat, "definition").mockReturnValue(spell());
+test("a chosen move faces its heading and drives under the dead-man lease", () => {
+  const { actions, control } = setup();
+  const face = jest.spyOn(control, "face");
   const drive = jest.spyOn(control, "drive");
-  try {
-    actions.execute("wait", context);
-    expect(drive).not.toHaveBeenCalled();
-    expect(control.snapshot().moving).toBe(false);
-  } finally {
-    drive.mockRestore();
-    definition.mockRestore();
-  }
+  actions.execute("turn_left", context);
+  expect(face).toHaveBeenCalledWith(Math.PI / 2);
+  expect(drive).toHaveBeenCalledWith({ move: "forward" }, 1500);
+  expect(control.snapshot().moving).toBe(true);
 });
 
-test("stop_moving halts an active movement lease", () => {
-  const { actions, combat, control } = setup();
-  const definition = jest.spyOn(combat, "definition").mockReturnValue(spell());
-  try {
-    actions.execute("move_forward", context);
-    expect(control.snapshot().moving).toBe(true);
-    actions.execute("stop_moving", context);
-    expect(control.snapshot().moving).toBe(false);
-  } finally {
-    definition.mockRestore();
-  }
+test("choosing the same move again renews the lease", () => {
+  const { actions, control } = setup();
+  const drive = jest.spyOn(control, "drive");
+  actions.execute("back_up", context);
+  actions.execute("back_up", context);
+  expect(drive).toHaveBeenCalledTimes(2);
+  expect(drive).toHaveBeenLastCalledWith({ move: "backward" }, 1500);
+});
+
+test("wait renews nothing, so a running move lapses by itself", () => {
+  const { actions, control } = setup();
+  actions.execute("run_ahead", context);
+  const drive = jest.spyOn(control, "drive");
+  actions.execute("wait", context);
+  expect(drive).not.toHaveBeenCalled();
+});
+
+test("stop halts an active movement lease", () => {
+  const { actions, control } = setup();
+  actions.execute("run_ahead", context);
+  expect(control.snapshot().moving).toBe(true);
+  actions.execute("stop", context);
+  expect(control.snapshot().moving).toBe(false);
 });
 
 test("a standing-required spell executed while moving halts movement before casting", () => {
@@ -95,7 +83,7 @@ test("a standing-required spell executed while moving halts movement before cast
     .spyOn(combat, "definition")
     .mockReturnValue(standingRequiredSpell());
   try {
-    actions.execute("move_forward", context);
+    actions.execute("run_ahead", context);
     expect(control.snapshot().moving).toBe(true);
     actions.execute("spell:17:target", context);
     expect(control.snapshot().moving).toBe(false);
@@ -111,7 +99,7 @@ test("a movement-compatible spell executed while moving does not release the lea
     .spyOn(combat, "definition")
     .mockReturnValue(movementCompatibleSpell());
   try {
-    actions.execute("move_forward", context);
+    actions.execute("run_ahead", context);
     expect(control.snapshot().moving).toBe(true);
     actions.execute("spell:17:target", context);
     expect(control.snapshot().moving).toBe(true);

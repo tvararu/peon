@@ -232,6 +232,7 @@ describe("combatlog harness rules", () => {
     handle.triggerAreaEvent("combatlog", closed());
     expect(log.since(0).map((row) => [row.class, row.event])).toEqual([
       ["log", "combatlog/immune"],
+      ["log", "combat/swung_at"],
       ["log", "combatlog/killing_blow"],
       ["log", "combatlog/fight"],
     ]);

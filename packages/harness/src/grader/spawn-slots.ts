@@ -343,10 +343,34 @@ const UNDERCITY_WARRIOR: Spawn = {
   ],
   zone: 1497,
 };
+const EVERSONG_KITE_TRAIN: Spawn = {
+  map: 530,
+  o: 4.44,
+  points: [
+    [9380, -8027, 1.74],
+    [9376, -8029, 1.83],
+    [9384, -8029, 1.16],
+    [9372, -8029, 2.24],
+  ],
+  zone: 3430,
+};
+const EVERSONG_KITE_HOLD: Spawn = {
+  map: 530,
+  o: 1.45,
+  points: [
+    [9781, -7953, 1.93],
+    [9777, -7952, 2.19],
+    [9785, -7953, 1.46],
+    [9773, -7951, 2.35],
+  ],
+  zone: 3430,
+};
 
 const NAMED: Readonly<Record<string, Spawn>> = {
   eversong: EVERSONG,
   "eversong-glyph": EVERSONG_GLYPH,
+  "eversong-kite-hold": EVERSONG_KITE_HOLD,
+  "eversong-kite-train": EVERSONG_KITE_TRAIN,
   "eversong-pets": EVERSONG_PETS,
   "eversong-raid": EVERSONG_RAID,
   "eversong-ready": EVERSONG_READY,

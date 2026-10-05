@@ -1,4 +1,4 @@
-import type { CombatEvent, EntityEvent } from "@peon/core";
+import type { AreaEvent, CombatEvent, EntityEvent } from "@peon/core";
 import type { LogClass, LogDraft } from "#harness/contract/log";
 import {
   type AuraMemo,
@@ -10,6 +10,7 @@ import {
 import { watchUnit } from "#harness/events/rules-death";
 import { levelDrafts, xpDrafts } from "#harness/events/rules-xp";
 import type { CycleEvent } from "#harness/loops/cycle-types";
+import { isKiteInstruction } from "#harness/loops/fight-instruction";
 import type { TacticsEvent, TacticsOutcome } from "#harness/loops/tactics";
 
 const LOW_HEALTH = [50, 25];
@@ -61,6 +62,30 @@ function attackStartDrafts(event: CombatEvent, rc: RuleInput): Drafts {
       domain: "combat",
       event: "combat/attack_start",
       text,
+    },
+  ];
+}
+
+export function swungAtDrafts(event: AreaEvent, rc: RuleInput): Drafts {
+  if (event.area !== "combatlog" || event.event.type !== "entry") return [];
+  const swing = event.event;
+  if (swing.kind !== "melee" || swing.target !== rc.selfGuid) return [];
+  const outcome = swing.outcome ?? (swing.crit ? "crit" : "hit");
+  const name = rc.lookup.unitName(swing.source);
+  const data = {
+    amount: swing.amount,
+    attacker: guidText(swing.source),
+    name,
+    outcome,
+  };
+  return [
+    {
+      class: "log",
+      data,
+      domain: "combat",
+      event: "combat/swung_at",
+      ...unitIds(swing.source, rc),
+      text: `${name ?? "A unit"} swung at you (${outcome}).`,
     },
   ];
 }
@@ -207,13 +232,19 @@ function fightClass(rc: RuleInput): LogClass {
   return rc.memo.cycleActive ? "passive" : "log";
 }
 
-function fightStart(runId: string, guid: bigint, rc: RuleInput): Drafts {
+function fightStart(
+  runId: string,
+  guid: bigint,
+  instruction: string,
+  rc: RuleInput,
+): Drafts {
   rc.memo.fights.set(runId, { at: rc.now, guid });
   watchUnit(guid, rc);
   const vitals = rc.lookup.selfVitals();
   const data = {
     hpBefore: vitals?.hp,
     jevRun: runId,
+    kite: isKiteInstruction(instruction),
     level: rc.lookup.unitLevel(guid),
     manaBefore: vitals?.power,
     maxHp: vitals?.maxHp,
@@ -266,7 +297,12 @@ function fightEnd(
 export function tacticsDrafts(event: TacticsEvent, rc: RuleInput): Drafts {
   if (event.type === "started") {
     if (event.targetGuid === undefined) return [];
-    return fightStart(event.runId, BigInt(event.targetGuid), rc);
+    return fightStart(
+      event.runId,
+      BigInt(event.targetGuid),
+      event.instruction,
+      rc,
+    );
   }
   if (event.type === "outcome")
     return fightEnd(

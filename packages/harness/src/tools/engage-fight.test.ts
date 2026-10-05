@@ -1,6 +1,8 @@
 import { describe, expect, test } from "bun:test";
 import type { EngageAfter } from "#harness/contract/details";
 import type { CycleTargetRecord } from "#harness/loops/cycle-types";
+import { KITE_FIGHT_INSTRUCTION } from "#harness/loops/fight-instruction";
+import { DEFAULT_FIGHT_INSTRUCTION } from "#harness/loops/tactics";
 import { engageSpec } from "#harness/tools/engage";
 import {
   cycleEnds,
@@ -46,6 +48,28 @@ describe("engage fight", () => {
     );
     expect(res.after).toMatchObject({ kills: 1, mode: "single", xp: 108 });
   });
+
+  test.each([
+    [undefined, DEFAULT_FIGHT_INSTRUCTION],
+    [true, `${DEFAULT_FIGHT_INSTRUCTION}; ${KITE_FIGHT_INSTRUCTION}`],
+  ])(
+    "kite %p hands the fight helper its instruction",
+    async (kite, expected) => {
+      const t = await field();
+      tactics(t.handle, (runId) => outcome(t.handle, runId, KILL));
+      const inner = t.handle.startTactics;
+      let given: string | undefined;
+      t.handle.startTactics = (guid, instruction, signal) => {
+        given = instruction;
+        return inner(guid, instruction, signal);
+      };
+      await engageSpec.run(
+        { kite, loot: false, target: "Springpaw Stalker" },
+        toolCtx<EngageAfter>(t),
+      );
+      expect(given).toBe(expected);
+    },
+  );
 
   test("a gray kill is DONE with no XP", async () => {
     const t = await field();

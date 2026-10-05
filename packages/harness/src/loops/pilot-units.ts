@@ -27,6 +27,7 @@ export type UnitState =
   | "standing still";
 
 export type PilotUnit = {
+  guid: bigint;
   attacksFirst: boolean;
   bearing: number;
   distanceYd: number;
@@ -96,6 +97,7 @@ function unitOf(
       ? undefined
       : aggroRadiusYd(selfLevel, level);
   return {
+    guid: entity.guid,
     attacksFirst,
     bearing: Math.atan2(position.y - pose.y, position.x - pose.x),
     distanceYd,
@@ -122,8 +124,7 @@ export function buildPilotUnits(
       const unit = unitOf(row, pose, selfLevel, aggro);
       return unit ? [unit] : [];
     })
-    .sort((a, b) => a.marginYd - b.marginYd)
-    .slice(0, PILOT_UNIT_LIMIT);
+    .sort((a, b) => a.marginYd - b.marginYd);
 }
 
 export function aggroCircles(units: readonly PilotUnit[]): AggroCircle[] {

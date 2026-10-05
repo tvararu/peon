@@ -7,6 +7,7 @@ import {
   noFightAfterStop,
 } from "#harness/grader/draft-anchors";
 import type { GameLogRow } from "#harness/grader/draft-gamelog";
+import { kiteClean } from "#harness/grader/draft-measure-kite";
 import {
   pilotCircle,
   pilotJumps,
@@ -139,6 +140,7 @@ const MEASURES: Record<
   answer_values: answerValues,
   kill_after_answer: killAfterAnswer,
   kill_xp: killXp,
+  kite_clean: kiteClean,
   max_attackers: maxAttackers,
   no_fight_after_stop: noFightAfterStop,
   pilot_circle: pilotCircle,

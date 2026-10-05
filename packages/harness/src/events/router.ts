@@ -41,6 +41,7 @@ import {
 import {
   combatDrafts,
   cycleDrafts,
+  swungAtDrafts,
   tacticsDrafts,
   vitalsDrafts,
 } from "#harness/events/rules-combat";
@@ -200,7 +201,10 @@ function subscribeAll(init: SubscribeInit): Unsubscribe[] {
   const { areaRules, handle, route, jev, pilot, logEntities } = init;
   return [
     handle.onAreaEvent((event) =>
-      route((rc) => areaDrafts(areaRules, event, rc)),
+      route((rc) => [
+        ...areaDrafts(areaRules, event, rc),
+        ...swungAtDrafts(event, rc),
+      ]),
     ),
     handle.onMessage((msg) => route((rc) => chatDrafts(msg, rc))),
     handle.onGroupEvent((event) => route((rc) => groupDrafts(event, rc))),

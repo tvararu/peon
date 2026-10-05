@@ -103,4 +103,20 @@ describe("startSlots", () => {
     for (const [x, y] of spawn?.points ?? [])
       expect(Math.hypot(x - 9808, y + 7478)).toBeLessThanOrEqual(16);
   });
+
+  test("the kite grids start 28 to 35 yd from their lone Elder Springpaw", () => {
+    const creatures = {
+      "eversong-kite-hold": [9785.11, -7919.97],
+      "eversong-kite-train": [9371.24, -8059.13],
+    } as const;
+    for (const [name, [cx, cy]] of Object.entries(creatures)) {
+      const spawn = spawnOf({ id: "t3-pilot-kite", spawn: name } as never);
+      expect(spawn?.points).toHaveLength(4);
+      for (const [x, y] of spawn?.points ?? []) {
+        const yards = Math.hypot(x - (cx ?? 0), y - (cy ?? 0));
+        expect(yards).toBeGreaterThanOrEqual(28);
+        expect(yards).toBeLessThanOrEqual(35);
+      }
+    }
+  });
 });

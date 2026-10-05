@@ -142,17 +142,24 @@ type Ports = {
   halt: () => void;
 };
 
-function createTactics(ports: Ports, jev: JevPort | undefined): TacticsLoop {
+function createTactics(
+  ports: Ports,
+  navigation: SessionNavigation | undefined,
+  jev: JevPort | undefined,
+): TacticsLoop {
   const { handle, combat, control, entity, halt } = ports;
   const actions = new CombatActions({
+    aggro: (guid) => handle.unitAggroesSelf(guid),
     combat,
     combatLog: () => handle.combatlog.state(),
     control,
     entity,
+    ground: navigation?.ground,
     gear: () =>
       readRangedGear(handle.getControlState().selfGuid, entity, (entry) =>
         handle.itemLabel(entry),
       ),
+    nearby: () => handle.queryNearby(),
     now: () => Date.now(),
     relation: (guid) => handle.unitRelation(guid),
     spells: () => handle.spells.state(),
@@ -165,6 +172,7 @@ function createTactics(ports: Ports, jev: JevPort | undefined): TacticsLoop {
     execute: (id, context) => actions.execute(id, context),
     fault: jev?.fault,
     halt,
+    maxResultAgeMs: 1000,
     observe: (context) => actions.observe(context),
     async prepare(_context, signal) {
       signal.throwIfAborted();
@@ -271,7 +279,7 @@ function build(handle: WorldHandle, { jev, navigation, pilot }: GameOptions) {
   };
   const entity = (guid: bigint) => handle.getEntity(guid);
   const ports = { combat, control, entity, halt, handle, travel };
-  const tactics = createTactics(ports, jev);
+  const tactics = createTactics(ports, navigation, jev);
   const pilotTactics = createPilot(ports, navigation, pilot ?? jev);
   const deps = cycleDeps(ports, tactics);
   const cycle = new EncounterCycleRuntime(deps);

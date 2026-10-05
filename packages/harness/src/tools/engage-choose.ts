@@ -58,6 +58,7 @@ export function sameArgs(args: EngageArgs): string {
   if (args.count !== undefined) init["count"] = args.count;
   if (args.quest !== undefined) init["quest"] = args.quest;
   if (args.how !== undefined) init["how"] = args.how;
+  if (args.kite !== undefined) init["kite"] = args.kite;
   if (args.loot !== undefined) init["loot"] = args.loot;
   return nextCall("engage", init);
 }

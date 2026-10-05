@@ -1,4 +1,4 @@
-import { ObjectType, UNIT_FIELDS } from "@peon/core";
+import { type NearbyRow, ObjectType, UNIT_FIELDS } from "@peon/core";
 import { ControlRuntime, EntityStore } from "@peon/core/test-support/internals";
 import { combatParts } from "@peon/core/test-support/session-fixtures";
 import { CombatActions } from "#harness/loops/combat-actions";
@@ -10,16 +10,25 @@ export const context = {
   targetGuid: 2n,
 };
 export const MOVE_IDS = [
-  "move_forward",
-  "move_backward",
+  "run_ahead",
+  "veer_left",
+  "veer_right",
+  "turn_left",
+  "turn_right",
+  "turn_around",
   "strafe_left",
   "strafe_right",
-  "stop_moving",
+  "back_up",
+  "stop",
 ];
 
 export function setup(
   nowFn: () => number = () => 1000,
-  options: { observeTargetPosition?: boolean; gear?: () => RangedGear } = {},
+  options: {
+    observeTargetPosition?: boolean;
+    gear?: () => RangedGear;
+    nearby?: () => readonly NearbyRow[];
+  } = {},
 ) {
   const sent: { opcode: number; body: Uint8Array | undefined }[] = [];
   const store = new EntityStore();
@@ -107,6 +116,7 @@ export function setup(
     now: nowFn,
     relation: () => "unknown",
     ...(options.gear && { gear: options.gear }),
+    ...(options.nearby && { nearby: options.nearby }),
   });
   actions.activate(context);
   return {
