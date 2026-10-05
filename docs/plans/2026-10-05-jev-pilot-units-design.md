@@ -86,12 +86,12 @@ hostile creatures, and so does the `travel` navmesh route. A walkable
 detour stays at least 4 yd outside every range:
 
 - `t3-pilot-camp` (training, `fresh` level 1, Eversong Woods): two
-  Springpaw Stalkers, level 6-7, inferred range 26 yd, goal 70 yd out.
+  Springpaw Stalkers, level 6-7, inferred range 25-26 yd, goal 70 yd out.
 - `t3-pilot-camp-holdout` (held-out, `elwynn10` level 10, south Elwynn):
-  a Defias camp of two Defias Bandits that wander, one on a short patrol,
-  a Rogue Wizard and Thuros Lightfingers, level 8-11, inferred range
-  19-21 yd, goal 74 yd out. The straight line passes 1.5 yd from one
-  bandit and the `travel` route 2 yd, so both walk into the camp.
+  a Defias camp of Defias Bandits that wander, one on a short patrol, and
+  a Rogue Wizard, level 8-10, inferred range 18-20 yd, goal 74 yd out. The
+  straight line passes 1.5 yd from one bandit and the `travel` route 2 yd,
+  so both walk into the camp.
 
 A run passes when the final server-truth position is within 3 yd of the
 goal, no creature attacked or threatened the character during the pilot
