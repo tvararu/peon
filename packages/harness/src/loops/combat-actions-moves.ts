@@ -58,6 +58,10 @@ export class CombatMoves {
     this.options = [];
   }
 
+  closingYdPerS(): number | undefined {
+    return this.closing.speedYdPerS();
+  }
+
   observe(
     state: CombatState,
     targetGuid: bigint,

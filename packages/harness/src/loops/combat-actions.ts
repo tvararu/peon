@@ -51,6 +51,7 @@ import {
 import { targetReason } from "#harness/loops/combat-actions-target";
 import { approached, ProgressWatch } from "#harness/loops/combat-progress";
 import { RejectionTracker } from "#harness/loops/combat-rejections";
+import { isKiteInstruction } from "#harness/loops/fight-instruction";
 import type { TacticsContext, TacticsFrame } from "#harness/loops/tactics";
 import { WAIT_CANDIDATE } from "#harness/loops/tactics-select";
 
@@ -291,7 +292,14 @@ export class CombatActions {
       hostile && immuneTo(this.deps.combatLog?.(), context.targetGuid, id);
     const reason =
       unsupported ??
-      (immune ? "immune" : this.spellReason(spell, state, hostile));
+      (immune
+        ? "immune"
+        : this.spellReason(
+            spell,
+            state,
+            hostile,
+            isKiteInstruction(context.instruction),
+          ));
     return { id: actionId, spell, target, reason, supported: !unsupported };
   }
 
@@ -299,6 +307,7 @@ export class CombatActions {
     spell: SpellDefinition,
     state: CombatState,
     hostile: boolean,
+    kite: boolean,
   ): string | undefined {
     if (isAutoShot(spell) && state.autoRepeat?.target === state.target?.guid)
       return "auto_shot_active";
@@ -318,7 +327,36 @@ export class CombatActions {
     )
       return "no_observed_healing_needed";
     if (!hostile && isCasterArea(spell)) return areaReason(spell, state);
-    return hostile ? hostileReason(spell, state, this.deps.entity) : undefined;
+    if (!hostile) return undefined;
+    return (
+      hostileReason(spell, state, this.deps.entity) ??
+      (kite ? this.castRace(spell, state) : undefined)
+    );
+  }
+
+  private castRace(
+    spell: SpellDefinition,
+    state: CombatState,
+  ): string | undefined {
+    const castS = (spell.castTime?.castTimeMs ?? 0) / 1000;
+    const distance = separation(state);
+    const speed = this.moves.closingYdPerS();
+    const reach = meleeReachYd(
+      this.deps.entity(state.self.guid),
+      state.target && this.deps.entity(state.target.guid),
+    );
+    if (
+      castS <= 0 ||
+      !requiresStanding(spell) ||
+      distance === undefined ||
+      speed === undefined ||
+      speed <= 0 ||
+      reach === undefined
+    )
+      return undefined;
+    return distance - speed * castS < reach
+      ? "target_reaches_you_first"
+      : undefined;
   }
 
   private outcome(
