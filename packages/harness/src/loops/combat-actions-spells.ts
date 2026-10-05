@@ -235,22 +235,26 @@ export function describeSpell(spell: SpellDefinition, self: boolean): string {
       perLevel: effect.realPointsPerLevel,
       intervalMs: effect.amplitude,
     }));
-  const on = isCasterArea(spell)
-    ? `enemies within ${spell.effects.find((effect) => effect.radius)?.radius?.max ?? "unknown"} yd of you`
-    : self
-      ? "self"
-      : "selected creature";
-  const control = spell.effects.flatMap((effect) =>
-    effect.effect !== 6
-      ? []
-      : effect.applyAura === 26
-        ? ["roots them in place"]
-        : effect.applyAura === 33
-          ? ["slows their movement"]
-          : [],
-  );
+  const control = spell.effects.flatMap((effect) => {
+    const text =
+      effect.effect === 6 ? CONTROL_TEXT[effect.applyAura] : undefined;
+    return text === undefined ? [] : [text];
+  });
   const controlText = control.length > 0 ? `; ${control.join(", ")}` : "";
-  return `Request ${spell.name} ${spell.rank} on ${on}${controlText}; mana ${spell.power.costRaw} + ${spell.power.costPercentageOfBaseMana}% base mana; cast ${castMs}ms; duration ${spell.duration?.durationMs ?? "unknown"}ms; DBC base effects (server applies scaling/modifiers) ${JSON.stringify(effects)}`;
+  return `Request ${spell.name} ${spell.rank} on ${spellTargetText(spell, self)}${controlText}; mana ${spell.power.costRaw} + ${spell.power.costPercentageOfBaseMana}% base mana; cast ${castMs}ms; duration ${spell.duration?.durationMs ?? "unknown"}ms; DBC base effects (server applies scaling/modifiers) ${JSON.stringify(effects)}`;
+}
+
+const CONTROL_TEXT: Record<number, string> = {
+  26: "roots them in place",
+  33: "slows their movement",
+};
+
+function spellTargetText(spell: SpellDefinition, self: boolean): string {
+  if (isCasterArea(spell)) {
+    const radius = spell.effects.find((effect) => effect.radius)?.radius?.max;
+    return `enemies within ${radius ?? "unknown"} yd of you`;
+  }
+  return self ? "self" : "selected creature";
 }
 
 export function rangeSupport(
