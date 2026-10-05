@@ -325,7 +325,9 @@ instruction tells Jev to open from range with a slowing spell and only then
 keep the target outside its melee reach. While kiting, a spell with a cast
 time that movement interrupts is unavailable as `target_reaches_you_first`
 when, at the target's observed closing speed, it would reach melee range
-before the cast ends.
+before the cast ends. A plain fight stops as `target_unreachable` when no
+action can reach the target for 5 s; a kite fight does not while the target
+stays within 40 yd, because opening the gap is the point.
 
 The game log records `combat/swung_at` once per melee swing at the character,
 hit or miss, with the attacker, its name, the outcome (`hit`, `crit`,

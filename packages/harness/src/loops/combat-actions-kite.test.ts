@@ -110,6 +110,35 @@ test("a slowed target is reported from its aura", () => {
   }
 });
 
+test("a kited target just beyond spell range stays reachable; a plain fight gives up", () => {
+  let now = 1000;
+  const fixture = setup(() => now);
+  const definition = jest
+    .spyOn(fixture.combat, "definition")
+    .mockReturnValue(spell());
+  const kite = { ...context, instruction: fightInstruction(undefined, true) };
+  try {
+    fixture.motion.observe(2n, {
+      mapId: 530,
+      orientation: 0,
+      x: 35,
+      y: 0,
+      z: 0,
+    });
+    expect(fixture.actions.observe(kite).outcome).toBeUndefined();
+    now += 10_000;
+    expect(fixture.actions.observe(kite).outcome).toBeUndefined();
+    expect(fixture.actions.observe(context).outcome).toBeUndefined();
+    now += 10_000;
+    expect(fixture.actions.observe(context).outcome).toEqual({
+      reason: "target_unreachable",
+      status: "blocked",
+    });
+  } finally {
+    definition.mockRestore();
+  }
+});
+
 test("each move says where the target would be and whether it ends outside its reach", () => {
   const { actions } = withReaches();
   const frame = actions.observe(context);

@@ -63,6 +63,7 @@ type SpellAction = {
   supported: boolean;
 };
 const UNREACHABLE_TIMEOUT_MS = 5000;
+const KITE_REACHABLE_YD = 40;
 
 export class CombatActions {
   private readonly deps: ActionDeps;
@@ -463,6 +464,12 @@ export class CombatActions {
     )
       return true;
     const distance = separation(state);
+    if (
+      isKiteInstruction(context.instruction) &&
+      distance !== undefined &&
+      distance <= KITE_REACHABLE_YD
+    )
+      return true;
     for (const action of spells) {
       if (
         action.target !== context.targetGuid ||
