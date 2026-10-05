@@ -117,20 +117,27 @@ export class CombatMoves {
       objective: { kind: "reach", x: target.x, y: target.y },
       pose: pilotPose,
     });
-    const closing = this.closing.speedYdPerS();
-    const standingIsDanger =
-      kite &&
-      distance !== undefined &&
-      reachYd !== undefined &&
-      closing !== undefined &&
-      closing > 0 &&
-      distance - reachYd < closing * KITE_STAND_HORIZON_S;
+    const standingIsDanger = kite && this.reachesSoon(distance, reachYd);
     return {
       candidates: this.options
         .filter((option) => !(standingIsDanger && option.id === "stop"))
         .map(({ id, description }) => ({ description, id })),
       facts,
     };
+  }
+
+  private reachesSoon(
+    distance: number | undefined,
+    reachYd: number | undefined,
+  ): boolean {
+    const closing = this.closing.speedYdPerS();
+    return (
+      distance !== undefined &&
+      reachYd !== undefined &&
+      closing !== undefined &&
+      closing > 0 &&
+      distance - reachYd < closing * KITE_STAND_HORIZON_S
+    );
   }
 
   run(id: string): boolean {
