@@ -98,6 +98,31 @@ goal, no creature attacked or threatened the character during the pilot
 run, and only `pilot` moved it. The bar is 3/3 on training and at least
 2/3 on held-out, as for the walking scenarios, which must still pass.
 
+## What the live rounds found
+
+| Round | Failure seen | Cause | Fix |
+|---|---|---|---|
+| 7700 | Both camps drew aggro on the first walk | creatures 3–12 yd up or down a slope were left out of danger, though the height closes as the character walks | count every creature that attacks first, whatever its height |
+| 7700 | A greedy run counted as clean after an earlier attack | the no-aggro measure read only the last pilot run | the window starts at the first pilot or travel run |
+| 7701 | Held-out circle laps left their ring | the pilot avoided gray Rotting Dead near the ring, which cannot hurt a level 80 | gray creatures get no range and do not end the run |
+| 7701 | One training fence run walked around the fence | Jev's choice, the same early decisions as passing runs | none; the next round passed |
+
+Round 7702, at harness commit `e7e087b0` for every run:
+
+| Scenario | Jev | Greedy chooser | `travel` |
+|---|---|---|---|
+| `t3-pilot-camp` | 3/3 | 1/2 | 1/2 |
+| `t3-pilot-camp-holdout` | 3/3 | 0/2 | 0/2 |
+| six walking scenarios | 3/3 each | | |
+
+Every pilot call was answered by `jev-1.13.0`, at p50 213 ms and p90
+248 ms. The greedy runs that failed never drew aggro: they stalled at the
+edge of a range, turning back and forth (up to 3,323 decisions), until the
+agent stopped the run. That is the local minimum of greedy context
+steering. `travel` walked into both camps. In round 7701 greedy passed both
+camps once each and `travel` passed the training camp, so the baselines
+fail often but not always.
+
 ## Out of scope
 
 - Kiting and fighting while moving.

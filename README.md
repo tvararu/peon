@@ -24,7 +24,8 @@ Peon is a Pi-based harness that gives an LLM tools to interact with a World of W
   `~/.config/peon/auth.json`) or a provider API key such as
   `ANTHROPIC_API_KEY` or `OPENAI_API_KEY`.
 - A TypeSafe API key in `TYPESAFE_API_KEY`. Jev needs it for `engage` and
-  `pilot`; without it both refuse with `no_combat_helper`.
+  `pilot`; without it both refuse with `no_combat_helper`, unless
+  `PEON_PILOT_CHOOSER=greedy` swaps Jev for code in `pilot`.
 
 ### Quick start
 
@@ -115,12 +116,13 @@ flowchart LR
 - **Protocol:** core handles 721 of 933 opcodes. See  
 [docs/protocol-coverage.md](docs/protocol-coverage.md), and
 `mise protocol:coverage` prints them.
-- **Live evals:** 80 scenarios grade a throwaway character against server
+- **Live evals:** 86 scenarios grade a throwaway character against server
 truth. See [docs/evals.md](docs/evals.md).
 - **Capabilities,** each proven by a scenario in
 [docs/capabilities.md](docs/capabilities.md):
   - questing from level 1 to level 5, walking with Namigator navigation,
-  and Jev-chosen fights and movement;
+  Jev-chosen fights and movement, and Jev steering past hostile camps
+  without drawing aggro;
   - items, bags, the bank, mail, vendors and trades;
   - talents and glyphs, pets, vehicles, flight paths and zeppelins;
   - raids: convert, subgroups, ready checks and marks.
