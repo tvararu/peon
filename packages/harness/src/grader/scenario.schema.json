@@ -172,7 +172,9 @@
               "pilot_circle",
               "pilot_reach",
               "pilot_jumps",
-              "pilot_only_moves"
+              "pilot_only_moves",
+              "pilot_no_aggro",
+              "travel_no_aggro"
             ]
           },
           "source": {
@@ -191,6 +193,13 @@
         "type": "object"
       },
       "type": "array"
+    },
+    "env": {
+      "additionalProperties": false,
+      "properties": {
+        "PEON_PILOT_CHOOSER": { "enum": ["greedy"] }
+      },
+      "type": "object"
     },
     "field": {
       "pattern": "^[a-z]+(-[a-z]+)+$",

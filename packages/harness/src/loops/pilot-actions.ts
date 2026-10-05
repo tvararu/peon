@@ -1,4 +1,9 @@
-import type { ControlState, GroundOracle, RecoveryState } from "@peon/core";
+import type {
+  ControlState,
+  GroundOracle,
+  NearbyRow,
+  RecoveryState,
+} from "@peon/core";
 import {
   circleOutcome,
   describeSelf,
@@ -18,11 +23,18 @@ import { JumpArm } from "#harness/loops/pilot-jump";
 import {
   buildOptions,
   cachedScan,
+  DANGER_ANNOTATE_YD,
   lineText,
   type PilotOption,
   scanCache,
 } from "#harness/loops/pilot-options";
 import type { PilotContext } from "#harness/loops/pilot-types";
+import {
+  aggroCircles,
+  buildPilotUnits,
+  dangerAlong,
+  unitLines,
+} from "#harness/loops/pilot-units";
 import type { ControlPort } from "#harness/loops/ports";
 import type { TacticsFrame } from "#harness/loops/tactics";
 
@@ -36,6 +48,7 @@ export type PilotFrameDeps = {
   ground: GroundOracle | undefined;
   life: () => RecoveryState["life"];
   now?: () => number;
+  nearby?: () => readonly NearbyRow[];
 };
 
 export type PilotObserve = {
@@ -160,6 +173,7 @@ export class PilotActions {
       context,
       ground: this.deps.ground,
       memory: this.memory,
+      nearby: this.deps.nearby?.() ?? [],
       pilotPose,
       pose,
       state,
@@ -192,6 +206,7 @@ function missingPoseFrame(
       : [
           {
             description: "Stop and stand still.",
+            goalDeg: 180,
             heading: 0,
             id: "stop",
             input: undefined,
@@ -263,11 +278,13 @@ function liveFrame({
   context,
   ground,
   memory,
+  nearby,
   pilotPose,
   pose,
   state,
 }: FrameInput & {
   ground: GroundOracle | undefined;
+  nearby: readonly NearbyRow[];
   pilotPose: PilotPose;
 }): PilotObserve {
   const framed = objectiveText({
@@ -281,13 +298,15 @@ function liveFrame({
   const objective = context.objective;
   const target =
     objective.kind === "reach" ? objective : lapPoint(objective, pose);
-  const line = cachedScan(
-    cache,
-    Math.atan2(target.y - pose.y, target.x - pose.x),
-  );
+  const heading = Math.atan2(target.y - pose.y, target.x - pose.x);
+  const line = cachedScan(cache, heading);
   const span = Math.hypot(target.x - pose.x, target.y - pose.y);
+  const units = buildPilotUnits(nearby, pilotPose);
+  const circles = aggroCircles(units);
+  const hazard = dangerAlong(pilotPose, heading, circles, DANGER_ANNOTATE_YD);
   const candidates = buildOptions({
     cache,
+    circles,
     ground,
     objective,
     pose: pilotPose,
@@ -296,9 +315,10 @@ function liveFrame({
     candidates,
     distanceYd: framed.distanceYd,
     observation: {
-      objective: `${framed.detail}; ${lineText(line, span)}`,
+      objective: `${framed.detail}; ${lineText(line, span, hazard)}`,
       self: selfText(state, memory),
       surroundings: describeSurroundings(cache, pilotPose),
+      units: unitLines(units, pilotPose),
     },
   };
 }

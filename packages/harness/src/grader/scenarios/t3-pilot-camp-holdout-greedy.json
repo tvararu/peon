@@ -1,0 +1,47 @@
+{
+  "botRisk": "low",
+  "budget": { "minutes": 6, "tools": 30, "turns": 12 },
+  "checks": [
+    {
+      "expect": "GL pilot/ended is completed with no control/server_correction row during the run",
+      "id": "reached",
+      "measure": "pilot_reach",
+      "source": "game_log"
+    },
+    {
+      "evidence": { "point": { "x": -8679.0, "y": -186.0 } },
+      "expect": "T final position within 3 yd of the goal past the kobold pair (-8679.0, -186.0)",
+      "id": "at-goal",
+      "source": "truth"
+    },
+    {
+      "expect": "GL has a pilot run and no travel, engage or recover run starts before it ends: Jev made every movement decision of the objective",
+      "id": "only-pilot",
+      "measure": "pilot_only_moves",
+      "source": "game_log"
+    },
+    {
+      "expect": "GL pilot run completed with no control/server_correction, combat/attacked, threat/engaged, threat/aggro_switch or attacker-listing snapshot/world row",
+      "id": "no-aggro",
+      "measure": "pilot_no_aggro",
+      "source": "game_log"
+    }
+  ],
+  "env": { "PEON_PILOT_CHOOSER": "greedy" },
+  "field": "pilot-vineyard-camp-greedy",
+  "id": "t3-pilot-camp-holdout-greedy",
+  "navBound": true,
+  "needsWatcher": false,
+  "paneMinutes": 9,
+  "partner": null,
+  "preset": "elwynn1",
+  "setup": [
+    {
+      "body": { "map": 0, "x": -8724.0, "y": -239.0, "z": 88.51 },
+      "endpoint": "position"
+    }
+  ],
+  "steers": [],
+  "task": "Use the pilot tool to walk to the point (-8679.0, -186.0). Move only with pilot.",
+  "tier": 3
+}

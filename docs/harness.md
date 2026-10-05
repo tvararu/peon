@@ -238,6 +238,16 @@ objective names the next lap point a few yards along the circle. The loop
 describes each of eight headings by its free distance and blocker (open,
 wall, drop, or low obstacle with the height where rays first pass over it),
 and it removes any option whose heading is blocked inside two yards.
+The frame also lists up to five hostile, living creatures within 60 yd,
+closest to their aggro range first. Each line gives the observed facts
+(name, level, bearing, distance; standing, moving, in combat or attacking
+you) apart from an inferred aggro range: 20 yd minus the character's level
+above the creature's, kept between 5 and 45 yd, as AzerothCore's
+`Creature::GetAggroRange` computes it. A creature more than 3 yd above or
+below adds no danger. A move whose next two yards enter an inferred range
+(padded by a yard) is not offered, unless the character is already inside
+that range and the move takes it away from the creature. Other options and
+the line to the goal say whose range they enter and after how many yards.
 `jump_ahead` is offered while a low obstacle 0.3 to 1.4 yd tall stands 1 to
 6 yd ahead and a jump from two yards before it clears it and lands on
 walkable ground. Applying it arms the jump: the character runs on and
@@ -249,11 +259,19 @@ lease. If no new decision renews the lease, the character stops. `stop`,
 `/stop`, F1, a human takeover and death halt the character and end the run.
 A run ends `completed` when the character is within 1.5 yd of the point or
 has swept a full circle back at its start, `failed` when the character dies
-or Jev is unavailable, and `stopped` on a cancel or when the budget runs out.
+or Jev is unavailable, and `stopped` on a cancel, when the budget runs out
+or with reason `attacked` when a creature starts attacking the character;
+the report names the attacker.
 
-`pilot` refuses with `no_combat_helper` when `TYPESAFE_API_KEY` is not set,
-with `unsupported_map` when navigation does not cover the map, with `dead`
-when the character is dead and with `bad_objective` unless exactly one of
+With `PEON_PILOT_CHOOSER=greedy` in the environment, a deterministic chooser
+replaces Jev for the pilot: it picks the offered move that points closest to
+the goal, and its decisions log as model `code:greedy`. It is the non-Jev
+baseline for the pilot evals and needs no `TYPESAFE_API_KEY`.
+
+`pilot` refuses with `no_combat_helper` when `TYPESAFE_API_KEY` is not set
+and the greedy chooser is not selected, with `unsupported_map` when
+navigation does not cover the map, with `dead` when the character is dead
+and with `bad_objective` unless exactly one of
 `to` and `circle` is given. Like `engage`, it starts a run of kind `pilot`
 that stays `RUNNING` across turns. The report gives the status, the reason,
 the decisions taken, the jumps, the yards walked and the final distance.

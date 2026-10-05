@@ -56,7 +56,11 @@ export async function defaultLogin(
     navigation?.navigation.close();
     throw error;
   });
-  return createGame(handle, { jev: profile.jev, navigation });
+  return createGame(handle, {
+    jev: profile.jev,
+    navigation,
+    pilot: profile.pilot,
+  });
 }
 
 export function createConnection(init: ConnectionInit): Connection {

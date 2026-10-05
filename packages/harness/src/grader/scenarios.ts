@@ -49,7 +49,9 @@ export type CheckMeasure =
   | "pilot_circle"
   | "pilot_reach"
   | "pilot_jumps"
-  | "pilot_only_moves";
+  | "pilot_only_moves"
+  | "pilot_no_aggro"
+  | "travel_no_aggro";
 
 export type TruthPick =
   | "alive"
@@ -125,6 +127,10 @@ export type ScenarioCheck = {
   blockedBy?: string;
 };
 
+export type ScenarioEnv = {
+  PEON_PILOT_CHOOSER?: "greedy";
+};
+
 export type Scenario = {
   id: string;
   tier: number;
@@ -141,6 +147,7 @@ export type Scenario = {
   blockedBy?: string[];
   field?: string;
   spawn?: string;
+  env?: ScenarioEnv;
   checks: ScenarioCheck[];
   needsWatcher: boolean;
   navBound: boolean;
@@ -228,6 +235,12 @@ export const ROUND_1: readonly string[] = [
   "t3-pilot-detour-holdout",
   "t3-pilot-fence",
   "t3-pilot-fence-holdout",
+  "t3-pilot-camp",
+  "t3-pilot-camp-holdout",
+  "t3-pilot-camp-travel",
+  "t3-pilot-camp-holdout-travel",
+  "t3-pilot-camp-greedy",
+  "t3-pilot-camp-holdout-greedy",
 ];
 const DIR = `${import.meta.dir}/scenarios`;
 const JSON_FILE = /\.json$/;
