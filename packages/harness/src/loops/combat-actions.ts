@@ -65,6 +65,7 @@ type SpellAction = {
 const UNREACHABLE_TIMEOUT_MS = 5000;
 const KITE_REACHABLE_YD = 40;
 const KITE_CAST_MARGIN_YD = 3.66;
+const KITE_CAST_LATENCY_S = 0.4;
 
 export class CombatActions {
   private readonly deps: ActionDeps;
@@ -357,7 +358,8 @@ export class CombatActions {
       reach === undefined
     )
       return undefined;
-    return distance - speed * castS < reach + KITE_CAST_MARGIN_YD
+    const exposedS = castS + KITE_CAST_LATENCY_S;
+    return distance - speed * exposedS < reach + KITE_CAST_MARGIN_YD
       ? "target_reaches_you_first"
       : undefined;
   }

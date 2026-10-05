@@ -325,11 +325,12 @@ instruction tells Jev to open from range with a slowing spell, then keep the
 target outside its melee reach, moving away while it closes in and turning
 back to cast once it is far. While kiting, `stop` is not offered when the
 target would reach melee range within 2 s at its approach speed, the larger
-of the observed closing speed and the target's own observed ground speed.
-While kiting, a spell with a cast
+of the observed closing speed and the target's own ground speed over the
+last second. While kiting, a spell with a cast
 time that movement interrupts is unavailable as `target_reaches_you_first`
 when, at that approach speed, the target would come within 3.66 yd of
-melee range (the moving leeway plus a yard) before the cast ends. A plain
+melee range (the moving leeway plus a yard) before the cast ends, counting
+0.4 s for the cast to start. A plain
 fight stops as `target_unreachable` when no
 action can reach the target for 5 s; a kite fight does not while the target
 stays within 40 yd, because opening the gap is the point.

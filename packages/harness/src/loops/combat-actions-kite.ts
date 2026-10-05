@@ -20,6 +20,7 @@ const AURA_MOD_STUN = 12;
 const AURA_MOD_ROOT = 26;
 const AURA_MOD_DECREASE_SPEED = 33;
 const CLOSING_WINDOW_MS = 2500;
+const GROUND_WINDOW_MS = 1000;
 const CLOSING_MIN_SPAN_MS = 400;
 const CLOSING_MIN_GAP_MS = 100;
 const CLOSING_STEADY_YD_PER_S = 0.5;
@@ -97,7 +98,7 @@ export class GroundSpeedTracker {
     if (last && at - last.at < CLOSING_MIN_GAP_MS) return;
     this.samples.push({ at, x: pose.x, y: pose.y });
     this.samples = this.samples.filter(
-      (sample) => at - sample.at <= CLOSING_WINDOW_MS,
+      (sample) => at - sample.at <= GROUND_WINDOW_MS,
     );
   }
 
