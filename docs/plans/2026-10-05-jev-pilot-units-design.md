@@ -45,8 +45,10 @@ Every surface labels it so (the uncertainty rules in
 their range first. Each line keeps the observed facts (name, level, bearing
 bucket, distance, standing, moving, in combat or attacking you) apart from
 the inferred ones (the aggro range and how far outside it the character
-is). A creature more than 3 yd above or below is listed as on another level
-and adds no danger.
+is). Height above or below is listed but adds no exception: the server
+cuts aggro off at 3 yd of height (`Creature.cpp:1940-1941`), but on a
+slope the height closes as the character walks, so live rounds drew aggro
+from creatures a height cut-off had left out.
 
 ## Danger steering
 

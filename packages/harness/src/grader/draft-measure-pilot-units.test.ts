@@ -80,6 +80,19 @@ describe("pilotNoAggro", () => {
     ]);
     expect(measured.met).toBe(true);
   });
+
+  test("an attack during an earlier pilot run fails a later clean run", () => {
+    const measured = pilotNoAggro([
+      pilotStart(1000, "p1"),
+      row(2, "combat/attacked", 1100),
+      pilotEnd(3, 1200, "stopped", "p1"),
+      row(4, "pilot/started", 2000, { objective: { x: 1, y: 2 }, runId: "p2" }),
+      row(5, "pilot/decision", 2100, { runId: "p2", x: 1, y: 2 }),
+      pilotEnd(6, 2500, "completed", "p2"),
+    ]);
+    expect(measured.met).toBe(false);
+    expect(measured.line).toBe(2);
+  });
 });
 
 describe("travelNoAggro", () => {
@@ -97,6 +110,18 @@ describe("travelNoAggro", () => {
       travelStart(1000),
       row(2, "combat/attacked", 1100),
       travelEnd(3, 1300, "succeeded"),
+    ]);
+    expect(measured.met).toBe(false);
+    expect(measured.line).toBe(2);
+  });
+
+  test("an attack during an earlier travel run fails a later clean run", () => {
+    const measured = travelNoAggro([
+      travelStart(1000, "t1"),
+      row(2, "combat/attacked", 1100),
+      travelEnd(3, 1200, "failed", "t1"),
+      row(4, "run/started", 2000, { id: "t2", kind: "travel" }),
+      travelEnd(5, 2500, "succeeded", "t2"),
     ]);
     expect(measured.met).toBe(false);
     expect(measured.line).toBe(2);

@@ -18,7 +18,6 @@ export const AGGRO_LEVEL_FLOOR = -25;
 export const AGGRO_BASE_YD = 20;
 export const AGGRO_MIN_YD = 5;
 export const AGGRO_MAX_YD = 45;
-export const AGGRO_SAME_LEVEL_YD = 3;
 
 export type UnitState =
   | "attacking you"
@@ -120,13 +119,9 @@ export function buildPilotUnits(
     .slice(0, PILOT_UNIT_LIMIT);
 }
 
-export function sameLevel(unit: PilotUnit): boolean {
-  return Math.abs(unit.dz) <= AGGRO_SAME_LEVEL_YD;
-}
-
 export function aggroCircles(units: readonly PilotUnit[]): AggroCircle[] {
   return units.flatMap((unit) =>
-    unit.radiusYd === undefined || !sameLevel(unit)
+    unit.radiusYd === undefined
       ? []
       : [
           {
@@ -179,9 +174,9 @@ export function unitLine(unit: PilotUnit, pose: PilotPose): string {
   const bearing = goalBearingText(relativeDeg(unit.bearing, pose.orientation));
   const state = unit.state === undefined ? "" : `; ${unit.state} (observed)`;
   const height =
-    Math.abs(unit.dz) <= AGGRO_SAME_LEVEL_YD
+    Math.abs(unit.dz) < 3
       ? ""
-      : `; on another level, ${Math.round(Math.abs(unit.dz))} yd ${unit.dz > 0 ? "above" : "below"} you, not counted as danger`;
+      : `; ${Math.round(Math.abs(unit.dz))} yd ${unit.dz > 0 ? "above" : "below"} you`;
   return `${unit.name}, ${level}: ${Math.round(unit.distanceYd)} yd ${bearing}${state}${height}. ${rangeText(unit)}`;
 }
 

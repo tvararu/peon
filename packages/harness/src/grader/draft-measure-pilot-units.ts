@@ -27,11 +27,12 @@ type Window = {
 
 function pilotWindow(rows: readonly GameLogRow[]): Window | undefined {
   const run = pilotRun(rows);
-  if (run === undefined) return undefined;
+  const first = rows.find((row) => row.event === "pilot/started");
+  if (run === undefined || first === undefined) return undefined;
   return {
     completed: field(run.ended, "status") === "completed",
-    from: run.from,
-    line: run.started.line,
+    from: Math.min(timeOf(first), run.from),
+    line: first.line,
     reason:
       run.ended === undefined ? "no pilot/ended" : field(run.ended, "reason"),
     status: field(run.ended, "status"),
@@ -55,10 +56,13 @@ function travelWindow(rows: readonly GameLogRow[]): Window | undefined {
     );
   const succeeded =
     ended?.event === "run/ended" && field(ended, "status") === "succeeded";
+  const first = rows.find(
+    (row) => row.event === "run/started" && field(row, "kind") === "travel",
+  );
   return {
     completed: succeeded,
-    from: timeOf(started),
-    line: started.line,
+    from: timeOf(first ?? started),
+    line: (first ?? started).line,
     reason: ended === undefined ? "no run/ended" : field(ended, "reason"),
     status: field(ended, "status"),
     until: ended === undefined ? Number.POSITIVE_INFINITY : timeOf(ended),
