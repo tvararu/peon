@@ -27,16 +27,17 @@ export type UnitState =
   | "standing still";
 
 export type PilotUnit = {
-  name: string;
+  attacksFirst: boolean;
+  bearing: number;
+  distanceYd: number;
+  dz: number;
   level: number | undefined;
+  marginYd: number;
+  name: string;
+  radiusYd: number | undefined;
+  state: UnitState | undefined;
   x: number;
   y: number;
-  distanceYd: number;
-  bearing: number;
-  dz: number;
-  radiusYd: number | undefined;
-  marginYd: number;
-  state: UnitState | undefined;
 };
 
 export type AggroCircle = {
@@ -74,6 +75,7 @@ function unitOf(
   row: NearbyRow,
   pose: PilotPose,
   selfLevel: number | undefined,
+  aggro: (guid: bigint) => boolean,
 ): PilotUnit | undefined {
   const { entity, position } = row;
   if (row.self || !isUnit(entity) || entity.objectType !== ObjectType.UNIT)
@@ -83,11 +85,13 @@ function unitOf(
   const distanceYd = distance2d(position, pose);
   if (distanceYd > PILOT_UNIT_VIEW_YD) return undefined;
   const level = livingLevel(entity);
+  const attacksFirst = aggro(entity.guid);
   const radiusYd =
-    level === undefined || selfLevel === undefined
+    !attacksFirst || level === undefined || selfLevel === undefined
       ? undefined
       : aggroRadiusYd(selfLevel, level);
   return {
+    attacksFirst,
     bearing: Math.atan2(position.y - pose.y, position.x - pose.x),
     distanceYd,
     dz: position.z - pose.z,
@@ -104,11 +108,12 @@ function unitOf(
 export function buildPilotUnits(
   rows: readonly NearbyRow[],
   pose: PilotPose,
+  aggro: (guid: bigint) => boolean = () => true,
 ): PilotUnit[] {
   const selfLevel = livingLevel(rows.find((row) => row.self)?.entity);
   return rows
     .flatMap((row) => {
-      const unit = unitOf(row, pose, selfLevel);
+      const unit = unitOf(row, pose, selfLevel, aggro);
       return unit ? [unit] : [];
     })
     .sort((a, b) => a.marginYd - b.marginYd)
@@ -177,11 +182,14 @@ export function unitLine(unit: PilotUnit, pose: PilotPose): string {
     Math.abs(unit.dz) <= AGGRO_SAME_LEVEL_YD
       ? ""
       : `; on another level, ${Math.round(Math.abs(unit.dz))} yd ${unit.dz > 0 ? "above" : "below"} you, not counted as danger`;
-  const margin =
-    unit.radiusYd === undefined
-      ? "Aggro range not inferred: level unknown."
-      : `Inferred aggro range ${unit.radiusYd} yd: you are ${rangeOffset(unit)}.`;
-  return `${unit.name}, ${level}: ${Math.round(unit.distanceYd)} yd ${bearing}${state}${height}. ${margin}`;
+  return `${unit.name}, ${level}: ${Math.round(unit.distanceYd)} yd ${bearing}${state}${height}. ${rangeText(unit)}`;
+}
+
+function rangeText(unit: PilotUnit): string {
+  if (!unit.attacksFirst) return "does not attack first (game data).";
+  if (unit.radiusYd === undefined)
+    return "Aggro range not inferred: level unknown.";
+  return `Inferred aggro range ${unit.radiusYd} yd: you are ${rangeOffset(unit)}.`;
 }
 
 function rangeOffset(unit: PilotUnit): string {

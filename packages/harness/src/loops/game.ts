@@ -182,6 +182,7 @@ function createPilot(
 ): TacticsLoop<PilotContext> {
   const { control, handle } = ports;
   const frame: PilotFrameDeps = {
+    aggro: (guid) => handle.unitAggroesSelf(guid),
     control,
     ground: navigation?.ground,
     life: () => handle.getRecoveryState().life,
@@ -329,13 +330,14 @@ function travelApi(travel: Travel): Travel {
 
 function gameCapabilities(
   handle: WorldHandle,
-  { jev, navigation }: GameOptions,
+  { jev, navigation, pilot }: GameOptions,
 ): GameCapabilities {
   const mapId = handle.getControlState().pose?.mapId;
   return {
     ...handle.capabilities(),
     jev: jev !== undefined,
     navigation: navigationCovers(navigation, mapId),
+    pilot: (pilot ?? jev) !== undefined,
   };
 }
 

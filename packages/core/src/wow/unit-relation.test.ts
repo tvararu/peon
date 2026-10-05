@@ -7,6 +7,7 @@ import {
 } from "#wow/faction-template";
 import { ObjectType, UnitFlag } from "#wow/protocol/entity-fields";
 import {
+  creatureAggroesSelf,
   type ReputationRelationView,
   reputationReaction,
   targetRelation,
@@ -26,7 +27,8 @@ const GUARD_FACTION = 50;
 function template(
   id: number,
   faction: number,
-  masks: { our?: number; friendly?: number; hostile?: number },
+  masks: { friendly?: number; hostile?: number; our?: number },
+  enemies: number[] = [],
 ): number[] {
   const row = new Array<number>(14).fill(0);
   row[0] = id;
@@ -34,6 +36,9 @@ function template(
   row[3] = masks.our ?? 0;
   row[4] = masks.friendly ?? 0;
   row[5] = masks.hostile ?? 0;
+  enemies.forEach((enemy, index) => {
+    row[6 + index] = enemy;
+  });
   return row;
 }
 
@@ -46,6 +51,9 @@ beforeAll(async () => {
     template(TEMPLATES.neutral, 30, {}),
     template(TEMPLATES.friendly, 40, { friendly: PLAYER_MASK }),
     template(TEMPLATES.guard, GUARD_FACTION, { friendly: PLAYER_MASK }),
+    template(14, 14, { hostile: PLAYER_MASK }),
+    template(25, 25, {}),
+    template(38, 29, { hostile: PLAYER_MASK }, [28]),
   ]);
   const source = dbcFiles(new Map([["FactionTemplate.dbc", templates]]));
   catalog = await loadFactionTemplates(source);
@@ -94,18 +102,19 @@ describe("targetRelation", () => {
 
 function view(
   init: {
-    forced?: Record<number, number>;
-    ranks?: Record<number, number>;
     atWar?: readonly number[];
+    forced?: Record<number, number>;
+    lists?: readonly number[];
+    ranks?: Record<number, number>;
   } = {},
 ): ReputationRelationView {
   return {
     atWar: (faction) => init.atWar?.includes(faction) ?? false,
     forcedRank: (faction) => init.forced?.[faction],
+    hasReputationList: (faction) => init.lists?.includes(faction) ?? false,
     reputationRank: (faction) => init.ranks?.[faction],
   };
 }
-
 const relationWith = (
   factionTemplate: number,
   reputation: ReputationRelationView,
@@ -208,5 +217,42 @@ describe("reputationReaction", () => {
     expect(
       reputationReaction(view({ forced: { 50: 2 } }), catalog, 99),
     ).toBeUndefined();
+  });
+});
+
+describe("creatureAggroesSelf", () => {
+  test("a neutral-to-all template never starts the fight", () => {
+    expect(creatureAggroesSelf(catalog, 25, TEMPLATES.self, view())).toBe(
+      false,
+    );
+    expect(creatureAggroesSelf(catalog, 99, TEMPLATES.self, view())).toBe(
+      false,
+    );
+    expect(creatureAggroesSelf(catalog, 14, 99, view())).toBe(false);
+  });
+
+  test("templates hostile to the player start the fight", () => {
+    expect(creatureAggroesSelf(catalog, 14, TEMPLATES.self, view())).toBe(true);
+    expect(creatureAggroesSelf(catalog, 38, TEMPLATES.self, view())).toBe(true);
+    expect(
+      creatureAggroesSelf(catalog, TEMPLATES.friendly, TEMPLATES.self, view()),
+    ).toBe(false);
+  });
+
+  test("a reputation rank overrides the template masks", () => {
+    const hostile = view({ lists: [30], ranks: { 30: 0 } });
+    expect(
+      creatureAggroesSelf(catalog, TEMPLATES.neutral, TEMPLATES.self, hostile),
+    ).toBe(true);
+    const friendly = view({ lists: [30], ranks: { 30: 5 } });
+    expect(
+      creatureAggroesSelf(catalog, TEMPLATES.neutral, TEMPLATES.self, friendly),
+    ).toBe(false);
+    const listed = view({ lists: [25], ranks: { 25: 1 } });
+    expect(creatureAggroesSelf(catalog, 25, TEMPLATES.self, listed)).toBe(true);
+    const unknown = view({ lists: [25] });
+    expect(creatureAggroesSelf(catalog, 25, TEMPLATES.self, unknown)).toBe(
+      false,
+    );
   });
 });

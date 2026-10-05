@@ -183,6 +183,10 @@ export type {
   TrainerOutcome,
   TrainerRequest,
 } from "#wow/trainer";
+export {
+  creatureAggroesSelf,
+  type ReputationRelationView,
+} from "#wow/unit-relation";
 export type {
   VendorEvent,
   VendorOutcome,

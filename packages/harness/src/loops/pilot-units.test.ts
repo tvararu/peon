@@ -1,10 +1,21 @@
-import { describe, expect, test } from "bun:test";
-import type { NearbyRow } from "@peon/core";
+import { beforeAll, describe, expect, test } from "bun:test";
+import {
+  creatureAggroesSelf,
+  type NearbyRow,
+  type ReputationRelationView,
+} from "@peon/core";
+import { dbcFiles, packDbc } from "@peon/core/test-support/dbc";
+import {
+  type FactionTemplateCatalog,
+  loadFactionTemplates,
+} from "@peon/core/test-support/internals";
 import { poseOf } from "#harness/loops/pilot-geometry";
 import {
+  aggroCircles,
   aggroRadiusYd,
   buildPilotUnits,
   dangerAlong,
+  type PilotUnit,
   rayEntryYd,
   unitLine,
 } from "#harness/loops/pilot-units";
@@ -124,6 +135,108 @@ describe("pilot units", () => {
   test("ignores creatures beyond 60 yd", () => {
     const rows = [selfRow(), mob(2n, 61, 0)];
     expect(buildPilotUnits(rows, pose())).toHaveLength(0);
+  });
+});
+
+describe("aggro eligibility", () => {
+  function templateRow(
+    id: number,
+    faction: number,
+    masks: { hostile?: number; our?: number },
+    enemies: number[] = [],
+  ): number[] {
+    const row = new Array<number>(14).fill(0);
+    row[0] = id;
+    row[1] = faction;
+    row[3] = masks.our ?? 0;
+    row[5] = masks.hostile ?? 0;
+    enemies.forEach((enemy, index) => {
+      row[6 + index] = enemy;
+    });
+    return row;
+  }
+
+  let templates: FactionTemplateCatalog;
+
+  beforeAll(async () => {
+    const source = dbcFiles(
+      new Map([
+        [
+          "FactionTemplate.dbc",
+          packDbc(14, [
+            templateRow(1, 1, { our: 3 }),
+            templateRow(14, 14, { hostile: 1 }),
+            templateRow(25, 25, {}),
+            templateRow(38, 29, { hostile: 1 }, [28]),
+          ]),
+        ],
+      ]),
+    );
+    templates = await loadFactionTemplates(source);
+  });
+
+  function aggroCheck(
+    byGuid: Map<bigint, number>,
+    reputation?: ReputationRelationView,
+  ): (guid: bigint) => boolean {
+    return (guid) => {
+      const template = byGuid.get(guid);
+      if (template === undefined) return false;
+      return creatureAggroesSelf(templates, template, 1, reputation);
+    };
+  }
+
+  test("a template 25 creature stays listed with no range and no danger", () => {
+    const rows = [selfRow(), mob(2n, 20, 0, { factionTemplate: 25, level: 3 })];
+    const units = buildPilotUnits(
+      rows,
+      pose(),
+      aggroCheck(new Map([[2n, 25]])),
+    );
+    expect(units).toHaveLength(1);
+    expect(units[0]?.radiusYd).toBeUndefined();
+    expect(unitLine(units[0] as PilotUnit, pose())).toContain(
+      "does not attack first (game data)",
+    );
+    expect(aggroCircles(units)).toEqual([]);
+  });
+
+  test("templates 14 and 38 get ranges and add danger", () => {
+    const rows = [
+      selfRow(),
+      mob(2n, 20, 0, { factionTemplate: 14, level: 6 }),
+      mob(3n, 30, 0, { factionTemplate: 38, level: 6 }),
+    ];
+    const units = buildPilotUnits(
+      rows,
+      pose(),
+      aggroCheck(
+        new Map([
+          [2n, 14],
+          [3n, 38],
+        ]),
+      ),
+    );
+    expect(units).toHaveLength(2);
+    for (const unit of units) expect(unit.radiusYd).toBeDefined();
+    expect(aggroCircles(units)).toHaveLength(2);
+  });
+
+  test("a hostile reputation rank makes a listed creature aggro", () => {
+    const reputation: ReputationRelationView = {
+      atWar: () => false,
+      forcedRank: () => undefined,
+      hasReputationList: (faction) => faction === 25,
+      reputationRank: (faction) => (faction === 25 ? 1 : undefined),
+    };
+    const rows = [selfRow(), mob(2n, 20, 0, { factionTemplate: 25, level: 3 })];
+    const units = buildPilotUnits(
+      rows,
+      pose(),
+      aggroCheck(new Map([[2n, 25]]), reputation),
+    );
+    expect(units[0]?.radiusYd).toBeDefined();
+    expect(aggroCircles(units)).toHaveLength(1);
   });
 });
 

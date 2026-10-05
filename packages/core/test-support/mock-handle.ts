@@ -389,6 +389,7 @@ export function createMockHandle(): MockHandle {
       events.vendor.emit(event);
     },
     uninvite: jest.fn(),
+    unitAggroesSelf: jest.fn(() => false),
     unitRelation: jest.fn(() => "unknown" as const),
     useItem: jest.fn(async () => {}),
     walkTowardPoint: jest.fn(async () => {

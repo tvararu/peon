@@ -446,4 +446,27 @@ describe("awaitPilot", () => {
     expect(end.error).toBe("pilot_timeout");
     expect(handle.halt).toHaveBeenCalled();
   });
+
+  test("an attacked abort stops the pilot with the attack reason and halts", async () => {
+    const handle = createMockGame();
+    const controller = new AbortController();
+    handle.startPilot = jest.fn(
+      (_objective: unknown, signal?: AbortSignal) =>
+        new Promise<void>((_resolve, reject) => {
+          signal?.addEventListener("abort", () => reject(signal.reason), {
+            once: true,
+          });
+        }),
+    ) as never;
+    const waiting = awaitPilot(handle, {
+      objective: { kind: "reach", x: 10, y: 0 },
+      signal: controller.signal,
+      timeoutMs: 60_000,
+    });
+    controller.abort(new Error("attacked"));
+    const end = await waiting;
+    expect(end.error).toBe("attacked");
+    expect(handle.takeControl).toHaveBeenCalledWith("attacked");
+    expect(handle.halt).toHaveBeenCalled();
+  });
 });

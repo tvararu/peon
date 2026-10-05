@@ -9,8 +9,8 @@
       "source": "game_log"
     },
     {
-      "evidence": { "point": { "x": -8679.0, "y": -186.0 } },
-      "expect": "T final position within 3 yd of the goal past the kobold pair (-8679.0, -186.0)",
+      "evidence": { "point": { "x": -9342.1, "y": -263.1 } },
+      "expect": "T final position within 3 yd of the goal past the Defias camp (-9342.1, -263.1)",
       "id": "at-goal",
       "source": "truth"
     },
@@ -27,20 +27,20 @@
       "source": "game_log"
     }
   ],
-  "field": "pilot-vineyard-camp",
+  "field": "pilot-defias-camp",
   "id": "t3-pilot-camp-holdout",
   "navBound": true,
   "needsWatcher": false,
   "paneMinutes": 9,
   "partner": null,
-  "preset": "elwynn1",
+  "preset": "elwynn10",
   "setup": [
     {
-      "body": { "map": 0, "x": -8724.0, "y": -239.0, "z": 88.51 },
+      "body": { "map": 0, "x": -9271.7, "y": -285.9, "z": 82.25 },
       "endpoint": "position"
     }
   ],
   "steers": [],
-  "task": "Use the pilot tool to walk to the point (-8679.0, -186.0). Move only with pilot.",
+  "task": "Use the pilot tool to walk to the point (-9342.1, -263.1). Move only with pilot.",
   "tier": 3
 }

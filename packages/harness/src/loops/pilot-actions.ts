@@ -41,6 +41,7 @@ import type { TacticsFrame } from "#harness/loops/tactics";
 export const PILOT_DEADMAN_MS = 1500;
 
 export type PilotFrameDeps = {
+  aggro?: (guid: bigint) => boolean;
   control: Pick<
     ControlPort,
     "snapshot" | "face" | "drive" | "jump" | "halt" | "settle"
@@ -170,6 +171,7 @@ export class PilotActions {
         state,
       });
     return liveFrame({
+      aggro: this.deps.aggro,
       context,
       ground: this.deps.ground,
       memory: this.memory,
@@ -275,6 +277,7 @@ function outcomeFrame({
 }
 
 function liveFrame({
+  aggro,
   context,
   ground,
   memory,
@@ -283,6 +286,7 @@ function liveFrame({
   pose,
   state,
 }: FrameInput & {
+  aggro: ((guid: bigint) => boolean) | undefined;
   ground: GroundOracle | undefined;
   nearby: readonly NearbyRow[];
   pilotPose: PilotPose;
@@ -301,7 +305,7 @@ function liveFrame({
   const heading = Math.atan2(target.y - pose.y, target.x - pose.x);
   const line = cachedScan(cache, heading);
   const span = Math.hypot(target.x - pose.x, target.y - pose.y);
-  const units = buildPilotUnits(nearby, pilotPose);
+  const units = buildPilotUnits(nearby, pilotPose, aggro);
   const circles = aggroCircles(units);
   const hazard = dangerAlong(pilotPose, heading, circles, DANGER_ANNOTATE_YD);
   const candidates = buildOptions({

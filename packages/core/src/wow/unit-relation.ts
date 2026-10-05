@@ -1,7 +1,9 @@
 import { type EntityLookup, isUnit, type UnitEntity } from "#wow/entity-store";
-import type {
-  FactionRelation,
-  FactionTemplateCatalog,
+import {
+  type FactionRelation,
+  type FactionTemplate,
+  type FactionTemplateCatalog,
+  isHostileTo,
 } from "#wow/faction-template";
 import { ObjectType } from "#wow/protocol/entity-fields";
 
@@ -9,8 +11,8 @@ export type ReputationRelationView = {
   forcedRank: (factionId: number) => number | undefined;
   reputationRank: (factionId: number) => number | undefined;
   atWar: (factionId: number) => boolean;
+  hasReputationList: (factionId: number) => boolean;
 };
-
 export type RelationDeps = {
   entity: EntityLookup;
   factions: () => FactionTemplateCatalog | undefined;
@@ -50,6 +52,32 @@ function rankRelation(rank: number): FactionRelation {
   if (rank <= REP_HOSTILE) return "hostile";
   if (rank >= REP_FRIENDLY) return "friendly";
   return "neutral";
+}
+
+function isNeutralToAll(template: FactionTemplate): boolean {
+  return (
+    template.hostileMask === 0 &&
+    template.friendlyMask === 0 &&
+    template.enemyFactions.length === 0
+  );
+}
+
+export function creatureAggroesSelf(
+  factions: FactionTemplateCatalog,
+  creatureTemplate: number,
+  selfTemplate: number,
+  reputation?: ReputationRelationView,
+): boolean {
+  const creature = factions.get(creatureTemplate);
+  const self = factions.get(selfTemplate);
+  if (!(creature && self)) return false;
+  const listed = reputation?.hasReputationList(creature.faction) ?? false;
+  if (!listed && isNeutralToAll(creature)) return false;
+  if (listed && reputation) {
+    const rank = reputationReaction(reputation, factions, creatureTemplate);
+    if (rank !== undefined) return rank <= REP_HOSTILE;
+  }
+  return isHostileTo(creature, self);
 }
 
 function unitRelation(

@@ -359,6 +359,12 @@ describe("checks measure what they name", () => {
       },
     });
   });
+  test("t9-raid-mark names a creature that spawns at its start", () => {
+    const scenario = loadScenario("t9-raid-mark");
+    expect(scenario.spawn).toBe("eversong-ready");
+    expect(scenario.task).toContain("Springpaw Stalker");
+    expect(scenario.task).not.toContain("Lynx");
+  });
   test("t3-pilot-camp grades the goal, pilot-only moves and no aggro", () => {
     const measures = Object.fromEntries(
       loadScenario("t3-pilot-camp").checks.map((check) => [

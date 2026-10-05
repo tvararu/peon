@@ -93,7 +93,7 @@ function isFriendlyTo(
   );
 }
 
-function isHostileTo(
+export function isHostileTo(
   source: FactionTemplate,
   target: FactionTemplate,
 ): boolean {

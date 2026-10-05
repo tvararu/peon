@@ -1,10 +1,11 @@
 import type { WorldHandle } from "#wow/client";
 import type { ControlRuntime, WalkOutcome } from "#wow/control";
+import { isUnit } from "#wow/entity-store";
 import { bearing } from "#wow/geometry";
 import type { NavPoint } from "#wow/ground-step";
 import { type NearbySources, type NearbyUnits, queryNearby } from "#wow/nearby";
 import type { Runtimes } from "#wow/runtime";
-import { targetRelation } from "#wow/unit-relation";
+import { creatureAggroesSelf, targetRelation } from "#wow/unit-relation";
 import type { WorldConn } from "#wow/world-conn";
 
 async function walkTowardPoint(
@@ -42,6 +43,24 @@ function unitRelationOf(conn: WorldConn, rt: Runtimes) {
   };
   const self = rt.control.snapshot().selfGuid;
   return (guid: bigint) => targetRelation(deps, guid, self);
+}
+
+function unitAggroesSelfOf(conn: WorldConn, rt: Runtimes) {
+  const entity = (guid: bigint) => conn.entityStore.get(guid);
+  const reputation = rt.areas.runtimes.reputation.act.relationView();
+  const self = rt.control.snapshot().selfGuid;
+  return (guid: bigint) => {
+    const catalog = rt.factions();
+    const target = entity(guid);
+    const selfEntity = entity(self);
+    if (!(catalog && isUnit(target) && isUnit(selfEntity))) return false;
+    return creatureAggroesSelf(
+      catalog,
+      target.factionTemplate,
+      selfEntity.factionTemplate,
+      reputation,
+    );
+  };
 }
 
 function nearbySources(conn: WorldConn, rt: Runtimes): NearbySources {
@@ -124,6 +143,9 @@ export function controlMethods(conn: WorldConn, rt: Runtimes) {
     },
     unitRelation(guid) {
       return unitRelationOf(conn, rt)(guid);
+    },
+    unitAggroesSelf(guid) {
+      return unitAggroesSelfOf(conn, rt)(guid);
     },
     halt() {
       rt.recovery.clearSpiritHealer("halt");

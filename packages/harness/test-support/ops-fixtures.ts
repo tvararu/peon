@@ -22,23 +22,24 @@ import type { MockHandle, TestRuntime } from "#test-support/runtime-fixture";
 export const MAP_ID = 530;
 
 export type UnitInit = {
+  attackable?: boolean;
+  attackingMe?: boolean;
+  distance: number;
+  entry?: number;
+  factionTemplate?: number;
   guid: bigint;
+  hp?: number;
+  level?: number;
+  lootable?: boolean;
+  maxHp?: number;
   name: string;
+  player?: boolean;
+  relation?: FactionRelation;
+  roles?: NpcRole[];
+  tappedByOther?: boolean;
   x: number;
   y: number;
   z?: number;
-  distance: number;
-  entry?: number;
-  level?: number;
-  hp?: number;
-  maxHp?: number;
-  relation?: FactionRelation;
-  attackable?: boolean;
-  attackingMe?: boolean;
-  roles?: NpcRole[];
-  lootable?: boolean;
-  tappedByOther?: boolean;
-  player?: boolean;
 };
 
 function rowOf(
@@ -78,7 +79,7 @@ export function unitRow(init: UnitInit): NearbyRow {
     createComplete: true,
     displayId: 0,
     entry: init.entry ?? 1,
-    factionTemplate: 0,
+    factionTemplate: init.factionTemplate ?? 0,
     gender: 0,
     guid: init.guid,
     health: init.hp ?? 100,

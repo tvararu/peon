@@ -21,6 +21,7 @@ import {
   dangerAlong,
   hazardText,
   lineHazardText,
+  rayEntryYd,
 } from "#harness/loops/pilot-units";
 
 export const PILOT_OPTION_IDS = [
@@ -175,17 +176,18 @@ function moveOption(build: MoveBuild): PilotOption | undefined {
     circles,
     DANGER_ANNOTATE_YD,
   );
-  if (
-    hazard !== undefined &&
-    hazard.yd === 0 &&
-    !dangerEscapes(moved, pose, circles)
-  )
-    return undefined;
-  const masked = hazard !== undefined && hazard.yd < PILOT_MIN_CLEAR_YD;
-  if (masked && !dangerEscapes(moved, pose, circles)) return undefined;
+  const masked = circles.some((circle) => {
+    const entry = rayEntryYd(pose, normalizeAngle(moved), circle);
+    if (entry === undefined || entry >= PILOT_MIN_CLEAR_YD) return false;
+    if (Math.hypot(pose.x - circle.x, pose.y - circle.y) >= circle.radiusYd)
+      return true;
+    const away = Math.atan2(pose.y - circle.y, pose.x - circle.x);
+    return Math.abs(relativeDeg(normalizeAngle(moved), away)) >= 90;
+  });
+  if (masked) return undefined;
   return {
     description: optionText({ ...build, hazard, scan, turnDeg }),
-    goalDeg: goalDegAfterTurn(build.objective, pose, heading),
+    goalDeg: goalDegAfterTurn(build.objective, pose, normalizeAngle(moved)),
     heading,
     id,
     input: tooClose ? {} : OPTION_INPUTS[id],
@@ -291,19 +293,6 @@ function hazardWithinRange(
   return hazard.yd <= Math.min(DANGER_ANNOTATE_YD, scan.freeYd)
     ? hazard
     : undefined;
-}
-
-function dangerEscapes(
-  moved: number,
-  pose: PilotPose,
-  circles: readonly AggroCircle[],
-): boolean {
-  return circles.some((circle) => {
-    if (Math.hypot(pose.x - circle.x, pose.y - circle.y) >= circle.radiusYd)
-      return false;
-    const away = Math.atan2(pose.y - circle.y, pose.x - circle.x);
-    return Math.abs(relativeDeg(normalizeAngle(moved), away)) < 90;
-  });
 }
 
 function stopText(objective: PilotObjective, pose: PilotPose): string {

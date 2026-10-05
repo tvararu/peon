@@ -162,7 +162,10 @@ export async function awaitPilot(
   { objective, signal, timeoutMs }: PilotInit,
 ): Promise<PilotEnd> {
   const watch = watchPilot(handle);
-  const onAbort = () => handle.halt();
+  const onAbort = () => {
+    handle.takeControl(messageOf(signal.reason, "halt"));
+    handle.halt();
+  };
   signal.addEventListener("abort", onAbort, { once: true });
   let timer: ReturnType<typeof setTimeout> | undefined;
   const deadline = new Promise<never>((_resolve, reject) => {
@@ -179,6 +182,7 @@ export async function awaitPilot(
       outcome: watch.outcome() ?? handle.getPilotState().lastOutcome,
     };
   } catch (error) {
+    handle.takeControl(messageOf(signal.reason, messageOf(error)));
     handle.halt();
     return { error: messageOf(error), outcome: watch.outcome() };
   } finally {

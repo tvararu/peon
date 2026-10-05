@@ -200,6 +200,10 @@ export class ReputationStore {
     return this.forced.get(factionId);
   }
 
+  hasReputationList(factionId: number): boolean {
+    return this.catalog?.byFactionId(factionId)?.repListId !== undefined;
+  }
+
   factionRank(factionId: number): number | undefined {
     const repListId = this.catalog?.byFactionId(factionId)?.repListId;
     if (repListId === undefined) return undefined;

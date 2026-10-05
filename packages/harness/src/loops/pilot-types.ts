@@ -16,6 +16,6 @@ export type PilotContext = TacticsBase<PilotObjective> & {
 
 export function pilotInstruction(objective: PilotObjective): string {
   if (objective.kind === "reach")
-    return "get to the goal point: keep moving and pick the clear option that leaves the goal closest to straight ahead; go around anything in the way; stop only when the goal is reached";
-  return "run one lap of the circle by chasing the next lap point: keep moving and pick the clear option that leaves the next lap point closest to straight ahead; stop only when the lap is done";
+    return "get to the goal point: keep moving and pick the clear option that leaves the goal closest to straight ahead; the units list gives inferred aggro ranges, stay outside them by going around a range rather than through it even when the way is longer; go around anything in the way; stop only when the goal is reached";
+  return "run one lap of the circle by chasing the next lap point: keep moving and pick the clear option that leaves the next lap point closest to straight ahead; the units list gives inferred aggro ranges, stay outside them by going around a range rather than through it even when the way is longer; stop only when the lap is done";
 }

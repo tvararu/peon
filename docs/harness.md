@@ -243,10 +243,14 @@ closest to their aggro range first. Each line gives the observed facts
 (name, level, bearing, distance; standing, moving, in combat or attacking
 you) apart from an inferred aggro range: 20 yd minus the character's level
 above the creature's, kept between 5 and 45 yd, as AzerothCore's
-`Creature::GetAggroRange` computes it. A creature more than 3 yd above or
-below adds no danger. A move whose next two yards enter an inferred range
-(padded by a yard) is not offered, unless the character is already inside
-that range and the move takes it away from the creature. Other options and
+`Creature::GetAggroRange` computes it. Only a creature the game data marks
+as attacking first gets a range; any other hostile line ends with `does not
+attack first (game data)` and adds no danger. A creature more than 3 yd
+above or below adds no danger. A move whose next two yards enter an inferred
+range (padded by a yard) is not offered, unless the character is already
+inside that range and the move takes it away from the creature. The
+instruction tells Jev to stay outside the listed ranges, going around a
+range rather than through it even when the way is longer. Other options and
 the line to the goal say whose range they enter and after how many yards.
 `jump_ahead` is offered while a low obstacle 0.3 to 1.4 yd tall stands 1 to
 6 yd ahead and a jump from two yards before it clears it and lands on
