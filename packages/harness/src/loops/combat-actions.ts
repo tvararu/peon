@@ -38,9 +38,11 @@ import {
   NO_RANGED_GEAR,
 } from "#harness/loops/combat-actions-ranged";
 import {
+  areaReason,
   auraReason,
   describeSpell,
   hostileReason,
+  isCasterArea,
   manaReason,
   rangeSupport,
   requiresStanding,
@@ -315,6 +317,7 @@ export class CombatActions {
         target.health >= target.maxHealth)
     )
       return "no_observed_healing_needed";
+    if (!hostile && isCasterArea(spell)) return areaReason(spell, state);
     return hostile ? hostileReason(spell, state, this.deps.entity) : undefined;
   }
 

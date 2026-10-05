@@ -111,7 +111,7 @@ test("Auto Shot starts once, stays on beside other shots, and can be stopped", (
   expect(ids()).toContain(`spell:${AUTO_SHOT}:target`);
 });
 
-test("a caster spell with a slow aura stays unsupported", () => {
+test("a caster spell with a slow aura is offered", () => {
   const { actions, combat } = setup();
   const frostbolt = spell();
   frostbolt.effects.push({
@@ -123,8 +123,45 @@ test("a caster spell with a slow aura stays unsupported", () => {
     .spyOn(combat, "definition")
     .mockReturnValue(frostbolt);
   try {
+    const { candidates } = actions.observe(context);
+    expect(candidates.map((candidate) => candidate.id)).toContain(
+      "spell:17:target",
+    );
+  } finally {
+    definition.mockRestore();
+  }
+});
+
+test("a caster-centred root is offered only with the target inside its radius", () => {
+  const { actions, combat, motion } = setup();
+  const nova = spell();
+  nova.range = { ...must(nova.range), maxHostile: 0, minHostile: 0 };
+  nova.effects = [
+    {
+      ...must(nova.effects[0]),
+      effect: 2,
+      implicitTargetA: 22,
+      implicitTargetB: 15,
+      radius: { id: 13, max: 10, min: 10, perLevel: 0 },
+    },
+    {
+      ...must(nova.effects[0]),
+      applyAura: 26,
+      effect: 6,
+      implicitTargetA: 22,
+      implicitTargetB: 15,
+      radius: { id: 13, max: 10, min: 10, perLevel: 0 },
+    },
+  ];
+  const definition = jest.spyOn(combat, "definition").mockReturnValue(nova);
+  try {
+    const near = actions.observe(context);
+    expect(near.candidates.map((candidate) => candidate.id)).toContain(
+      "spell:17:self",
+    );
+    motion.observe(2n, { mapId: 530, orientation: 0, x: 14, y: 0, z: 0 });
     expect(actions.observe(context).observation["unavailable"]).toEqual([
-      { id: "spell:17:target", reason: "unsupported_aura:33" },
+      { id: "spell:17:self", reason: "target_outside_radius" },
     ]);
   } finally {
     definition.mockRestore();

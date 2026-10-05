@@ -15,7 +15,9 @@ import {
 
 const MOVEMENT_INTERRUPT_FLAG = 0x1;
 const AUTO_REPEAT_ATTRIBUTE_EX2 = 0x20;
-const AURAS = new Set([3, 8, 13, 22, 29, 69, 85]);
+const AURAS = new Set([3, 8, 13, 22, 26, 29, 33, 69, 85, 118]);
+const CASTER_SOURCE = 22;
+const AREA_ENEMIES = 15;
 const WEAPON_DAMAGE = 58;
 
 export function requiresStanding(spell: SpellDefinition): boolean {
@@ -94,6 +96,7 @@ function unsupportedEffect(
     !rangedAura(spell, effect.applyAura)
   )
     return `unsupported_aura:${effect.applyAura}`;
+  if (isCasterArea(spell)) return undefined;
   if (effect.implicitTargetA === 0 && effect.implicitTargetB === 0)
     return "unspecified_effect_target";
   if (
@@ -105,6 +108,33 @@ function unsupportedEffect(
     return "unsupported_implicit_target";
   if (effect.radius && effect.radius.max > 0) return "unsupported_area_effect";
   return undefined;
+}
+
+export function isCasterArea(spell: SpellDefinition): boolean {
+  const effects = spell.effects.filter((effect) => effect.effect !== 0);
+  return (
+    effects.length > 0 &&
+    effects.every(
+      (effect) =>
+        effect.implicitTargetA === CASTER_SOURCE &&
+        effect.implicitTargetB === AREA_ENEMIES &&
+        (effect.radius?.max ?? 0) > 0,
+    )
+  );
+}
+
+export function areaReason(
+  spell: SpellDefinition,
+  state: CombatState,
+): string | undefined {
+  const distance = separation(state);
+  if (distance === undefined) return "unobserved_range";
+  const radius = Math.min(
+    ...spell.effects.flatMap((effect) =>
+      effect.radius ? [effect.radius.max] : [],
+    ),
+  );
+  return distance > radius ? "target_outside_radius" : undefined;
 }
 
 function effectKind(effect: number): string {
@@ -205,7 +235,22 @@ export function describeSpell(spell: SpellDefinition, self: boolean): string {
       perLevel: effect.realPointsPerLevel,
       intervalMs: effect.amplitude,
     }));
-  return `Request ${spell.name} ${spell.rank} on ${self ? "self" : "selected creature"}; mana ${spell.power.costRaw} + ${spell.power.costPercentageOfBaseMana}% base mana; cast ${castMs}ms; duration ${spell.duration?.durationMs ?? "unknown"}ms; DBC base effects (server applies scaling/modifiers) ${JSON.stringify(effects)}`;
+  const on = isCasterArea(spell)
+    ? `enemies within ${spell.effects.find((effect) => effect.radius)?.radius?.max ?? "unknown"} yd of you`
+    : self
+      ? "self"
+      : "selected creature";
+  const control = spell.effects.flatMap((effect) =>
+    effect.effect !== 6
+      ? []
+      : effect.applyAura === 26
+        ? ["roots them in place"]
+        : effect.applyAura === 33
+          ? ["slows their movement"]
+          : [],
+  );
+  const controlText = control.length > 0 ? `; ${control.join(", ")}` : "";
+  return `Request ${spell.name} ${spell.rank} on ${on}${controlText}; mana ${spell.power.costRaw} + ${spell.power.costPercentageOfBaseMana}% base mana; cast ${castMs}ms; duration ${spell.duration?.durationMs ?? "unknown"}ms; DBC base effects (server applies scaling/modifiers) ${JSON.stringify(effects)}`;
 }
 
 export function rangeSupport(

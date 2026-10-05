@@ -1,7 +1,7 @@
 import { DEFAULT_FIGHT_INSTRUCTION } from "#harness/loops/tactics";
 
 export const KITE_FIGHT_INSTRUCTION =
-  "kite the target: keep it outside its melee reach by slowing or rooting it and moving away, and cast when it cannot reach you";
+  "kite the target: open from range with a spell that slows it, then keep it outside its melee reach by moving away, rooting or slowing it again, and cast when it cannot reach you; do not move away before it has been pulled";
 
 export function fightInstruction(
   how: string | undefined,
