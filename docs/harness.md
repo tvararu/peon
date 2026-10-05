@@ -323,7 +323,9 @@ radius; otherwise such a spell is unavailable as `target_outside_radius`.
 Their option text names the slow or the root. With `kite: true` the
 instruction tells Jev to open from range with a slowing spell, then keep the
 target outside its melee reach, moving away while it closes in and turning
-back to cast once it is far. While kiting, `stop` is not offered when the
+back to cast once it is far. While kiting, `face_target` stops the
+character before it turns, so a held run does not carry it back toward the
+target. While kiting, `stop` is not offered when the
 target would reach melee range within 2 s at its approach speed, the larger
 of the observed closing speed and the target's own ground speed over the
 last second. While kiting, a spell with a cast

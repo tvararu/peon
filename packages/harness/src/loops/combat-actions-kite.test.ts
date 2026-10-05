@@ -119,6 +119,17 @@ test("while kiting, a fast target holds casts even when the gap is not shrinking
   }
 });
 
+test("while kiting, facing the target stops the run so it does not run back in", () => {
+  const fixture = withReaches();
+  const kite = { ...context, instruction: fightInstruction(undefined, true) };
+  fixture.actions.observe(kite);
+  fixture.actions.execute("turn_around", kite);
+  expect(fixture.control.snapshot().moving).toBe(true);
+  fixture.actions.observe(kite);
+  fixture.actions.execute("face_target", kite);
+  expect(fixture.control.snapshot().moving).toBe(false);
+});
+
 test("a slowed target is reported from its aura", () => {
   const { actions, combat, combatStore } = withReaches();
   const definition = jest

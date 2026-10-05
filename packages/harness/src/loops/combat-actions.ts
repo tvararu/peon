@@ -192,6 +192,7 @@ export class CombatActions {
       const from = state.self.pose;
       const to = state.target?.pose;
       if (!(from && to)) throw new Error("face_target_pose_unobserved");
+      if (isKiteInstruction(context.instruction)) this.deps.control.halt();
       this.deps.control.face(bearing(from, to));
       return;
     }
