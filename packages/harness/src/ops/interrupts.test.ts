@@ -72,6 +72,27 @@ describe("watchInterrupts", () => {
     watch.dispose();
   });
 
+  test("an ignored attacker lets the run go on, another one stops it", async () => {
+    const { ctx, handle } = await setup();
+    const watch = watchInterrupts(ctx, {
+      ...ALL,
+      ignoreAttacker: (guid) => guid === 0x60n,
+    });
+    handle.triggerCombatEvent({
+      attacker: 0x60n,
+      state: handle.getCombatState(),
+      type: "attacked",
+    });
+    expect(watch.signal.aborted).toBe(false);
+    handle.triggerCombatEvent({
+      attacker: 0x70n,
+      state: handle.getCombatState(),
+      type: "attacked",
+    });
+    expect(watch.cause()?.attacker).toBe(0x70n);
+    watch.dispose();
+  });
+
   test("rooted aborts", async () => {
     const { ctx, handle } = await setup();
     const watch = watchInterrupts(ctx, ALL);

@@ -5,6 +5,7 @@ import {
   ObjectType,
   UnitFlag,
 } from "@peon/core";
+import { grayLevel } from "#harness/loops/combat-actions-credit";
 import {
   goalBearingText,
   type PilotPose,
@@ -30,6 +31,7 @@ export type PilotUnit = {
   bearing: number;
   distanceYd: number;
   dz: number;
+  gray: boolean;
   level: number | undefined;
   marginYd: number;
   name: string;
@@ -84,9 +86,13 @@ function unitOf(
   const distanceYd = distance2d(position, pose);
   if (distanceYd > PILOT_UNIT_VIEW_YD) return undefined;
   const level = livingLevel(entity);
+  const gray =
+    level !== undefined &&
+    selfLevel !== undefined &&
+    level <= grayLevel(selfLevel);
   const attacksFirst = aggro(entity.guid);
   const radiusYd =
-    !attacksFirst || level === undefined || selfLevel === undefined
+    !attacksFirst || gray || level === undefined || selfLevel === undefined
       ? undefined
       : aggroRadiusYd(selfLevel, level);
   return {
@@ -94,6 +100,7 @@ function unitOf(
     bearing: Math.atan2(position.y - pose.y, position.x - pose.x),
     distanceYd,
     dz: position.z - pose.z,
+    gray,
     level,
     marginYd: distanceYd - (radiusYd ?? 0),
     name: entity.name ?? "an unknown unit",
@@ -182,6 +189,8 @@ export function unitLine(unit: PilotUnit, pose: PilotPose): string {
 
 function rangeText(unit: PilotUnit): string {
   if (!unit.attacksFirst) return "does not attack first (game data).";
+  if (unit.gray)
+    return "Gray to you (game rules): harmless, so not counted as danger.";
   if (unit.radiusYd === undefined)
     return "Aggro range not inferred: level unknown.";
   return `Inferred aggro range ${unit.radiusYd} yd: you are ${rangeOffset(unit)}.`;

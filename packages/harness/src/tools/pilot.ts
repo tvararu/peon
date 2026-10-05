@@ -1,3 +1,4 @@
+import { isUnit } from "@peon/core";
 import { messageOf } from "@peon/core/lib/errors";
 import type {
   PilotAfter,
@@ -6,10 +7,11 @@ import type {
 } from "#harness/contract/details";
 import type { RunControl, RunEnd } from "#harness/contract/runs";
 import type { OpsCtx, ToolCtx, ViewCtx } from "#harness/contract/services";
+import { grayLevel } from "#harness/loops/combat-actions-credit";
 import type { PilotObjective } from "#harness/loops/pilot-types";
 import { type InterruptWatch, watchInterrupts } from "#harness/ops/danger";
 import { Refusal } from "#harness/ops/refusal";
-import { manaText, poseView, vitalsView } from "#harness/ops/views";
+import { manaText, poseView, selfView, vitalsView } from "#harness/ops/views";
 import { awaitPilot } from "#harness/runs/adapters";
 import { awaitRun } from "#harness/runs/wait";
 import { defineGameTool, result } from "#harness/tools/define";
@@ -211,7 +213,12 @@ function launchCtx(init: LaunchInit): LaunchCtx {
   const { ctx, objective, control } = init;
   const watch = watchInterrupts(
     { ...ctx, progress: control.progress, signal: control.signal },
-    { death: true, newAttacker: true, rooted: true },
+    {
+      death: true,
+      ignoreAttacker: (guid) => grayTo(ctx, guid),
+      newAttacker: true,
+      rooted: true,
+    },
   );
   const ops: OpsCtx = {
     ...ctx,
@@ -220,6 +227,11 @@ function launchCtx(init: LaunchInit): LaunchCtx {
   };
   const tally = steerTally(ops);
   return { ...init, ops, read: afterOf(ops, objective, tally), tally, watch };
+}
+
+function grayTo(ctx: ViewCtx, guid: bigint): boolean {
+  const unit = ctx.handle.getEntity(guid);
+  return isUnit(unit) && unit.level <= grayLevel(selfView(ctx).level);
 }
 
 function launchProgress(env: LaunchCtx): (after: PilotAfter) => void {

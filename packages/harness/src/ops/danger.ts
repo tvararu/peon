@@ -123,6 +123,7 @@ export type InterruptRules = {
   newAttacker: boolean;
   rooted: boolean;
   death: boolean;
+  ignoreAttacker?: (guid: bigint) => boolean;
 };
 export type InterruptCause = {
   code: "attacked" | "rooted" | "died" | "breath";
@@ -195,7 +196,7 @@ function noteAttacker(
 ): void {
   if (guid === undefined || known.has(guid)) return;
   known.add(guid);
-  if (rules.newAttacker)
+  if (rules.newAttacker && rules.ignoreAttacker?.(guid) !== true)
     fire({
       attacker: guid,
       code: "attacked",

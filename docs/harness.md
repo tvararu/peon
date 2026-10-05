@@ -245,7 +245,9 @@ you) apart from an inferred aggro range: 20 yd minus the character's level
 above the creature's, kept between 5 and 45 yd, as AzerothCore's
 `Creature::GetAggroRange` computes it. Only a creature the game data marks
 as attacking first gets a range; any other hostile line ends with `does not
-attack first (game data)` and adds no danger. Height above or below is
+attack first (game data)` and adds no danger. A creature gray to the
+character (the game's gray-level rule) gets no range either, and its attack
+does not end the run. Height above or below is
 listed but never removes the danger. A move whose next
 two yards enter an inferred range (padded by a yard) is not offered,
 unless the character is already inside that range and the move takes it

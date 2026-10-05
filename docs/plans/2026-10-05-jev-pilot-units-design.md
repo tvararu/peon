@@ -50,6 +50,12 @@ cuts aggro off at 3 yd of height (`Creature.cpp:1940-1941`), but on a
 slope the height closes as the character walks, so live rounds drew aggro
 from creatures a height cut-off had left out.
 
+A creature gray to the character (`Acore::XP::GetGrayLevel`,
+`src/server/game/Miscellaneous/Formulas.h:46-61`) still aggroes, but it
+cannot hurt the character, so it gets no range and its attack does not end
+the pilot run. Avoiding it pushed held-out circle laps off their ring for a
+level 80 character.
+
 ## Danger steering
 
 For each move option, code finds the distance along its heading after which

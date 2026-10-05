@@ -39,7 +39,7 @@ function mob(
   return unitRow({
     distance: Math.hypot(x, y),
     guid,
-    level: 2,
+    level: 8,
     name: "Kobold Vermin",
     x,
     y,
@@ -136,6 +136,15 @@ describe("pilot units", () => {
     const rows = [selfRow(), mob(2n, 61, 0)];
     expect(buildPilotUnits(rows, pose())).toHaveLength(0);
   });
+
+  test("a gray creature is listed with no range and adds no danger", () => {
+    const rows = [selfRow(), mob(2n, 12, 0, { level: 4 })];
+    const units = buildPilotUnits(rows, pose());
+    expect(units).toHaveLength(1);
+    expect(units[0]?.gray).toBe(true);
+    expect(units[0]?.radiusYd).toBeUndefined();
+    expect(aggroCircles(units)).toHaveLength(0);
+  });
 });
 
 describe("aggro eligibility", () => {
@@ -229,7 +238,7 @@ describe("aggro eligibility", () => {
       hasReputationList: (faction) => faction === 25,
       reputationRank: (faction) => (faction === 25 ? 1 : undefined),
     };
-    const rows = [selfRow(), mob(2n, 20, 0, { factionTemplate: 25, level: 3 })];
+    const rows = [selfRow(), mob(2n, 20, 0, { factionTemplate: 25, level: 6 })];
     const units = buildPilotUnits(
       rows,
       pose(),
@@ -286,7 +295,7 @@ describe("unit line", () => {
     expect(unit).toBeDefined();
     if (!unit) return;
     const line = unitLine({ ...unit, state: "standing still" }, pose());
-    expect(line).toContain("Kobold Vermin, level 2");
+    expect(line).toContain("Kobold Vermin, level 8");
     expect(line).toContain("(observed)");
     expect(line).toContain("Inferred aggro range");
   });
