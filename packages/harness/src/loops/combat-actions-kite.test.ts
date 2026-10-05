@@ -139,6 +139,25 @@ test("a kited target just beyond spell range stays reachable; a plain fight give
   }
 });
 
+test("while kiting, standing still is not offered when the target would reach you within 2 s", () => {
+  let now = 1000;
+  const fixture = setup(() => now);
+  fixture.store.update(1n, { combatReach: 1.5 });
+  fixture.store.update(2n, { combatReach: 1.5 });
+  const kite = { ...context, instruction: fightInstruction(undefined, true) };
+  const ids = (frame: { candidates: readonly { id: string }[] }) =>
+    frame.candidates.map((candidate) => candidate.id);
+  fixture.actions.observe(kite);
+  now += 1000;
+  fixture.motion.observe(2n, { mapId: 530, orientation: 0, x: 7, y: 0, z: 0 });
+  fixture.actions.observe(kite);
+  now += 100;
+  const kiting = fixture.actions.observe(kite);
+  expect(ids(kiting)).not.toContain("stop");
+  expect(ids(kiting)).toContain("turn_around");
+  expect(ids(fixture.actions.observe(context))).toContain("stop");
+});
+
 test("each move says where the target would be and whether it ends outside its reach", () => {
   const { actions } = withReaches();
   const frame = actions.observe(context);

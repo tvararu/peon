@@ -29,6 +29,8 @@ import {
 } from "#harness/loops/pilot-units";
 import type { ControlPort } from "#harness/loops/ports";
 
+const KITE_STAND_HORIZON_S = 2;
+
 export type MoveDeps = {
   control: ControlPort;
   entity: EntityLookup;
@@ -66,6 +68,7 @@ export class CombatMoves {
     state: CombatState,
     targetGuid: bigint,
     offerMoves: boolean,
+    kite = false,
   ): MoveFrame {
     const { control, entity } = this.deps;
     const distance = separation(state);
@@ -114,11 +117,18 @@ export class CombatMoves {
       objective: { kind: "reach", x: target.x, y: target.y },
       pose: pilotPose,
     });
+    const closing = this.closing.speedYdPerS();
+    const standingIsDanger =
+      kite &&
+      distance !== undefined &&
+      reachYd !== undefined &&
+      closing !== undefined &&
+      closing > 0 &&
+      distance - reachYd < closing * KITE_STAND_HORIZON_S;
     return {
-      candidates: this.options.map(({ id, description }) => ({
-        description,
-        id,
-      })),
+      candidates: this.options
+        .filter((option) => !(standingIsDanger && option.id === "stop"))
+        .map(({ id, description }) => ({ description, id })),
       facts,
     };
   }

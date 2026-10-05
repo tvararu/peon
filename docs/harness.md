@@ -322,11 +322,12 @@ enemy area, such as Frost Nova) while the target stands inside their
 radius; otherwise such a spell is unavailable as `target_outside_radius`.
 Their option text names the slow or the root. With `kite: true` the
 instruction tells Jev to open from range with a slowing spell, then keep the
-target outside its melee reach but inside its spell range, moving away only
-while the target closes in. While kiting, a spell with a cast
+target outside its melee reach, moving away while it closes in and turning
+back to cast once it is far. While kiting, `stop` is not offered when the
+closing target would reach melee range within 2 s. While kiting, a spell with a cast
 time that movement interrupts is unavailable as `target_reaches_you_first`
-when, at the target's observed closing speed, it would reach melee range
-before the cast ends. A plain fight stops as `target_unreachable` when no
+when, at the target's observed closing speed, it would come within 2 yd of
+melee range before the cast ends. A plain fight stops as `target_unreachable` when no
 action can reach the target for 5 s; a kite fight does not while the target
 stays within 40 yd, because opening the gap is the point.
 

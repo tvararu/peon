@@ -64,6 +64,7 @@ type SpellAction = {
 };
 const UNREACHABLE_TIMEOUT_MS = 5000;
 const KITE_REACHABLE_YD = 40;
+const KITE_CAST_MARGIN_YD = 2;
 
 export class CombatActions {
   private readonly deps: ActionDeps;
@@ -117,6 +118,7 @@ export class CombatActions {
       state,
       context.targetGuid,
       !outcome && this.deps.control.snapshot().movementAllowed,
+      isKiteInstruction(context.instruction),
     );
     const candidates: JevCandidate[] = [WAIT_CANDIDATE];
     if (channel && !outcome)
@@ -355,7 +357,7 @@ export class CombatActions {
       reach === undefined
     )
       return undefined;
-    return distance - speed * castS < reach
+    return distance - speed * castS < reach + KITE_CAST_MARGIN_YD
       ? "target_reaches_you_first"
       : undefined;
   }
