@@ -15,6 +15,14 @@ import {
   scanHeading,
 } from "#harness/loops/pilot-geometry";
 import type { PilotObjective } from "#harness/loops/pilot-types";
+import {
+  type AggroCircle,
+  type DangerHit,
+  dangerAlong,
+  hazardText,
+  lineHazardText,
+  rayEntryYd,
+} from "#harness/loops/pilot-units";
 
 export const PILOT_OPTION_IDS = [
   "run_ahead",
@@ -36,6 +44,7 @@ export type PilotOption = JevCandidate & {
   heading: number;
   input: MovementInput | undefined;
   turnDeg: number;
+  goalDeg: number;
 };
 
 const OPTION_TURNS: Record<Exclude<PilotOptionId, "stop">, number> = {
@@ -98,6 +107,7 @@ export type OptionBuild = {
   objective: PilotObjective;
   pose: PilotPose;
   cache?: ScanCache;
+  circles?: readonly AggroCircle[];
 };
 
 export function buildOptions({
@@ -105,6 +115,7 @@ export function buildOptions({
   objective,
   pose,
   cache,
+  circles = [],
 }: OptionBuild): PilotOption[] {
   if (pose.airborne) return [];
   const scans = cache ?? scanCache(ground, pose);
@@ -115,13 +126,22 @@ export function buildOptions({
       return [
         {
           description: stopText(objective, pose),
+          goalDeg: goalDegAfterTurn(objective, pose, pose.orientation),
           heading: pose.orientation,
           id,
           input: undefined,
           turnDeg: 0,
         },
       ];
-    const option = moveOption({ ahead, canJump, id, objective, pose, scans });
+    const option = moveOption({
+      ahead,
+      canJump,
+      circles,
+      id,
+      objective,
+      pose,
+      scans,
+    });
     return option ? [option] : [];
   });
 }
@@ -130,26 +150,44 @@ type MoveBuild = {
   id: Exclude<PilotOptionId, "stop">;
   ahead: PilotScan;
   canJump: boolean;
+  circles: readonly AggroCircle[];
   objective: PilotObjective;
   pose: PilotPose;
   scans: ScanCache;
 };
 
 function moveOption(build: MoveBuild): PilotOption | undefined {
-  const { ahead, canJump, id, pose, scans } = build;
+  const { ahead, canJump, circles, id, pose, scans } = build;
   if (id === "jump_ahead" && !canJump) return undefined;
   const turnDeg = OPTION_TURNS[id];
   const heading = normalizeAngle(pose.orientation + (turnDeg * Math.PI) / 180);
   const motion = OPTION_MOTION[id];
+  const moved = heading + ((motion ?? 0) * Math.PI) / 180;
   const scan =
     id === "run_ahead" || id === "jump_ahead"
       ? ahead
-      : cachedScan(scans, heading + ((motion ?? 0) * Math.PI) / 180);
+      : cachedScan(scans, moved);
   const tooClose = id !== "jump_ahead" && scan.freeYd < PILOT_MIN_CLEAR_YD;
   if (tooClose && !(motion === undefined && jumpableTop(scan.blocker)))
     return undefined;
+  const hazard = dangerAlong(
+    pose,
+    normalizeAngle(moved),
+    circles,
+    DANGER_ANNOTATE_YD,
+  );
+  const masked = circles.some((circle) => {
+    const entry = rayEntryYd(pose, normalizeAngle(moved), circle);
+    if (entry === undefined || entry >= PILOT_MIN_CLEAR_YD) return false;
+    if (Math.hypot(pose.x - circle.x, pose.y - circle.y) >= circle.radiusYd)
+      return true;
+    const away = Math.atan2(pose.y - circle.y, pose.x - circle.x);
+    return Math.abs(relativeDeg(normalizeAngle(moved), away)) >= 90;
+  });
+  if (masked) return undefined;
   return {
-    description: optionText({ ...build, scan, turnDeg }),
+    description: optionText({ ...build, hazard, scan, turnDeg }),
+    goalDeg: goalDegAfterTurn(build.objective, pose, normalizeAngle(moved)),
     heading,
     id,
     input: tooClose ? {} : OPTION_INPUTS[id],
@@ -175,13 +213,29 @@ export function blockerText(scan: PilotScan): string {
   return `a low obstacle ${blocker.topYd.toFixed(1)} yd high`;
 }
 
-export function lineText(line: PilotScan, spanYd: number): string {
+export function lineText(
+  line: PilotScan,
+  spanYd: number,
+  hazard?: DangerHit,
+): string {
   if (line.freeYd >= Math.min(spanYd, PILOT_RANGE_YD) - PILOT_STEP_YD)
-    return "the straight line to it is clear";
+    return hazard === undefined
+      ? "the straight line to it is clear"
+      : `the straight line to it is clear of obstacles${lineHazardText(hazard)}`;
   const what = `${blockerText(line)} ${line.freeYd} yd away`;
   if (jumpableTop(line.blocker))
-    return `the straight line to it crosses ${what}, low enough to jump`;
-  return `the straight line to it is blocked by ${what}; go around it`;
+    return joinLine(
+      `the straight line to it crosses ${what}, low enough to jump`,
+      hazard,
+    );
+  return joinLine(
+    `the straight line to it is blocked by ${what}; go around it`,
+    hazard,
+  );
+}
+
+function joinLine(base: string, hazard: DangerHit | undefined): string {
+  return `${base}${lineHazardText(hazard)}`;
 }
 
 type OptionTextInput = {
@@ -192,11 +246,13 @@ type OptionTextInput = {
   ahead: PilotScan;
   canJump: boolean;
   turnDeg: number;
+  hazard: DangerHit | undefined;
 };
 
 function optionText({
   ahead,
   canJump,
+  hazard,
   id,
   objective,
   pose,
@@ -217,13 +273,26 @@ function optionText({
   };
   const after = normalizeAngle(pose.orientation + (turnDeg * Math.PI) / 180);
   const goal = goalAfterTurn(objective, pose, after);
+  const danger = hazardText(hazardWithinRange(hazard, scan));
   if (id === "jump_ahead")
-    return `Run at ${blockerText(scan)} ${scan.freeYd} yd ahead and jump it as you reach it; ${goal}.`;
+    return `Run at ${blockerText(scan)} ${scan.freeYd} yd ahead and jump it as you reach it; ${goal}${danger}.`;
   if (scan.freeYd < PILOT_MIN_CLEAR_YD)
-    return `${actions[id]}: faces ${blockerText(scan)} ${scan.freeYd} yd away, too close to jump; back up first for a run-up; ${goal}.`;
+    return `${actions[id]}: faces ${blockerText(scan)} ${scan.freeYd} yd away, too close to jump; back up first for a run-up; ${goal}${danger}.`;
   if (id === "back_up" && !canJump && jumpableTop(ahead.blocker))
-    return `Back up: clear for ${scan.freeYd} yd; gains run-up to jump ${blockerText(ahead)} ahead; ${goal}.`;
-  return `${actions[id]}: clear for ${scan.freeYd} yd; ${goal}.`;
+    return `Back up: clear for ${scan.freeYd} yd; gains run-up to jump ${blockerText(ahead)} ahead; ${goal}${danger}.`;
+  return `${actions[id]}: clear for ${scan.freeYd} yd; ${goal}${danger}.`;
+}
+
+export const DANGER_ANNOTATE_YD = 10;
+
+function hazardWithinRange(
+  hazard: DangerHit | undefined,
+  scan: PilotScan,
+): DangerHit | undefined {
+  if (hazard === undefined) return undefined;
+  return hazard.yd <= Math.min(DANGER_ANNOTATE_YD, scan.freeYd)
+    ? hazard
+    : undefined;
 }
 
 function stopText(objective: PilotObjective, pose: PilotPose): string {
@@ -243,4 +312,16 @@ function goalAfterTurn(
   const next = lapPoint(objective, pose);
   const bearing = Math.atan2(next.y - pose.y, next.x - pose.x);
   return `the next lap point would be ${goalBearingText(relativeDeg(bearing, facing))}`;
+}
+
+export function goalDegAfterTurn(
+  objective: PilotObjective,
+  pose: PilotPose,
+  facing: number,
+): number {
+  const target =
+    objective.kind === "reach" ? objective : lapPoint(objective, pose);
+  return Math.abs(
+    relativeDeg(Math.atan2(target.y - pose.y, target.x - pose.x), facing),
+  );
 }

@@ -253,6 +253,7 @@ export type CoreHandle = {
   descend: () => void;
   observedPosition: (guid: bigint) => NavPoint;
   unitRelation: (guid: bigint) => FactionRelation;
+  unitAggroesSelf: (guid: bigint) => boolean;
   halt: () => void;
   onControlEvent: (cb: (event: ControlEvent) => void) => Unsubscribe;
   getRemotePoses: () => RemotePose[];

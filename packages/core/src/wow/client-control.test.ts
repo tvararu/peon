@@ -51,6 +51,7 @@ function nearbyRow(reputation: ReputationRelationView) {
 const noReputation: ReputationRelationView = {
   atWar: () => false,
   forcedRank: () => undefined,
+  hasReputationList: () => false,
   reputationRank: () => undefined,
 };
 

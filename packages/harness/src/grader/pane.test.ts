@@ -34,6 +34,16 @@ describe("harnessCommand", () => {
     );
   });
 
+  test("prefixes the greedy chooser env when the scenario pins it", () => {
+    expect(
+      harnessCommand({
+        env: { PEON_PILOT_CHOOSER: "greedy" },
+        profile: "/wt/run",
+        runDir: "/wt/run",
+      }).startsWith("PEON_PILOT_CHOOSER=greedy exec "),
+    ).toBe(true);
+  });
+
   test("quotes a path with a space or a quote", () => {
     expect(shellQuote("/a b/it's")).toBe("'/a b/it'\\''s'");
     expect(shellQuote("/plain/path-1.json")).toBe("/plain/path-1.json");

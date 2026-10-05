@@ -1,0 +1,34 @@
+{
+  "botRisk": "low",
+  "budget": { "minutes": 6, "tools": 30, "turns": 12 },
+  "checks": [
+    {
+      "evidence": { "point": { "x": -9342.1, "y": -263.1 } },
+      "expect": "T final position within 3 yd of the goal past the Defias camp (-9342.1, -263.1)",
+      "id": "at-goal",
+      "source": "truth"
+    },
+    {
+      "expect": "GL travel run succeeded with no control/server_correction, combat/attacked, threat/engaged, threat/aggro_switch or attacker-listing snapshot/world row",
+      "id": "no-aggro",
+      "measure": "travel_no_aggro",
+      "source": "game_log"
+    }
+  ],
+  "field": "pilot-defias-camp-travel",
+  "id": "t3-pilot-camp-holdout-travel",
+  "navBound": true,
+  "needsWatcher": false,
+  "paneMinutes": 9,
+  "partner": null,
+  "preset": "elwynn10",
+  "setup": [
+    {
+      "body": { "map": 0, "x": -9271.7, "y": -285.9, "z": 82.25 },
+      "endpoint": "position"
+    }
+  ],
+  "steers": [],
+  "task": "Use the travel tool to walk to the point (-9342.1, -263.1). Move only with travel.",
+  "tier": 3
+}

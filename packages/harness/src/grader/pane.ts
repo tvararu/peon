@@ -1,4 +1,5 @@
 import { type Exec, isRecord, parseJsonOutput } from "#harness/grader/exec";
+import type { ScenarioEnv } from "#harness/grader/scenarios";
 
 export const HARNESS_LAUNCH = "bun packages/harness/src/entry.ts";
 export const QUIT_CONFIRM_MS = 35_000;
@@ -38,11 +39,15 @@ export function shellQuote(word: string): string {
 export function harnessCommand({
   profile,
   runDir,
+  env,
 }: {
   profile: string;
   runDir: string;
+  env?: ScenarioEnv;
 }): string {
-  return `exec ${HARNESS_LAUNCH} --profile ${shellQuote(profile)} --run-dir ${shellQuote(runDir)} --glyphs nerd --packet-trace headers`;
+  const prefix =
+    env?.PEON_PILOT_CHOOSER === "greedy" ? "PEON_PILOT_CHOOSER=greedy " : "";
+  return `${prefix}exec ${HARNESS_LAUNCH} --profile ${shellQuote(profile)} --run-dir ${shellQuote(runDir)} --glyphs nerd --packet-trace headers`;
 }
 
 async function orca(

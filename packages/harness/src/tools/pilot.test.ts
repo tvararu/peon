@@ -31,6 +31,23 @@ describe("pilot refusals", () => {
     expect(t.rt.runs.active()).toBeUndefined();
   });
 
+  test("a pilot port is ready without a Jev key", async () => {
+    const t = await ready();
+    t.handle.capabilities = () => ({
+      factions: true,
+      jev: false,
+      navigation: true,
+      pilot: true,
+      spells: true,
+    });
+    t.handle.startPilot = (async () => {}) as never;
+    const res = await pilotSpec.run(
+      { minutes: 0, to: { x: 10, y: 0 } },
+      toolCtx<PilotAfter>(t),
+    );
+    expect(res.reason).not.toBe("no_combat_helper");
+    expect(t.rt.runs.active() ?? res.runId).toBeDefined();
+  });
   test("a map without navigation refuses unsupported_map", async () => {
     const t = await ready();
     t.handle.capabilities = () => ({

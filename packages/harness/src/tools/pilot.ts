@@ -1,25 +1,34 @@
+import { isUnit } from "@peon/core";
 import { messageOf } from "@peon/core/lib/errors";
 import type {
   PilotAfter,
   PilotDecisionView,
   PilotGoalView,
 } from "#harness/contract/details";
-import type { ToolResult } from "#harness/contract/result";
-import type { RunControl, RunEnd, RunStatus } from "#harness/contract/runs";
+import type { RunControl, RunEnd } from "#harness/contract/runs";
 import type { OpsCtx, ToolCtx, ViewCtx } from "#harness/contract/services";
+import { grayLevel } from "#harness/loops/combat-actions-credit";
 import type { PilotObjective } from "#harness/loops/pilot-types";
 import { type InterruptWatch, watchInterrupts } from "#harness/ops/danger";
 import { Refusal } from "#harness/ops/refusal";
-import { manaText, poseView, vitalsView } from "#harness/ops/views";
+import { manaText, poseView, selfView, vitalsView } from "#harness/ops/views";
 import { awaitPilot } from "#harness/runs/adapters";
 import { awaitRun } from "#harness/runs/wait";
 import { defineGameTool, result } from "#harness/tools/define";
 import type { GameToolSpec } from "#harness/tools/game-tool";
 import { askHuman, nextCall } from "#harness/tools/next-call";
 import { type PilotArgs, pilotParams } from "#harness/tools/params-pilot";
+import {
+  goalText,
+  interruptReport,
+  outcomeReport,
+  type Report,
+  refusalReport,
+  runEnd,
+  stopReport,
+} from "#harness/tools/pilot-report";
 import { pilotRenderers } from "#harness/ui/renderers/live-run";
 
-type Report = ToolResult<PilotAfter>;
 type Latest = { after: PilotAfter };
 
 const HUMAN_WROTE = "The human wrote a message. Read it before you act.";
@@ -45,11 +54,6 @@ function goalView(objective: PilotObjective): PilotGoalView {
     x: objective.x,
     y: objective.y,
   };
-}
-
-function goalText(objective: PilotObjective): string {
-  if (objective.kind === "reach") return `(${objective.x}, ${objective.y})`;
-  return `circle (${objective.x}, ${objective.y}) r${objective.radius} ${objective.direction}`;
 }
 
 function pilotRunArgs(objective: PilotObjective): Record<string, unknown> {
@@ -110,7 +114,7 @@ export function pilotObjective(args: PilotArgs): PilotObjective {
 
 function checkReady(ctx: ToolCtx<PilotAfter>): void {
   const capabilities = ctx.handle.capabilities();
-  if (!capabilities.jev)
+  if (!(capabilities.jev || (capabilities.pilot ?? false)))
     throw new Refusal({
       detail: "TYPESAFE_API_KEY is not set.",
       next: "ask the human to set it.",
@@ -188,121 +192,6 @@ function afterOf(
   };
 }
 
-function stopReport(signal: AbortSignal, after: PilotAfter): Report {
-  const code = messageOf(signal.reason, "cancelled");
-  if (code === "human_stop" || code === "esc")
-    return result("FAILED", {
-      after,
-      detail: "the human stopped you. Start nothing new.",
-      next: "end your turn and wait for the human.",
-      reason: "cancelled",
-    });
-  if (code === "connection_lost")
-    return result("FAILED", {
-      after,
-      detail: "the game connection was lost.",
-      next: "ask the human to run /connect.",
-      reason: "interrupted",
-    });
-  return result("FAILED", {
-    after,
-    detail: `the pilot run was stopped (${code}).`,
-    next: nextCall("look"),
-    reason: "cancelled",
-  });
-}
-
-function runStatus(
-  report: Report,
-  stop: string | undefined,
-): Exclude<RunStatus, "running"> {
-  if (stop === "connection_lost") return "interrupted";
-  if (stop !== undefined) return "cancelled";
-  if (report.reason === "interrupted" || report.reason === "died")
-    return "interrupted";
-  if (report.status === "DONE") return "succeeded";
-  return report.status === "PARTLY" ? "partly" : "failed";
-}
-
-function runEnd(report: Report, stop?: string): RunEnd<Report> {
-  return {
-    reason: stop ?? report.reason,
-    status: runStatus(report, stop),
-    summary: `${report.status} ${report.detail}`,
-    value: report,
-  };
-}
-
-function refusalReport(refusal: Refusal, after: PilotAfter): Report {
-  return result(refusal.status, {
-    after,
-    body: refusal.body,
-    detail: refusal.detail,
-    next: refusal.next,
-    options: refusal.options,
-    reason: refusal.reason,
-  });
-}
-
-function detailOf(objective: PilotObjective, after: PilotAfter): string {
-  const walked =
-    after.walkedYd < 10
-      ? after.walkedYd.toFixed(1)
-      : String(Math.round(after.walkedYd));
-  const head =
-    objective.kind === "reach"
-      ? `steered to ${goalText(objective)}, ${after.decisions} decisions, ${after.jumps} jumps, walked ${walked} yd`
-      : `steered ${goalText(objective)}, ${after.decisions} decisions, ${after.jumps} jumps, walked ${walked} yd`;
-  return head;
-}
-
-function outcomeReport(
-  objective: PilotObjective,
-  after: PilotAfter,
-  end: {
-    outcome: { status: string; reason: string } | undefined;
-    error: string | undefined;
-  },
-): Report {
-  const { error, outcome } = end;
-  const reason = outcome?.reason ?? error ?? "stopped";
-  if (outcome?.status === "completed") {
-    const walked =
-      after.walkedYd < 10
-        ? after.walkedYd.toFixed(1)
-        : String(Math.round(after.walkedYd));
-    const arrived =
-      objective.kind === "reach" && after.finalYd !== undefined
-        ? `arrived within ${after.finalYd.toFixed(1)} yd of ${goalText(objective)}`
-        : `finished one lap of ${goalText(objective)}`;
-    return result("DONE", {
-      after,
-      detail: `${arrived} after ${after.decisions} decisions, ${after.jumps} jumps, walked ${walked} yd.`,
-      next: nextCall("look"),
-    });
-  }
-  if (reason === "self_dead" || reason === "died")
-    return result("FAILED", {
-      after,
-      detail: `you died while steering to ${goalText(objective)}.`,
-      next: nextCall("recover"),
-      reason: "died",
-    });
-  if (reason.startsWith("jev_unavailable") || reason === "jev_timeout")
-    return result("FAILED", {
-      after,
-      detail: `the fight helper stopped answering (${reason}).`,
-      next: askHuman("The fight helper stopped answering. What should I do?"),
-      reason: "jev_unavailable",
-    });
-  return result("FAILED", {
-    after,
-    detail: `${detailOf(objective, after)} Stopped: ${reason}.`,
-    next: nextCall("look"),
-    reason,
-  });
-}
-
 type LaunchInit = {
   ctx: ToolCtx<PilotAfter>;
   args: PilotArgs;
@@ -324,7 +213,12 @@ function launchCtx(init: LaunchInit): LaunchCtx {
   const { ctx, objective, control } = init;
   const watch = watchInterrupts(
     { ...ctx, progress: control.progress, signal: control.signal },
-    { death: true, newAttacker: false, rooted: true },
+    {
+      death: true,
+      ignoreAttacker: (guid) => grayTo(ctx, guid),
+      newAttacker: true,
+      rooted: true,
+    },
   );
   const ops: OpsCtx = {
     ...ctx,
@@ -333,6 +227,11 @@ function launchCtx(init: LaunchInit): LaunchCtx {
   };
   const tally = steerTally(ops);
   return { ...init, ops, read: afterOf(ops, objective, tally), tally, watch };
+}
+
+function grayTo(ctx: ViewCtx, guid: bigint): boolean {
+  const unit = ctx.handle.getEntity(guid);
+  return isUnit(unit) && unit.level <= grayLevel(selfView(ctx).level);
 }
 
 function launchProgress(env: LaunchCtx): (after: PilotAfter) => void {
@@ -354,7 +253,7 @@ function launchProgress(env: LaunchCtx): (after: PilotAfter) => void {
 
 async function launch(init: LaunchInit): Promise<RunEnd<Report>> {
   const env = launchCtx(init);
-  const { control, latest, objective, ops, read, tally, watch } = env;
+  const { control, ctx, latest, objective, ops, read, tally, watch } = env;
   const progress = launchProgress(env);
   try {
     const end = await steer({
@@ -373,15 +272,10 @@ async function launch(init: LaunchInit): Promise<RunEnd<Report>> {
         messageOf(control.signal.reason),
       );
     const cause = watch.cause();
-    if (cause?.code === "died")
-      return runEnd(
-        result("FAILED", {
-          after,
-          detail: "you died on the way.",
-          next: nextCall("recover"),
-          reason: "died",
-        }),
-      );
+    if (cause !== undefined) {
+      const interrupted = interruptReport(ctx, objective, after, cause);
+      if (interrupted) return runEnd(interrupted);
+    }
     return runEnd(outcomeReport(objective, after, end));
   } catch (error) {
     if (error instanceof Refusal)

@@ -7,6 +7,7 @@ export function reputationRelationView(
   return {
     atWar: (factionId) => store.factionAtWar(factionId),
     forcedRank: (factionId) => store.forcedRank(factionId),
+    hasReputationList: (factionId) => store.hasReputationList(factionId),
     reputationRank: (factionId) => store.factionRank(factionId),
   };
 }

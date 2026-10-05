@@ -1,0 +1,34 @@
+{
+  "botRisk": "low",
+  "budget": { "minutes": 6, "tools": 30, "turns": 12 },
+  "checks": [
+    {
+      "evidence": { "point": { "x": 9094.7, "y": -6680.8 } },
+      "expect": "T final position within 3 yd of the goal past the Springpaw pair (9094.7, -6680.8)",
+      "id": "at-goal",
+      "source": "truth"
+    },
+    {
+      "expect": "GL travel run succeeded with no control/server_correction, combat/attacked, threat/engaged, threat/aggro_switch or attacker-listing snapshot/world row",
+      "id": "no-aggro",
+      "measure": "travel_no_aggro",
+      "source": "game_log"
+    }
+  ],
+  "field": "pilot-springpaw-camp-travel",
+  "id": "t3-pilot-camp-travel",
+  "navBound": true,
+  "needsWatcher": false,
+  "paneMinutes": 9,
+  "partner": null,
+  "preset": "fresh",
+  "setup": [
+    {
+      "body": { "map": 530, "x": 9064.0, "y": -6743.7, "z": 17.83 },
+      "endpoint": "position"
+    }
+  ],
+  "steers": [],
+  "task": "Use the travel tool to walk to the point (9094.7, -6680.8). Move only with travel.",
+  "tier": 3
+}

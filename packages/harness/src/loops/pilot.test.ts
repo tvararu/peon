@@ -10,6 +10,7 @@ import {
 import { lapPoint, poseOf } from "#harness/loops/pilot-geometry";
 import { buildOptions, scanCache } from "#harness/loops/pilot-options";
 import type { PilotContext } from "#harness/loops/pilot-types";
+import type { AggroCircle } from "#harness/loops/pilot-units";
 import type { TacticsFrame } from "#harness/loops/tactics";
 
 function flat(height = 0): GroundOracle {
@@ -173,6 +174,50 @@ describe("pilot options", () => {
     ])
       expect(ids).toContain(id);
     expect(ids).not.toContain("jump_ahead");
+  });
+
+  test("strafe and back-up bearings use the motion direction, not the facing", () => {
+    const pose = poseOf(
+      { mapId: 530, orientation: 0, x: 0, y: 0, z: 0 },
+      7,
+      false,
+    );
+    const options = buildOptions({
+      ground: flat(),
+      objective: { kind: "reach", x: 30, y: 0 },
+      pose,
+    });
+    const goalDeg = (id: string) =>
+      options.find((option) => option.id === id)?.goalDeg;
+    expect(goalDeg("run_ahead")).toBe(0);
+    expect(goalDeg("strafe_left")).toBe(90);
+    expect(goalDeg("strafe_right")).toBe(90);
+    expect(goalDeg("back_up")).toBe(180);
+  });
+
+  test("escaping one range into another masks the move", () => {
+    const pose = poseOf(
+      { mapId: 530, orientation: 0, x: 0, y: 0, z: 0 },
+      7,
+      false,
+    );
+    const inner: AggroCircle = { name: "A", radiusYd: 10, x: -5, y: 0 };
+    const outer: AggroCircle = { name: "B", radiusYd: 7, x: 8, y: 0 };
+    const objective = { kind: "reach", x: 30, y: 0 } as const;
+    const escaped = buildOptions({
+      circles: [inner],
+      ground: flat(),
+      objective,
+      pose,
+    }).map((option) => option.id);
+    expect(escaped).toContain("run_ahead");
+    const trapped = buildOptions({
+      circles: [inner, outer],
+      ground: flat(),
+      objective,
+      pose,
+    }).map((option) => option.id);
+    expect(trapped).not.toContain("run_ahead");
   });
 
   test("a wall 1 yd ahead masks every forward option but keeps stop", () => {

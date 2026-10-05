@@ -54,6 +54,7 @@ import {
 export type GameCapabilities = Capabilities & {
   jev: boolean;
   navigation: boolean;
+  pilot?: boolean;
 };
 
 export type Loops = Runs & {
@@ -92,7 +93,11 @@ export type Game = Omit<WorldHandle, "capabilities"> &
   Loops &
   Travel & { capabilities: () => GameCapabilities };
 
-export type GameOptions = { jev?: JevPort; navigation?: SessionNavigation };
+export type GameOptions = {
+  jev?: JevPort;
+  navigation?: SessionNavigation;
+  pilot?: JevPort;
+};
 
 type Parts = {
   handle: WorldHandle;
@@ -177,9 +182,11 @@ function createPilot(
 ): TacticsLoop<PilotContext> {
   const { control, handle } = ports;
   const frame: PilotFrameDeps = {
+    aggro: (guid) => handle.unitAggroesSelf(guid),
     control,
     ground: navigation?.ground,
     life: () => handle.getRecoveryState().life,
+    nearby: () => handle.queryNearby(),
     now: () => Date.now(),
   };
   return pilotLoop(frame, handle, jev);
@@ -200,6 +207,7 @@ function pilotLoop(
     },
     execute: (id, context) => actions.execute(id, context),
     halt: () => actions.halt(),
+    maxResultAgeMs: 1000,
     minIntervalMs: 50,
     observe: (context) => actions.observe(context),
     async prepare(_context, signal) {
@@ -251,7 +259,7 @@ function cycleDeps(ports: Ports, tactics: TacticsLoop): CycleDeps {
   };
 }
 
-function build(handle: WorldHandle, { jev, navigation }: GameOptions) {
+function build(handle: WorldHandle, { jev, navigation, pilot }: GameOptions) {
   let live = true;
   const travel = createTravel(handle, navigation);
   const combat = combatPort(handle);
@@ -264,7 +272,7 @@ function build(handle: WorldHandle, { jev, navigation }: GameOptions) {
   const entity = (guid: bigint) => handle.getEntity(guid);
   const ports = { combat, control, entity, halt, handle, travel };
   const tactics = createTactics(ports, jev);
-  const pilot = createPilot(ports, navigation, jev);
+  const pilotTactics = createPilot(ports, navigation, pilot ?? jev);
   const deps = cycleDeps(ports, tactics);
   const cycle = new EncounterCycleRuntime(deps);
   const runs = createRuns({
@@ -277,14 +285,14 @@ function build(handle: WorldHandle, { jev, navigation }: GameOptions) {
       rewards: (cb) => handle.onRewardsEvent(cb),
     },
   });
-  const parts: Parts = { cycle, halt, handle, pilot, tactics };
+  const parts: Parts = { cycle, halt, handle, pilot: pilotTactics, tactics };
   const unwire = wire(parts);
   const retire = () => {
     if (!live) return;
     live = false;
     unwire();
     tactics.dispose();
-    pilot.dispose();
+    pilotTactics.dispose();
     cycle.dispose();
     travel.dispose();
   };
@@ -322,13 +330,14 @@ function travelApi(travel: Travel): Travel {
 
 function gameCapabilities(
   handle: WorldHandle,
-  { jev, navigation }: GameOptions,
+  { jev, navigation, pilot }: GameOptions,
 ): GameCapabilities {
   const mapId = handle.getControlState().pose?.mapId;
   return {
     ...handle.capabilities(),
     jev: jev !== undefined,
     navigation: navigationCovers(navigation, mapId),
+    pilot: (pilot ?? jev) !== undefined,
   };
 }
 

@@ -46,6 +46,7 @@ export const READ_KEYS = [
   "getRewardsState",
   "observedPosition",
   "unitRelation",
+  "unitAggroesSelf",
   "spellDefinition",
   "spellReadyAt",
   "itemLabel",

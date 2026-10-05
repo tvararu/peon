@@ -365,6 +365,55 @@ describe("checks measure what they name", () => {
     expect(scenario.task).toContain("Springpaw Stalker");
     expect(scenario.task).not.toContain("Lynx");
   });
+  test("t3-pilot-camp grades the goal, pilot-only moves and no aggro", () => {
+    const measures = Object.fromEntries(
+      loadScenario("t3-pilot-camp").checks.map((check) => [
+        check.id,
+        check.measure,
+      ]),
+    );
+    expect(measures).toEqual({
+      "at-goal": undefined,
+      "no-aggro": "pilot_no_aggro",
+      "only-pilot": "pilot_only_moves",
+      reached: "pilot_reach",
+    });
+    expect(checkOf("t3-pilot-camp-holdout", "no-aggro")).toMatchObject({
+      measure: "pilot_no_aggro",
+      source: "game_log",
+    });
+    expect(checkOf("t3-pilot-camp-travel", "no-aggro")).toMatchObject({
+      measure: "travel_no_aggro",
+      source: "game_log",
+    });
+  });
+
+  test("greedy camp scenarios pin the chooser and travel ones do not", () => {
+    expect(loadScenario("t3-pilot-camp-greedy").env).toEqual({
+      PEON_PILOT_CHOOSER: "greedy",
+    });
+    expect(loadScenario("t3-pilot-camp-holdout-greedy").env).toEqual({
+      PEON_PILOT_CHOOSER: "greedy",
+    });
+    expect(loadScenario("t3-pilot-camp").env).toBeUndefined();
+    expect(loadScenario("t3-pilot-camp-travel").env).toBeUndefined();
+  });
+
+  test("an unknown env key is refused", () => {
+    const scenario = loadScenario("t3-pilot-camp-greedy");
+    expect(() =>
+      parseScenario("t3-pilot-camp-greedy.json", {
+        ...scenario,
+        env: { PEON_PILOT_CHOOSER: "random" },
+      }),
+    ).toThrow("invalid scenario t3-pilot-camp-greedy.json: $.env");
+    expect(() =>
+      parseScenario("t3-pilot-camp-greedy.json", {
+        ...scenario,
+        env: { PEON_DEBUG: "1" },
+      }),
+    ).toThrow("invalid scenario t3-pilot-camp-greedy.json: $.env");
+  });
 });
 
 describe("t9-lfg-queue when bots fill the queue", () => {

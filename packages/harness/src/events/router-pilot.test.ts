@@ -123,6 +123,34 @@ test("outcome then stopped emits exactly one pilot/ended row with the tally", ()
   });
 });
 
+test("an attacked stop ends the pilot stopped with the attack reason", () => {
+  const { log, router } = setup();
+  const handle = createMockGame();
+  moveTo(handle, { x: 1, y: 2, z: 3 });
+  router.attach(handle);
+  handle.triggerPilotEvent({
+    framing: "none",
+    instruction: "pilot",
+    objective: { kind: "reach", x: 10, y: 20 },
+    runId: "p1",
+    targetGuid: undefined,
+    type: "started",
+  });
+  handle.triggerPilotEvent({
+    reason: "attacked",
+    runId: "p1",
+    state: idle,
+    type: "stopped",
+  });
+  const ended = log.since(0).filter((row) => row.event === "pilot/ended");
+  expect(ended).toHaveLength(1);
+  expect(ended[0]?.data).toMatchObject({
+    reason: "attacked",
+    runId: "p1",
+    status: "stopped",
+  });
+});
+
 test("combat events keep loop combat", () => {
   const { jevRows, router } = setup();
   const handle = createMockGame();

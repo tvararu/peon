@@ -9,7 +9,7 @@ import type {
   Profile,
   ProfileSource,
 } from "#harness/contract/config";
-import { jevPort } from "#harness/jev/port";
+import { jevPort, pilotPort } from "#harness/jev/port";
 import { navigationSource } from "#harness/navigation/maps";
 import type { NavigationSource } from "#harness/navigation/native";
 import { dbcDirectory } from "#harness/runtime/dbc-directory";
@@ -75,14 +75,16 @@ export async function loadProfile(
       "protected_account",
       `The account ${config.account.toUpperCase()} is protected. The harness does not log in to it.`,
     );
+  const jev = jevPort(Bun.env);
   return {
     account: config.account.toUpperCase(),
     character: config.character,
     client: clientConfig(config),
     extensions,
-    jev: jevPort(Bun.env),
+    jev,
     navigation: navigationOf(config),
     path,
+    pilot: pilotPort(Bun.env, jev),
     source,
     spellDataDir: config.spell_data_dir,
   };

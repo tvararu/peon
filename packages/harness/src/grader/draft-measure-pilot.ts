@@ -13,7 +13,7 @@ const numberOf = (value: unknown): number | undefined =>
 
 const timeOf = (row: GameLogRow): number => numberOf(row.ts) ?? 0;
 
-type PilotRun = {
+export type PilotRun = {
   started: GameLogRow;
   decisions: GameLogRow[];
   ended: GameLogRow | undefined;
@@ -22,7 +22,7 @@ type PilotRun = {
   until: number;
 };
 
-function pilotRun(rows: readonly GameLogRow[]): PilotRun | undefined {
+export function pilotRun(rows: readonly GameLogRow[]): PilotRun | undefined {
   const runs = rows.flatMap((row, index) =>
     row.event === "pilot/started" ? [runAt(rows, row, index)] : [],
   );

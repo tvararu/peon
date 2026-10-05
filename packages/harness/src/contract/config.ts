@@ -34,6 +34,7 @@ export type Profile = {
   character: string;
   client: ClientConfig;
   jev?: JevPort;
+  pilot?: JevPort;
   navigation?: NavigationSource;
   spellDataDir?: string;
   extensions: string[];

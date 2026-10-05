@@ -234,6 +234,7 @@ async function baseline(run: Live, account: string): Promise<void> {
 
 async function launch(run: Live): Promise<void> {
   const command = harnessCommand({
+    env: run.scenario.env,
     profile: sessionFile(run.runDir, "agent"),
     runDir: run.runDir,
   });

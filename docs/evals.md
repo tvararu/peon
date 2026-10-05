@@ -220,7 +220,7 @@ two scenarios closest to it. Every scenario appears in at least one row.
 |---|---|
 | Navigation and movement (`travel`, routes, namigator) | `t1-walk-to-npc` |
 | Combat and Jev (`engage`, spells) | `t3-ghostlands-kill`, `t7-halt-resume` |
-| Jev pilot (`pilot`, Jev-driven movement; the `-holdout` scenarios are the held-out split for hill-climbing) | `t3-pilot-circle`, `t3-pilot-detour`, `t3-pilot-fence`, `t3-pilot-circle-holdout`, `t3-pilot-detour-holdout`, `t3-pilot-fence-holdout` |
+| Jev pilot (`pilot`, Jev-driven movement; the `-holdout` scenarios are the held-out split for hill-climbing; `-travel` and `-greedy` are the baselines, with `travel` and with the deterministic chooser) | `t3-pilot-circle`, `t3-pilot-detour`, `t3-pilot-fence`, `t3-pilot-circle-holdout`, `t3-pilot-detour-holdout`, `t3-pilot-fence-holdout`, `t3-pilot-camp`, `t3-pilot-camp-holdout`, `t3-pilot-camp-travel`, `t3-pilot-camp-holdout-travel`, `t3-pilot-camp-greedy`, `t3-pilot-camp-holdout-greedy` |
 | Quest marks, objective regions, greetings and sharing (look, journal, interact, group) | `t4-quests-find-giver`, `t4-quests-poi-walk`, `t1-quests-read-greeting`, `t1-quests-guard-directions`, `t8-quests-share`, `t8-quests-accept-shared` |
  | Quests (`interact` quest dialogs, quest log, rewards) | `t4-quest-first`, `t4-alliance-first`, `t4-quests-level-five` |
 | Vendors and money | `t5-vendor-buy-goldshire` |

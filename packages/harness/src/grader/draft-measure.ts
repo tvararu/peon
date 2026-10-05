@@ -13,6 +13,10 @@ import {
   pilotOnlyMoves,
   pilotReach,
 } from "#harness/grader/draft-measure-pilot";
+import {
+  pilotNoAggro,
+  travelNoAggro,
+} from "#harness/grader/draft-measure-pilot-units";
 import { isRecord } from "#harness/grader/exec";
 import type { CheckMeasure } from "#harness/grader/scenarios";
 
@@ -139,9 +143,11 @@ const MEASURES: Record<
   no_fight_after_stop: noFightAfterStop,
   pilot_circle: pilotCircle,
   pilot_jumps: pilotJumps,
+  pilot_no_aggro: pilotNoAggro,
   pilot_only_moves: pilotOnlyMoves,
   pilot_reach: pilotReach,
   talents_spent: talentsSpent,
+  travel_no_aggro: travelNoAggro,
 };
 
 export function measureGameLog(
