@@ -70,6 +70,52 @@ export class ClosingTracker {
   }
 }
 
+export class GroundSpeedTracker {
+  private samples: { at: number; x: number; y: number }[] = [];
+  private guid: bigint | undefined;
+
+  reset(): void {
+    this.samples = [];
+    this.guid = undefined;
+  }
+
+  record(input: {
+    at: number;
+    guid: bigint;
+    pose: { x: number; y: number } | undefined;
+  }): void {
+    const { at, guid, pose } = input;
+    if (guid !== this.guid) {
+      this.samples = [];
+      this.guid = guid;
+    }
+    if (pose === undefined) {
+      this.samples = [];
+      return;
+    }
+    const last = this.samples.at(-1);
+    if (last && at - last.at < CLOSING_MIN_GAP_MS) return;
+    this.samples.push({ at, x: pose.x, y: pose.y });
+    this.samples = this.samples.filter(
+      (sample) => at - sample.at <= CLOSING_WINDOW_MS,
+    );
+  }
+
+  speedYdPerS(): number | undefined {
+    const first = this.samples[0];
+    const last = this.samples.at(-1);
+    if (!(first && last) || last.at - first.at < CLOSING_MIN_SPAN_MS)
+      return undefined;
+    let path = 0;
+    for (let index = 1; index < this.samples.length; index++) {
+      const a = this.samples[index - 1];
+      const b = this.samples[index];
+      if (a && b) path += Math.hypot(b.x - a.x, b.y - a.y);
+    }
+    return (path / (last.at - first.at)) * 1000;
+  }
+}
+
 function closingText(speed: number | undefined): string {
   if (speed === undefined) return "closing speed not observed yet";
   if (Math.abs(speed) < CLOSING_STEADY_YD_PER_S)

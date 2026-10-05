@@ -64,7 +64,7 @@ type SpellAction = {
 };
 const UNREACHABLE_TIMEOUT_MS = 5000;
 const KITE_REACHABLE_YD = 40;
-const KITE_CAST_MARGIN_YD = 2;
+const KITE_CAST_MARGIN_YD = 3.66;
 
 export class CombatActions {
   private readonly deps: ActionDeps;
@@ -343,7 +343,7 @@ export class CombatActions {
   ): string | undefined {
     const castS = (spell.castTime?.castTimeMs ?? 0) / 1000;
     const distance = separation(state);
-    const speed = this.moves.closingYdPerS();
+    const speed = this.moves.approachYdPerS();
     const reach = meleeReachYd(
       this.deps.entity(state.self.guid),
       state.target && this.deps.entity(state.target.guid),

@@ -8,6 +8,7 @@ import type {
 import type { JevCandidate } from "#harness/jev/contract";
 import {
   ClosingTracker,
+  GroundSpeedTracker,
   impairments,
   meleeReachYd,
   moveGoalText,
@@ -49,6 +50,7 @@ export type MoveFrame = {
 export class CombatMoves {
   private readonly deps: MoveDeps;
   private readonly closing = new ClosingTracker();
+  private readonly ground = new GroundSpeedTracker();
   private options: PilotOption[] = [];
 
   constructor(deps: MoveDeps) {
@@ -57,11 +59,15 @@ export class CombatMoves {
 
   reset(): void {
     this.closing.reset();
+    this.ground.reset();
     this.options = [];
   }
 
-  closingYdPerS(): number | undefined {
-    return this.closing.speedYdPerS();
+  approachYdPerS(): number | undefined {
+    const closing = this.closing.speedYdPerS();
+    const ground = this.ground.speedYdPerS();
+    if (closing === undefined && ground === undefined) return undefined;
+    return Math.max(closing ?? 0, ground ?? 0);
   }
 
   observe(
@@ -72,11 +78,9 @@ export class CombatMoves {
   ): MoveFrame {
     const { control, entity } = this.deps;
     const distance = separation(state);
-    this.closing.record({
-      at: this.deps.now(),
-      guid: targetGuid,
-      yd: distance,
-    });
+    const at = this.deps.now();
+    this.closing.record({ at, guid: targetGuid, yd: distance });
+    this.ground.record({ at, guid: targetGuid, pose: state.target?.pose });
     const reachYd = meleeReachYd(entity(state.self.guid), entity(targetGuid));
     const name = state.target?.name ?? "The target";
     const held = control.snapshot();
@@ -130,7 +134,7 @@ export class CombatMoves {
     distance: number | undefined,
     reachYd: number | undefined,
   ): boolean {
-    const closing = this.closing.speedYdPerS();
+    const closing = this.approachYdPerS();
     return (
       distance !== undefined &&
       reachYd !== undefined &&

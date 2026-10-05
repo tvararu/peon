@@ -85,6 +85,40 @@ test("while kiting, a cast the closing target would outrun is unavailable", () =
   }
 });
 
+test("while kiting, a fast target holds casts even when the gap is not shrinking", () => {
+  let now = 1000;
+  const fixture = setup(() => now);
+  fixture.store.update(1n, { combatReach: 1.5 });
+  fixture.store.update(2n, { combatReach: 1.5 });
+  const slowCast = {
+    ...spell(),
+    castTime: { castTimeMs: 1500, id: 1, minCastTimeMs: 1500, perLevelMs: 0 },
+    interruptFlags: 1,
+  };
+  const definition = jest
+    .spyOn(fixture.combat, "definition")
+    .mockReturnValue(slowCast);
+  const kite = { ...context, instruction: fightInstruction(undefined, true) };
+  try {
+    fixture.actions.observe(kite);
+    now += 1000;
+    fixture.motion.observe(2n, {
+      mapId: 530,
+      orientation: 0,
+      x: 10,
+      y: 6,
+      z: 0,
+    });
+    fixture.actions.observe(kite);
+    now += 100;
+    expect(fixture.actions.observe(kite).observation["unavailable"]).toEqual([
+      { id: "spell:17:target", reason: "target_reaches_you_first" },
+    ]);
+  } finally {
+    definition.mockRestore();
+  }
+});
+
 test("a slowed target is reported from its aura", () => {
   const { actions, combat, combatStore } = withReaches();
   const definition = jest
