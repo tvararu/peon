@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import type { AreaEventOf } from "@peon/core";
 import { areaDrafts, areaRuleSet } from "#harness/areas/rules";
+import { createRuleMemo } from "#harness/events/rules";
 import { testLookup, testRuleInput } from "#test-support/rule-fixtures";
 
 type RaidEvent = AreaEventOf<"raid">;
@@ -286,14 +287,28 @@ describe("minimap ping harness rules", () => {
     y: 40,
   } as const;
 
-  test("a ping writes one passive row carrying the position", () => {
-    const [row, ...rest] = rows(ping);
+  test("with a known pose the row gives the computed distance and bearing", () => {
+    const memo = createRuleMemo();
+    memo.pose = { mapId: 0, x: 100, y: 40, z: 0 };
+    const [row, ...rest] = rowsWith(ping, { memo });
     expect(rest).toEqual([]);
     expect(row).toMatchObject({
       class: "passive",
       data: { name: "Tom", x: 130, y: 40 },
       event: "raid/ping",
     });
+    expect(row?.text).toContain("30 yd");
+    expect(row?.text).toMatch(/north/i);
+  });
+
+  test("before any pose is known the row carries the position only", () => {
+    const [row] = rows(ping);
+    expect(row).toMatchObject({
+      class: "passive",
+      data: { name: "Tom", x: 130, y: 40 },
+      event: "raid/ping",
+    });
+    expect(row?.text).not.toContain(" yd ");
   });
 });
 

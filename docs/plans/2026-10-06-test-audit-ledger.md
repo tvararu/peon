@@ -53,7 +53,9 @@ at the baseline commit.
   protocol contracts.
 - Agent-facing status codes and keys in tool output (`DONE`,
   `REFUSED not_master`) are contracts; English sentences pinned with
-  `toContain` are wording.
+  `toContain` are wording. A value the code computes that reaches the agent
+  only in text, such as a distance or bearing, is a contract too: assert the
+  value, not the sentence around it.
 - `WorldHandle` spy assertions in harness tool tests are the harness-to-core
   boundary, unless the mock implements the behaviour under test or another
   test asserts the same call for the same branch.
