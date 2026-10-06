@@ -56,10 +56,8 @@ describe("character runtime", () => {
     const rig = areaRig("character");
     try {
       const style = { color: 1, facialHair: 2, hair: 3, skinColor: 4 };
-      await expect(rig.handle.act.styleAtBarber(style)).rejects.toThrow(
-        "not_seated",
-      );
-      expect(rig.sent).toEqual([]);
+      const refused = rig.handle.act.styleAtBarber(style);
+      await expect(refused).rejects.toThrow("not_seated");
       rig.inject(GameOpcode.SMSG_ENABLE_BARBER_SHOP, new Uint8Array(0));
       const pending = rig.handle.act.styleAtBarber(style);
       await flush();

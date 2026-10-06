@@ -1,4 +1,4 @@
-import { PacketReader, PacketWriter } from "#wow/protocol/packet";
+import { type PacketReader, PacketWriter } from "#wow/protocol/packet";
 
 export type PlayedTime = {
   totalSeconds: number;
@@ -87,7 +87,9 @@ export function buildDeclinedNames(
   name: string,
   declined: readonly string[],
 ): Uint8Array {
-  const w = new PacketWriter(8 + name.length + 1 + declined.join("").length + 5);
+  const w = new PacketWriter(
+    8 + name.length + 1 + declined.join("").length + 5,
+  );
   w.uint64LE(guid);
   w.cString(name);
   for (const form of declined) w.cString(form);

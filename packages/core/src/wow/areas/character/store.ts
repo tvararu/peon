@@ -7,7 +7,7 @@ import type {
 } from "#wow/areas/character/protocol";
 import { SHEATH_NAMES, type SheathState } from "#wow/areas/character/protocol";
 import type { CharAppearance } from "#wow/areas/character/select";
-import { fieldOf } from "#wow/entity-store";
+import { readSelfField } from "#wow/player-state";
 import { PLAYER_FIELDS, UNIT_FIELDS } from "#wow/protocol/update-fields";
 import type { SessionDeps } from "#wow/session-stores";
 
@@ -40,6 +40,9 @@ export type CharacterState = {
   cloakShown: boolean | undefined;
 };
 
+const HIDE_HELM = 0x4_00;
+const HIDE_CLOAK = 0x8_00;
+
 export type CharacterEvent =
   | { type: "played_time"; state: CharacterState }
   | { type: "barber_open"; state: CharacterState }
@@ -48,9 +51,6 @@ export type CharacterEvent =
   | { type: "whois"; state: CharacterState }
   | { type: "play_warning"; state: CharacterState }
   | { type: "declined_names"; state: CharacterState };
-
-const HIDE_HELM = 0x400;
-const HIDE_CLOAK = 0x800;
 
 export class CharacterStore {
   private readonly events = new Emitter<[CharacterEvent]>();
@@ -68,9 +68,10 @@ export class CharacterStore {
   }
 
   snapshot(): CharacterState {
-    const self = this.deps.getEntity(this.deps.selfGuid());
-    const flags = fieldOf(self, PLAYER_FIELDS.FLAGS.offset);
-    const bytes = fieldOf(self, UNIT_FIELDS.BYTES_2.offset);
+    const guid = this.deps.selfGuid();
+    const entity = this.deps.getEntity(guid);
+    const flags = readSelfField(guid, entity, PLAYER_FIELDS.FLAGS.offset);
+    const bytes = readSelfField(guid, entity, UNIT_FIELDS.BYTES_2.offset);
     return {
       played: this.played,
       barberOpen: this.barberOpen,

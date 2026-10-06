@@ -5,15 +5,28 @@ import {
   parsePlayTimeWarning,
   parseWhois,
 } from "#wow/areas/character/protocol";
+import { characterRuntime } from "#wow/areas/character/runtime";
 import {
   parseCharDelete,
   parseCharNamedResult,
   splitAppearance,
 } from "#wow/areas/character/select";
-import { characterRuntime } from "#wow/areas/character/runtime";
+import type { CharOperationResult } from "#wow/areas/character/store";
 import { CharacterStore } from "#wow/areas/character/store";
 import { defineArea } from "#wow/areas/contract";
 import { GameOpcode } from "#wow/protocol/opcodes";
+
+function emptyOperation(): Omit<
+  CharOperationResult,
+  "code" | "kind" | "result"
+> {
+  return {
+    appearance: undefined,
+    guid: undefined,
+    name: undefined,
+    race: undefined,
+  };
+}
 
 export const characterArea = defineArea({
   name: "character",
@@ -41,25 +54,21 @@ export const characterArea = defineArea({
     wire.on(GameOpcode.SMSG_CHAR_DELETE, (reader) => {
       const parsed = parseCharDelete(reader);
       store.receiveOperation({
-        kind: "delete",
+        ...emptyOperation(),
         code: parsed.code,
+        kind: "delete",
         result: parsed.result,
-        guid: undefined,
-        name: undefined,
-        appearance: undefined,
-        race: undefined,
       });
     });
     wire.on(GameOpcode.SMSG_CHAR_RENAME, (reader) => {
       const parsed = parseCharNamedResult(reader);
       store.receiveOperation({
-        kind: "rename",
+        ...emptyOperation(),
         code: parsed.code,
-        result: parsed.result,
         guid: parsed.guid,
+        kind: "rename",
         name: parsed.name,
-        appearance: undefined,
-        race: undefined,
+        result: parsed.result,
       });
     });
     wire.on(GameOpcode.SMSG_CHAR_CUSTOMIZE, (reader) => {

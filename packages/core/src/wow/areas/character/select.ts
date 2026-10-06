@@ -1,4 +1,4 @@
-import { PacketReader, PacketWriter } from "#wow/protocol/packet";
+import { type PacketReader, PacketWriter } from "#wow/protocol/packet";
 
 export type CharAppearance = {
   gender: number;
@@ -29,35 +29,35 @@ export type RosterRow = {
 };
 
 export const DELETE_RESULTS: Readonly<Record<number, string>> = {
-  0x46: "in_progress",
-  0x47: "success",
-  0x48: "failed",
-  0x49: "locked_for_transfer",
-  0x4a: "guild_leader",
-  0x4b: "arena_captain",
+  70: "in_progress",
+  71: "success",
+  72: "failed",
+  73: "locked_for_transfer",
+  74: "guild_leader",
+  75: "arena_captain",
 };
 
 const NAME_RESULTS: Readonly<Record<number, string>> = {
-  0x00: "success",
-  0x30: "error",
-  0x32: "name_in_use",
-  0x57: "name_success",
-  0x58: "name_failure",
-  0x59: "no_name",
-  0x5a: "too_short",
-  0x5b: "too_long",
-  0x5c: "invalid_character",
-  0x5d: "mixed_languages",
-  0x5e: "profane",
-  0x5f: "reserved",
-  0x60: "invalid_apostrophe",
-  0x61: "multiple_apostrophes",
-  0x62: "three_consecutive",
-  0x63: "invalid_space",
-  0x64: "consecutive_spaces",
-  0x65: "russian_consecutive_silent",
-  0x66: "russian_silent_at_edge",
-  0x67: "declension_mismatch",
+  0: "success",
+  48: "error",
+  50: "name_in_use",
+  87: "name_success",
+  88: "name_failure",
+  89: "no_name",
+  90: "too_short",
+  91: "too_long",
+  92: "invalid_character",
+  93: "mixed_languages",
+  94: "profane",
+  95: "reserved",
+  96: "invalid_apostrophe",
+  97: "multiple_apostrophes",
+  98: "three_consecutive",
+  99: "invalid_space",
+  100: "consecutive_spaces",
+  101: "russian_consecutive_silent",
+  102: "russian_silent_at_edge",
+  103: "declension_mismatch",
 };
 
 export function charResponseName(
