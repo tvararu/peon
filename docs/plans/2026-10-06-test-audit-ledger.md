@@ -53,9 +53,14 @@ at the baseline commit.
   protocol contracts.
 - Agent-facing status codes and keys in tool output (`DONE`,
   `REFUSED not_master`) are contracts; English sentences pinned with
-  `toContain` are wording. A value the code computes that reaches the agent
-  only in text, such as a distance or bearing, is a contract too: assert the
-  value, not the sentence around it.
+  `toContain` are wording. Event delivery shows the agent a row's `text`,
+  not its `data`, so a value a harness rule renders into that text is a
+  contract too: a looked-up unit name, an icon or flag label, a 1-based
+  group number, a distance or bearing, or a branch label such as `lost`
+  or `cleared`. Assert the value, not the sentence around it. A name the
+  rule copies from the event unchanged is covered by asserting `data`.
+  The raid cutover applied this ruling; the other lanes' harness `area`
+  marks predate it, so recheck their `F` marks against it.
 - `WorldHandle` spy assertions in harness tool tests are the harness-to-core
   boundary, unless the mock implements the behaviour under test or another
   test asserts the same call for the same branch.
