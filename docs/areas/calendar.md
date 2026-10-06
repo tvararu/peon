@@ -8,7 +8,11 @@ The read acts need no staging and no guild:
 - `event(id)` sends `CMSG_CALENDAR_GET_EVENT` and settles `ok` with the stored detail when the send-event reply for that id arrives, or `refused` with the server's error and name on a command result.
 - `pending()` sends `CMSG_CALENDAR_GET_NUM_PENDING` and settles `ok` with the count from `SMSG_CALENDAR_SEND_NUM_PENDING`.
 
+The write acts need no guild either: `create(spec)` sends `CMSG_CALENDAR_ADD_EVENT` and settles `ok` with the new event id once the send-event reply arrives. `update`, `remove` and `copy` send `CMSG_CALENDAR_UPDATE_EVENT`, `CMSG_CALENDAR_REMOVE_EVENT` and `CMSG_CALENDAR_COPY_EVENT` and settle on the matching alert or command result. `invite`, `rsvp`, `signup`, `status`, `removeInvite`, `moderatorStatus`, `guildFilter` and `arenaTeam` send their request opcodes and settle `ok` or `refused` the same way. A refusal carries the server's error code and name.
+
 Each act rejects after 5 seconds of silence.
+
+The harness `calendar` tool (`list`, `read`, `create`, `update`, `remove`, `copy`, `invite`, `rsvp`, `status`) drives these acts; `t9-calendar-event` creates an event and renames it.
 
 ## Wire notes
 
@@ -21,14 +25,28 @@ Each act rejects after 5 seconds of silence.
 - `SMSG_CALENDAR_SEND_NUM_PENDING` is one `uint32` (`Handlers/CalendarHandler.cpp:788-790`).
 - `SMSG_CALENDAR_COMMAND_RESULT` is `uint32` 0, `uint8` 0, the name (a CString, set only for errors 4, 10 and 13, else empty), then the `uint32` error (`Calendar/CalendarMgr.cpp:696-719`).
 
+- `CMSG_CALENDAR_ADD_EVENT` is the title, description, type, repeat, max invites, dungeon id, packed event time, packed zone time, flags and, for guild events, the guild-event invite sets (`Handlers/CalendarHandler.cpp:235-362`). A guildless character asking for a guild event gets error 9 (`GUILD_PLAYER_NOT_IN_GUILD`). The server allows one create or copy every 5 seconds (`CALENDAR_CREATE_EVENT_COOLDOWN`) and 30 events per player (`CALENDAR_MAX_EVENTS`); a create inside the cooldown or past the cap gets a command result.
+- A successful create answers `SMSG_CALENDAR_EVENT_INVITE` for the creator's own invite, `SMSG_CALENDAR_EVENT_INVITE_ALERT` and `SMSG_CALENDAR_SEND_EVENT`.
+- `CMSG_CALENDAR_UPDATE_EVENT` repeats the add body after the event id and invite id and answers `SMSG_CALENDAR_EVENT_UPDATED_ALERT` (`Handlers/CalendarHandler.cpp:364-419`). `CMSG_CALENDAR_REMOVE_EVENT` is the event id, invite id and a flags `uint32` and answers `SMSG_CALENDAR_EVENT_REMOVED_ALERT` (`Handlers/CalendarHandler.cpp:421-430`). `CMSG_CALENDAR_COPY_EVENT` is the event id, invite id and the packed new time, answers `SMSG_CALENDAR_SEND_EVENT` plus an invite alert, and inside the 5 second cooldown answers a command result (`Handlers/CalendarHandler.cpp:432-515`).
+
 ## Proof
 
 | Opcode | Proof | Evidence | Source |
 |---|---|---|---|
-| `CMSG_CALENDAR_GET_CALENDAR` | `live` | flow `calendar-read` (run `probe-calendar-read`, not committed) | `Handlers/CalendarHandler.cpp:53-193` |
-| `SMSG_CALENDAR_SEND_CALENDAR` | `live` | same run; the trace shows the 3921-byte reply with 23 reset periods and 16 holidays on a fresh `max80` | `Handlers/CalendarHandler.cpp:60-192` |
-| `CMSG_CALENDAR_GET_EVENT` | `live` | same run with `--arg id=<2^40+7>`; the trace shows the 8-byte request | `Server/Packets/CalendarPackets.cpp:21-24` |
-| `SMSG_CALENDAR_SEND_EVENT` | `mock` | builder test from the writer; not seen live (guild-10 proves it live) | `Calendar/CalendarMgr.cpp:627-671` |
-| `CMSG_CALENDAR_GET_NUM_PENDING` | `live` | same run; the trace shows the empty request | `Handlers/CalendarHandler.cpp:781-791` |
-| `SMSG_CALENDAR_SEND_NUM_PENDING` | `live` | same run; the trace shows the 4-byte reply | `Handlers/CalendarHandler.cpp:788-790` |
-| `SMSG_CALENDAR_COMMAND_RESULT` | `live` | same run; the trace shows error 6 for the bad event id | `Calendar/CalendarMgr.cpp:696-719` |
+| `CMSG_CALENDAR_GET_CALENDAR` | `live` | flow `calendar-read` (`tmp/probe/FAC6AC569BE4E-20261006T213604Z`, not committed): the empty request out | `Handlers/CalendarHandler.cpp:53-193` |
+| `SMSG_CALENDAR_SEND_CALENDAR` | `live` | same run: the 3921-byte reply with 23 reset periods and 16 holidays on a fresh `max80` | `Handlers/CalendarHandler.cpp:60-192` |
+| `CMSG_CALENDAR_GET_EVENT` | `live` | same run with `--arg id=<2^40+7>`: the 8-byte request | `Server/Packets/CalendarPackets.cpp:21-24` |
+| `SMSG_CALENDAR_SEND_EVENT` | `live` | `calendar-write` (`tmp/probe/FAC6AC569BE4E-20261006T213745Z`): a 93-byte reply after the create and a 75-byte reply after the copy | `Calendar/CalendarMgr.cpp:627-671` |
+| `CMSG_CALENDAR_GET_NUM_PENDING` | `live` | `calendar-read`: the empty request | `Handlers/CalendarHandler.cpp:781-791` |
+| `SMSG_CALENDAR_SEND_NUM_PENDING` | `live` | same run: the 4-byte reply | `Handlers/CalendarHandler.cpp:788-790` |
+| `SMSG_CALENDAR_COMMAND_RESULT` | `live` | `calendar-read`: a 10-byte reply (error 6) for the bad event id; `calendar-write` (`tmp/probe/FAC6AC569BE4E-20261006T213658Z`): the same reply to a copy inside the 5 second cooldown | `Calendar/CalendarMgr.cpp:696-719` |
+| `CMSG_CALENDAR_ADD_EVENT` | `live` | `calendar-write`: the 62-byte request is answered by `SMSG_CALENDAR_EVENT_INVITE` (23 bytes), `SMSG_CALENDAR_EVENT_INVITE_ALERT` (51) and `SMSG_CALENDAR_SEND_EVENT` (93) | `Handlers/CalendarHandler.cpp:235-362` |
+| `CMSG_CALENDAR_UPDATE_EVENT` | `live` | same run: the 71-byte request is answered by `SMSG_CALENDAR_EVENT_UPDATED_ALERT` (68 bytes) | `Handlers/CalendarHandler.cpp:364-419` |
+| `CMSG_CALENDAR_COPY_EVENT` | `live` | the second run: the 20-byte request is answered by `SMSG_CALENDAR_SEND_EVENT` (75) and `SMSG_CALENDAR_EVENT_INVITE_ALERT` (53); the first run, inside the cooldown, got a command result | `Handlers/CalendarHandler.cpp:432-515` |
+| `CMSG_CALENDAR_REMOVE_EVENT` | `live` | the second run removes the original and the copy; each 20-byte request is answered by `SMSG_CALENDAR_EVENT_REMOVED_ALERT` (13 bytes) | `Handlers/CalendarHandler.cpp:421-430` |
+| `SMSG_CALENDAR_EVENT_INVITE` | `live` | the create reply above | `Calendar/CalendarMgr.cpp:503-535` |
+| `SMSG_CALENDAR_EVENT_INVITE_ALERT` | `live` | the create and copy replies above | `Calendar/CalendarMgr.cpp:603-625` |
+| `SMSG_CALENDAR_EVENT_UPDATED_ALERT` | `live` | the update reply above | `Calendar/CalendarMgr.cpp:537-555` |
+| `SMSG_CALENDAR_EVENT_REMOVED_ALERT` | `live` | the remove replies above | `Calendar/CalendarMgr.cpp:571-579` |
+
+The invite, rsvp, signup, status, moderator, guild filter, arena team, lockout, complain and invite-removed opcodes are covered by builder and reader tests only: they need a second player or a guild, and no scenario stages one. Cooldown and cap: a create inside 5 seconds of the last create is refused, and a character holds 30 personal events at most.

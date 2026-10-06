@@ -5,7 +5,24 @@ import {
   calendarNumPendingBody,
   calendarSendCalendarBody,
   calendarSendEventBody,
+  packCalendarTime,
 } from "#test-support/areas/calendar";
+import {
+  buildAddEvent,
+  buildArenaTeam,
+  buildComplain,
+  buildCopyEvent,
+  buildEventInvite,
+  buildEventRsvp,
+  buildEventSignup,
+  buildEventStatus,
+  buildGuildFilter,
+  buildModeratorStatus,
+  buildRemoveEvent,
+  buildRemoveInvite,
+  buildUpdateEvent,
+  CalendarFlag,
+} from "#wow/areas/calendar/protocol";
 import {
   CALENDAR_HOLIDAY_DATES,
   CALENDAR_HOLIDAY_DURATIONS,
@@ -53,7 +70,7 @@ describe("calendar read parsers", () => {
     expect(parsed.zoneTime).toEqual(ZONE);
   });
 
-  test("a reply with one invite and one event keeps both guids (Handlers/CalendarHandler.cpp:64-96)", () => {
+  test("SMSG_CALENDAR_SEND_CALENDAR carries the invite and event lists (Handlers/CalendarHandler.cpp:64-96)", () => {
     const parsed = parseCalendarSendCalendar(
       new PacketReader(
         minimal({
@@ -88,7 +105,7 @@ describe("calendar read parsers", () => {
     expect(parsed.events[0]?.creator).toBe(0x0100_0000_0000_0001n);
   });
 
-  test("binds, reset periods and the relation time survive a full reply (Handlers/CalendarHandler.cpp:101-154)", () => {
+  test("SMSG_CALENDAR_SEND_CALENDAR carries binds, resets and the relation time (Handlers/CalendarHandler.cpp:101-154)", () => {
     const parsed = parseCalendarSendCalendar(
       new PacketReader(
         minimal({
@@ -111,7 +128,7 @@ describe("calendar read parsers", () => {
     expect(parsed.relationTime).toBe(12_345);
   });
 
-  test("a holiday with 26 dates, 10 durations, 10 flags and a texture keeps them all (CalendarHandler.cpp:156-190)", () => {
+  test("SMSG_CALENDAR_SEND_CALENDAR carries holidays with 26 dates, 10 durations and 10 flags (Handlers/CalendarHandler.cpp:156-190)", () => {
     const dates = Array.from({ length: 26 }, (_, i) => i + 1);
     const durations = Array.from({ length: 10 }, (_, i) => 100 + i);
     const flags = Array.from({ length: 10 }, (_, i) => 200 + i);
@@ -171,7 +188,7 @@ describe("calendar read parsers", () => {
     ).toThrow();
   });
 
-  test("a send-event reply stores the description after the title (Calendar/CalendarMgr.cpp:627-671)", () => {
+  test("SMSG_CALENDAR_SEND_EVENT stores the description after the title (Calendar/CalendarMgr.cpp:627-671)", () => {
     const parsed = parseCalendarSendEvent(
       new PacketReader(
         calendarSendEventBody({
@@ -195,7 +212,7 @@ describe("calendar read parsers", () => {
     expect(parsed.guildId).toBe(0);
   });
 
-  test("a pending-count reply reads the count (Handlers/CalendarHandler.cpp:788-790)", () => {
+  test("SMSG_CALENDAR_SEND_NUM_PENDING reads the count (Handlers/CalendarHandler.cpp:788-790)", () => {
     expect(
       parseCalendarSendNumPending(new PacketReader(calendarNumPendingBody(3)))
         .pending,
@@ -203,7 +220,7 @@ describe("calendar read parsers", () => {
   });
 
   test.each([4, 10, 13])(
-    "a command-result reply keeps the name for error %i (Calendar/CalendarMgr.cpp:696-719)",
+    "SMSG_CALENDAR_COMMAND_RESULT keeps the name for error %i (Calendar/CalendarMgr.cpp:696-719)",
     (error) => {
       expect(
         parseCalendarCommandResult(
@@ -219,5 +236,155 @@ describe("calendar read parsers", () => {
         new PacketReader(calendarCommandResultBody({ error: 6 })),
       ),
     ).toEqual({ error: 6, name: "" });
+  });
+});
+
+describe("calendar client builders", () => {
+  const spec = {
+    description: "details",
+    dungeonId: -1,
+    flags: 0,
+    maxInvites: 100,
+    repeat: 0,
+    time: JULY,
+    title: "Raid",
+    type: 0,
+    zoneTime: ZONE,
+  };
+
+  test("CMSG_CALENDAR_ADD_EVENT writes the spec then the packed invites (Handlers/CalendarHandler.cpp:249-252,331-337)", () => {
+    const body = buildAddEvent(spec, [
+      { guid: 0x0100_0000_0000_0001n, rank: 2, status: 3 },
+    ]);
+    const reader = new PacketReader(body);
+    expect(reader.cString()).toBe("Raid");
+    expect(reader.cString()).toBe("details");
+    expect(reader.uint8()).toBe(0);
+    expect(reader.uint8()).toBe(0);
+    expect(reader.uint32LE()).toBe(100);
+    expect(reader.int32LE()).toBe(-1);
+    expect(reader.uint32LE()).toBe(packCalendarTime(JULY));
+    expect(reader.uint32LE()).toBe(packCalendarTime(ZONE));
+    expect(reader.uint32LE()).toBe(0);
+    expect(reader.uint32LE()).toBe(1);
+    expect(reader.packedGuidBig()).toBe(0x0100_0000_0000_0001n);
+    expect(reader.uint8()).toBe(3);
+    expect(reader.uint8()).toBe(2);
+  });
+
+  test("CMSG_CALENDAR_ADD_EVENT for a guild announcement omits the invite list (Handlers/CalendarHandler.cpp:319-340)", () => {
+    const body = buildAddEvent(
+      { ...spec, flags: CalendarFlag.WithoutInvites },
+      [{ guid: 1n, rank: 0, status: 0 }],
+    );
+    expect(new PacketReader(body).cString()).toBe("Raid");
+    expect(body.at(-4)).toBe(CalendarFlag.WithoutInvites);
+  });
+
+  test("CMSG_CALENDAR_UPDATE_EVENT writes the ids then the spec (Handlers/CalendarHandler.cpp:381-384)", () => {
+    const reader = new PacketReader(buildUpdateEvent(7n, 9n, spec));
+    expect(reader.uint64LE()).toBe(7n);
+    expect(reader.uint64LE()).toBe(9n);
+    expect(reader.cString()).toBe("Raid");
+  });
+
+  test("CMSG_CALENDAR_REMOVE_EVENT sends the event id first (Handlers/CalendarHandler.cpp:421-430)", () => {
+    const reader = new PacketReader(buildRemoveEvent(7n, 9n, 0));
+    expect(reader.uint64LE()).toBe(7n);
+    expect(reader.uint64LE()).toBe(9n);
+    expect(reader.uint32LE()).toBe(0);
+  });
+
+  test("CMSG_CALENDAR_COPY_EVENT sends the ids and the packed time (Handlers/CalendarHandler.cpp:435-440)", () => {
+    const reader = new PacketReader(buildCopyEvent(7n, 9n, JULY));
+    expect(reader.uint64LE()).toBe(7n);
+    expect(reader.uint64LE()).toBe(9n);
+    expect(reader.uint32LE()).toBe(packCalendarTime(JULY));
+  });
+
+  test("CMSG_CALENDAR_EVENT_INVITE sends the name and the pre-invite flags (Handlers/CalendarHandler.cpp:517-533)", () => {
+    const reader = new PacketReader(
+      buildEventInvite({
+        eventId: 7n,
+        inviteId: 0n,
+        name: "Thrall",
+        isPreInvite: true,
+        isGuildEvent: false,
+      }),
+    );
+    expect(reader.uint64LE()).toBe(7n);
+    expect(reader.uint64LE()).toBe(0n);
+    expect(reader.cString()).toBe("Thrall");
+    expect(reader.uint8()).toBe(1);
+    expect(reader.uint8()).toBe(0);
+  });
+
+  test("CMSG_CALENDAR_EVENT_RSVP sends the two ids and the u32 status (Handlers/CalendarHandler.cpp:637-644)", () => {
+    const reader = new PacketReader(buildEventRsvp(7n, 9n, 1));
+    expect(reader.uint64LE()).toBe(7n);
+    expect(reader.uint64LE()).toBe(9n);
+    expect(reader.uint32LE()).toBe(1);
+  });
+
+  test("CMSG_CALENDAR_EVENT_SIGNUP sends the event id and the tentative byte (Handlers/CalendarHandler.cpp:611-618)", () => {
+    const reader = new PacketReader(buildEventSignup(7n, true));
+    expect(reader.uint64LE()).toBe(7n);
+    expect(reader.uint8()).toBe(1);
+  });
+
+  test("CMSG_CALENDAR_EVENT_REMOVE_INVITE uses the packed guid first (Handlers/CalendarHandler.cpp:681-682)", () => {
+    const guid = 0x0100_0000_0000_0001n;
+    const reader = new PacketReader(buildRemoveInvite(guid, 9n, 11n, 7n));
+    expect(reader.packedGuidBig()).toBe(guid);
+    expect(reader.uint64LE()).toBe(9n);
+    expect(reader.uint64LE()).toBe(11n);
+    expect(reader.uint64LE()).toBe(7n);
+  });
+
+  test("CMSG_CALENDAR_EVENT_STATUS sends the packed guid, three ids and a u8 status (Handlers/CalendarHandler.cpp:710-711)", () => {
+    const guid = 0x0100_0000_0000_0001n;
+    const status = new PacketReader(
+      buildEventStatus(
+        { invitee: guid, eventId: 7n, inviteId: 9n, ownerInviteId: 11n },
+        1,
+      ),
+    );
+    expect(status.packedGuidBig()).toBe(guid);
+    expect(status.uint64LE()).toBe(7n);
+    expect(status.uint64LE()).toBe(9n);
+    expect(status.uint64LE()).toBe(11n);
+    expect(status.uint8()).toBe(1);
+  });
+
+  test("CMSG_CALENDAR_EVENT_MODERATOR_STATUS sends the packed guid, three ids and a u8 rank (Handlers/CalendarHandler.cpp:742-743)", () => {
+    const guid = 0x0100_0000_0000_0001n;
+    const rank = new PacketReader(
+      buildModeratorStatus(
+        { invitee: guid, eventId: 7n, inviteId: 9n, ownerInviteId: 11n },
+        1,
+      ),
+    );
+    expect(rank.packedGuidBig()).toBe(guid);
+    expect(rank.uint64LE()).toBe(7n);
+    expect(rank.uint64LE()).toBe(9n);
+    expect(rank.uint64LE()).toBe(11n);
+    expect(rank.uint8()).toBe(1);
+  });
+
+  test("CMSG_CALENDAR_GUILD_FILTER sends three u32 levels and rank (Server/Packets/CalendarPackets.cpp:26-31)", () => {
+    const reader = new PacketReader(buildGuildFilter(1, 80, 3));
+    expect(reader.uint32LE()).toBe(1);
+    expect(reader.uint32LE()).toBe(80);
+    expect(reader.uint32LE()).toBe(3);
+  });
+
+  test("CMSG_CALENDAR_ARENA_TEAM sends the team id (Server/Packets/CalendarPackets.cpp:33-36)", () => {
+    expect(new PacketReader(buildArenaTeam(12)).uint32LE()).toBe(12);
+  });
+
+  test("CMSG_CALENDAR_COMPLAIN sends the event id and the packed guid (Server/Packets/CalendarPackets.cpp:38-42)", () => {
+    const reader = new PacketReader(buildComplain(7n, 0x0100_0000_0000_0001n));
+    expect(reader.uint64LE()).toBe(7n);
+    expect(reader.packedGuidBig()).toBe(0x0100_0000_0000_0001n);
   });
 });

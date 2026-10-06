@@ -80,6 +80,7 @@ or the page names one that does not exist.
 | Open the tabard designer and try to save a guild emblem | `t9-guild-tabard` | Run guildless: the server refuses the save with code 2 and takes no gold. A leader's save, ranks, notes, the info text and the event log are proven by probe flows, not a scenario: an eval cannot stage a guild. |
 | Read play time, draw weapons, hide helm and cloak | `t0-character-appearance` | Sheathe, helm and cloak sends get no server reply. |
 | Share a quest with the group and take one shared back | `t8-quests-share`, `t8-quests-accept-shared` | A share with no member answer is `UNCONFIRMED` after 3 s. |
+| Create and rename a personal calendar event | `t9-calendar-event` | Needs no guild. The server allows one create or copy every 5 s and 30 events per player. Invites, rsvp and status need a second player and are proven by tests only. |
 | Set loot rules and give master loot | `t9-raid-master-loot` | Needs a corpse that holds an item; the scenario allows three kills. `roll` and `pass_loot` are not shown: a group roll needs an uncommon drop and `pass_loot` has no server reply. |
 | Run and answer ready checks | `t9-raid-ready`, `t9-raid-answer` | Peon ends its own checks after 30 s. |
 | Answer a meeting-stone summon | `t9-raid-summon` | Two partners use the Stormwind stone 179595 and its summoning portal; the agent answers with `group` `summon`. The stone needs a group with both members at level 15. |

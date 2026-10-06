@@ -92,15 +92,22 @@ function eventBody() {
 describe("CalendarStore", () => {
   test("starts with no calendar", () => {
     expect(new CalendarStore(() => 0).snapshot()).toEqual({
+      arenaTeam: [],
       binds: [],
+      clearedPending: 0,
+      createdByMe: [],
       details: {},
       events: [],
+      filterGuild: [],
       holidays: [],
       invites: [],
+      lockoutUpdates: [],
+      lockouts: [],
       pending: undefined,
       receivedAt: undefined,
       relationTime: undefined,
       resets: [],
+      selfInvites: {},
       serverOffsetSeconds: undefined,
       serverTime: undefined,
       zoneTime: undefined,
@@ -208,5 +215,268 @@ describe("CalendarStore", () => {
     store.receiveNumPending(1);
     expect(calls).toBe(0);
     expect(store.snapshot().pending).toBe(1);
+  });
+});
+
+describe("CalendarStore alerts", () => {
+  const JULY = {
+    year: 2026,
+    month: 7,
+    day: 4,
+    weekday: 6,
+    hour: 12,
+    minute: 0,
+  };
+  const SELF = 0x0100_0000_0000_0001n;
+  const OTHER = 0x0100_0000_0000_0002n;
+
+  test("an invite alert for an unknown event lists it and emits once", () => {
+    const store = new CalendarStore(() => 0);
+    const seen: CalendarEvent[] = [];
+    store.onEvent((event) => seen.push(event));
+    store.receiveEventInviteAlert({
+      creator: SELF,
+      dungeonId: -1,
+      eventId: 7n,
+      flags: 0,
+      time: JULY,
+      title: "Raid",
+      type: 0,
+    });
+    expect(store.snapshot().events.map((event) => event.title)).toEqual([
+      "Raid",
+    ]);
+    expect(seen.map((event) => event.type)).toEqual(["invite_alert"]);
+  });
+
+  test("a second alert for the same event does not duplicate it", () => {
+    const store = new CalendarStore(() => 0);
+    const alert = {
+      creator: SELF,
+      dungeonId: -1,
+      eventId: 7n,
+      flags: 0,
+      time: JULY,
+      title: "Raid",
+      type: 0,
+    };
+    store.receiveEventInviteAlert(alert);
+    store.receiveEventInviteAlert(alert);
+    expect(store.snapshot().events).toHaveLength(1);
+  });
+
+  test("an updated alert rewrites the event row", () => {
+    const store = new CalendarStore(() => 0);
+    store.receiveEventInviteAlert({
+      creator: SELF,
+      dungeonId: -1,
+      eventId: 7n,
+      flags: 0,
+      time: JULY,
+      title: "Raid",
+      type: 0,
+    });
+    const seen: CalendarEvent[] = [];
+    store.onEvent((event) => seen.push(event));
+    store.receiveUpdatedAlert({
+      description: "details",
+      dungeonId: -1,
+      eventId: 7n,
+      flags: 1,
+      time: JULY,
+      title: "Meet",
+      type: 1,
+    });
+    expect(store.snapshot().events[0]).toMatchObject({
+      flags: 1,
+      title: "Meet",
+    });
+    expect(seen.map((event) => event.type)).toEqual(["updated_alert"]);
+  });
+
+  test("a removed alert drops the event and any self invite", () => {
+    const store = new CalendarStore(() => 0);
+    store.receiveEventInviteAlert({
+      creator: SELF,
+      dungeonId: -1,
+      eventId: 7n,
+      flags: 0,
+      time: JULY,
+      title: "Raid",
+      type: 0,
+    });
+    store.receiveInvite(
+      {
+        eventId: 7n,
+        hasStatusTime: false,
+        invited: true,
+        invitee: SELF,
+        inviteId: 9n,
+        level: 80,
+        status: 0,
+        statusTime: undefined,
+      },
+      SELF,
+    );
+    store.receiveRemovedAlert(7n);
+    expect(store.snapshot().events).toEqual([]);
+    expect(store.snapshot().selfInvites).toEqual({});
+  });
+
+  test("a status reply updates the stored invite rank and status", () => {
+    const store = new CalendarStore(() => 0);
+    store.receiveEvent(
+      parseCalendarSendEvent(
+        new PacketReader(
+          calendarSendEventBody({
+            creator: SELF,
+            description: "details",
+            dungeonId: -1,
+            eventId: 7n,
+            flags: 0,
+            guildId: 0,
+            invites: [
+              {
+                guildEvent: false,
+                invitee: OTHER,
+                inviteId: 9n,
+                level: 80,
+                rank: 0,
+                status: 0,
+                statusTime: JULY,
+                text: "",
+              },
+            ],
+            sendType: 0,
+            time: JULY,
+            title: "Raid",
+            type: 0,
+            zoneTime: JULY,
+          }),
+        ),
+      ),
+    );
+    store.receiveStatus({
+      eventId: 7n,
+      flags: 0,
+      invitee: OTHER,
+      rank: 1,
+      status: 1,
+      statusTime: JULY,
+      time: JULY,
+    });
+    expect(store.snapshot().details["7"]?.invites[0]).toMatchObject({
+      rank: 1,
+      status: 1,
+    });
+  });
+
+  test("removing an invite drops only that invite and a moderator alert sets rank", () => {
+    const store = new CalendarStore(() => 0);
+    store.receiveEvent(
+      parseCalendarSendEvent(
+        new PacketReader(
+          calendarSendEventBody({
+            creator: SELF,
+            description: "details",
+            dungeonId: -1,
+            eventId: 7n,
+            flags: 0,
+            guildId: 0,
+            invites: [
+              {
+                guildEvent: false,
+                invitee: SELF,
+                inviteId: 9n,
+                level: 80,
+                rank: 0,
+                status: 0,
+                statusTime: JULY,
+                text: "",
+              },
+              {
+                guildEvent: false,
+                invitee: OTHER,
+                inviteId: 10n,
+                level: 80,
+                rank: 0,
+                status: 0,
+                statusTime: JULY,
+                text: "",
+              },
+            ],
+            sendType: 0,
+            time: JULY,
+            title: "Raid",
+            type: 0,
+            zoneTime: JULY,
+          }),
+        ),
+      ),
+    );
+    const seen: CalendarEvent[] = [];
+    store.onEvent((event) => seen.push(event));
+    store.receiveModeratorAlert(7n, OTHER, 1);
+    store.receiveInviteRemoved({ eventId: 7n, invitee: OTHER });
+    expect(
+      store.snapshot().details["7"]?.invites.map((invite) => invite.invitee),
+    ).toEqual([SELF]);
+    expect(seen.map((event) => event.type)).toEqual([
+      "moderator_alert",
+      "invite_removed",
+    ]);
+  });
+
+  test("filter, arena, lockout and clear-pending replies fill their state", () => {
+    const store = new CalendarStore(() => 3);
+    store.receiveNumPending(2);
+    store.receiveFilterGuild([{ guid: OTHER, level: 80 }]);
+    store.receiveArenaTeam([{ guid: OTHER, unk: 3 }]);
+    store.receiveLockoutAdded({
+      difficulty: 1,
+      instanceGuid: 99n,
+      mapId: 631,
+      secondsLeft: 3600,
+      time: JULY,
+    });
+    store.receiveLockoutUpdated({
+      difficulty: 1,
+      mapId: 631,
+      newSeconds: 7200,
+      oldSeconds: 3600,
+      time: JULY,
+    });
+    store.receiveLockoutRemoved({
+      difficulty: 1,
+      instanceGuid: 99n,
+      mapId: 631,
+      secondsLeft: 0,
+      time: undefined,
+    });
+    store.receiveClearPending();
+    expect(store.snapshot().filterGuild).toEqual([{ guid: OTHER, level: 80 }]);
+    expect(store.snapshot().arenaTeam).toEqual([{ guid: OTHER, unk: 3 }]);
+    expect(store.snapshot().lockouts).toEqual([]);
+    expect(store.snapshot().lockoutUpdates).toHaveLength(1);
+    expect(store.snapshot().pending).toBe(1);
+    expect(store.snapshot().clearedPending).toBe(1);
+  });
+
+  test("an invite for another player leaves self invites alone", () => {
+    const store = new CalendarStore(() => 0);
+    store.receiveInvite(
+      {
+        eventId: 7n,
+        hasStatusTime: false,
+        invited: true,
+        invitee: OTHER,
+        inviteId: 9n,
+        level: 80,
+        status: 0,
+        statusTime: undefined,
+      },
+      SELF,
+    );
+    expect(store.snapshot().selfInvites).toEqual({});
   });
 });

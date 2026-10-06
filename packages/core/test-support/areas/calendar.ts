@@ -206,3 +206,243 @@ export function calendarCommandResultBody(init: {
   w.uint32LE(init.error);
   return w.finish();
 }
+
+export type CalendarTimeBody = {
+  time: PackedTime;
+};
+
+export function calendarTimeBody(time: PackedTime): Uint8Array {
+  const w = new PacketWriter();
+  w.uint32LE(packCalendarTime(time));
+  return w.finish();
+}
+
+export type CalendarFilterGuildBodyInit = {
+  members: readonly { guid: bigint }[];
+};
+
+export function calendarFilterGuildBody(
+  init: CalendarFilterGuildBodyInit,
+): Uint8Array {
+  const w = new PacketWriter();
+  w.uint32LE(init.members.length);
+  for (const member of init.members) {
+    w.packedGuidBig(member.guid);
+    w.uint8(0);
+  }
+  return w.finish();
+}
+
+export type CalendarArenaTeamBodyInit = {
+  members: readonly { guid: bigint }[];
+};
+
+export function calendarArenaTeamBody(
+  init: CalendarArenaTeamBodyInit,
+): Uint8Array {
+  const w = new PacketWriter();
+  w.uint32LE(init.members.length);
+  for (const member of init.members) {
+    w.packedGuidBig(member.guid);
+    w.uint8(0);
+  }
+  return w.finish();
+}
+
+export type CalendarEventInvitePacketInit = {
+  invitee: bigint;
+  eventId: bigint;
+  inviteId: bigint;
+  level: number;
+  status: number;
+  statusTime?: PackedTime;
+  invited?: boolean;
+};
+
+export function calendarEventInviteBody(
+  init: CalendarEventInvitePacketInit,
+): Uint8Array {
+  const w = new PacketWriter();
+  w.packedGuidBig(init.invitee);
+  w.uint64LE(init.eventId);
+  w.uint64LE(init.inviteId);
+  w.uint8(init.level);
+  w.uint8(init.status);
+  const hasTime = init.statusTime !== undefined;
+  w.uint8(hasTime ? 1 : 0);
+  if (init.statusTime !== undefined)
+    w.uint32LE(packCalendarTime(init.statusTime));
+  w.uint8(init.invited === false ? 0 : 1);
+  return w.finish();
+}
+
+export function calendarInviteRemovedBody(init: {
+  invitee: bigint;
+  eventId: bigint;
+  flags: number;
+}): Uint8Array {
+  const w = new PacketWriter();
+  w.packedGuidBig(init.invitee);
+  w.uint64LE(init.eventId);
+  w.uint32LE(init.flags);
+  w.uint8(1);
+  return w.finish();
+}
+
+export function calendarEventStatusBody(init: {
+  invitee: bigint;
+  eventId: bigint;
+  time: PackedTime;
+  flags: number;
+  status: number;
+  rank: number;
+  statusTime: PackedTime;
+}): Uint8Array {
+  const w = new PacketWriter();
+  w.packedGuidBig(init.invitee);
+  w.uint64LE(init.eventId);
+  w.uint32LE(packCalendarTime(init.time));
+  w.uint32LE(init.flags);
+  w.uint8(init.status);
+  w.uint8(init.rank);
+  w.uint32LE(packCalendarTime(init.statusTime));
+  return w.finish();
+}
+
+export function calendarInviteAlertBody(init: {
+  eventId: bigint;
+  title: string;
+  time: PackedTime;
+  flags: number;
+  type: number;
+  dungeonId: number;
+  inviteId: bigint;
+  status: number;
+  rank: number;
+  creator: bigint;
+  sender: bigint;
+}): Uint8Array {
+  const w = new PacketWriter();
+  w.uint64LE(init.eventId);
+  w.cString(init.title);
+  w.uint32LE(packCalendarTime(init.time));
+  w.uint32LE(init.flags);
+  w.uint32LE(init.type);
+  w.uint32LE(init.dungeonId >>> 0);
+  w.uint64LE(init.inviteId);
+  w.uint8(init.status);
+  w.uint8(init.rank);
+  w.packedGuidBig(init.creator);
+  w.packedGuidBig(init.sender);
+  return w.finish();
+}
+
+export function calendarInviteRemovedAlertBody(init: {
+  eventId: bigint;
+  time: PackedTime;
+  flags: number;
+  status: number;
+}): Uint8Array {
+  const w = new PacketWriter();
+  w.uint64LE(init.eventId);
+  w.uint32LE(packCalendarTime(init.time));
+  w.uint32LE(init.flags);
+  w.uint8(init.status);
+  return w.finish();
+}
+
+export function calendarRemovedAlertBody(init: {
+  eventId: bigint;
+  time: PackedTime;
+}): Uint8Array {
+  const w = new PacketWriter();
+  w.uint8(1);
+  w.uint64LE(init.eventId);
+  w.uint32LE(packCalendarTime(init.time));
+  return w.finish();
+}
+
+export function calendarUpdatedAlertBody(init: {
+  eventId: bigint;
+  oldTime: PackedTime;
+  flags: number;
+  time: PackedTime;
+  type: number;
+  dungeonId: number;
+  title: string;
+  description: string;
+}): Uint8Array {
+  const w = new PacketWriter();
+  w.uint8(1);
+  w.uint64LE(init.eventId);
+  w.uint32LE(packCalendarTime(init.oldTime));
+  w.uint32LE(init.flags);
+  w.uint32LE(packCalendarTime(init.time));
+  w.uint8(init.type);
+  w.uint32LE(init.dungeonId >>> 0);
+  w.cString(init.title);
+  w.cString(init.description);
+  w.uint8(0);
+  w.uint32LE(100);
+  w.uint32LE(0);
+  return w.finish();
+}
+
+export function calendarModeratorAlertBody(init: {
+  invitee: bigint;
+  eventId: bigint;
+  rank: number;
+}): Uint8Array {
+  const w = new PacketWriter();
+  w.packedGuidBig(init.invitee);
+  w.uint64LE(init.eventId);
+  w.uint8(init.rank);
+  w.uint8(1);
+  return w.finish();
+}
+
+export function calendarLockoutAddedBody(init: {
+  time: PackedTime;
+  mapId: number;
+  difficulty: number;
+  secondsLeft: number;
+  instanceGuid: bigint;
+}): Uint8Array {
+  const w = new PacketWriter();
+  w.uint32LE(packCalendarTime(init.time));
+  w.uint32LE(init.mapId);
+  w.uint32LE(init.difficulty);
+  w.uint32LE(init.secondsLeft);
+  w.uint64LE(init.instanceGuid);
+  return w.finish();
+}
+
+export function calendarLockoutRemovedBody(init: {
+  mapId: number;
+  difficulty: number;
+  secondsLeft: number;
+  instanceGuid: bigint;
+}): Uint8Array {
+  const w = new PacketWriter();
+  w.uint32LE(init.mapId);
+  w.uint32LE(init.difficulty);
+  w.uint32LE(init.secondsLeft);
+  w.uint64LE(init.instanceGuid);
+  return w.finish();
+}
+
+export function calendarLockoutUpdatedBody(init: {
+  time: PackedTime;
+  mapId: number;
+  difficulty: number;
+  oldSeconds: number;
+  newSeconds: number;
+}): Uint8Array {
+  const w = new PacketWriter();
+  w.uint32LE(packCalendarTime(init.time));
+  w.uint32LE(init.mapId);
+  w.uint32LE(init.difficulty);
+  w.uint32LE(init.oldSeconds);
+  w.uint32LE(init.newSeconds);
+  return w.finish();
+}

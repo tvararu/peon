@@ -24,7 +24,8 @@ export type ToolName =
   | "vehicle"
   | "guild"
   | "channel"
-  | "arena";
+  | "arena"
+  | "calendar";
 
 export type ToolKind = "read" | "action" | "run" | "control";
 

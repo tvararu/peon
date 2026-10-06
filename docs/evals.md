@@ -248,3 +248,4 @@ two scenarios closest to it. Every scenario appears in at least one row.
 | Groups and raids (`group` tool) | `t9-raid-kick`, `t9-raid-convert`, `t9-raid-master-loot`, `t9-raid-ready`, `t9-raid-answer`, `t9-raid-summon`, `t9-raid-mark` |
 | Guild (`guild` tool tabard designer and emblem) | `t9-guild-tabard` |
 | Arena (`arena` tool inspect) | `t9-arena-inspect` (blocked by the staging gap: the server sends no inspect reply for teamless targets until an arena setup endpoint exists) |
+| Calendar (`calendar` tool create and update) | `t9-calendar-event` |

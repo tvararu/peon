@@ -1,4 +1,5 @@
 import { arenaTool } from "#harness/areas/arena/tool";
+import { calendarTool } from "#harness/areas/calendar/tool";
 import { channelTool } from "#harness/areas/channels/tool";
 import { characterTool } from "#harness/areas/character/tool";
 import { guildTool } from "#harness/areas/guildadmin/tool";
@@ -53,6 +54,7 @@ export const GAME_TOOLS = [
   guildTool,
   channelTool,
   arenaTool,
+  calendarTool,
 ] as const;
 
 type Listed = (typeof GAME_TOOLS)[number]["name"];
