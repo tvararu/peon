@@ -1,0 +1,55 @@
+{
+  "botRisk": "low",
+  "budget": {
+    "minutes": 8,
+    "tools": 16,
+    "turns": 8
+  },
+  "checks": [
+    {
+      "evidence": {
+        "events": ["calendar/read"]
+      },
+      "expect": "GL has a calendar/read row: the agent listed the calendar first",
+      "id": "listed-first",
+      "source": "game_log"
+    },
+    {
+      "expect": "the session shows the agent calling the calendar tool with do create and the given title, not ending REFUSED",
+      "id": "create-called",
+      "source": "session"
+    },
+    {
+      "expect": "the session shows the agent calling the calendar tool with do update and the new title, not ending REFUSED",
+      "id": "update-called",
+      "source": "session"
+    },
+    {
+      "expect": "the agent's answer names the created event and its renamed title",
+      "id": "answer-names-event",
+      "source": "session"
+    }
+  ],
+  "id": "t9-calendar-event",
+  "navBound": false,
+  "needsWatcher": false,
+  "paneMinutes": 11,
+  "partner": null,
+  "preset": "max80",
+  "setup": [
+    {
+      "body": {
+        "map": 571,
+        "o": 0.6,
+        "x": 5765.5,
+        "y": 625.5,
+        "z": 650.3,
+        "zone": 4395
+      },
+      "endpoint": "position"
+    }
+  ],
+  "steers": [],
+  "task": "Open your calendar, create a personal event for tomorrow at 7pm server time titled Peon Drill, then rename it to Peon Drill Done. Tell me the event id and its final title.",
+  "tier": 9
+}

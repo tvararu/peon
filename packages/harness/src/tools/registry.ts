@@ -1,3 +1,4 @@
+import { calendarTool } from "#harness/areas/calendar/tool";
 import { dungeonTool } from "#harness/areas/instances/tool";
 import { gearTool } from "#harness/areas/items/tool";
 import { mailTool } from "#harness/areas/mail/tool";
@@ -43,6 +44,7 @@ export const GAME_TOOLS = [
   talentsTool,
   mailTool,
   vehicleTool,
+  calendarTool,
 ] as const;
 
 type Listed = (typeof GAME_TOOLS)[number]["name"];

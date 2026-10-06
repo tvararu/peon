@@ -76,8 +76,9 @@ export const calendarHarness = defineHarnessArea({
       if (event.type === "calendar") return calendarRow(event.state);
       if (event.type === "event") return [];
       if (event.type === "pending") return pendingRow(event.pending);
-      return commandRow(event);
+      if (event.type === "command_result") return commandRow(event);
+      return [];
     },
   }),
-  worldActs: ["get", "event", "pending"],
+  worldActs: ["get", "event", "pending", "create", "update", "remove", "copy", "invite", "answer", "signup", "setStatus", "removeInvite", "setModerator", "complain", "filterGuild", "arenaTeam"],
 });

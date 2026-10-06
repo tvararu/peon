@@ -19,7 +19,8 @@ export type ToolName =
   | "trade"
   | "talents"
   | "mail"
-  | "vehicle";
+  | "vehicle"
+  | "calendar";
 
 export type ToolKind = "read" | "action" | "run" | "control";
 

@@ -6,7 +6,10 @@ import { testRuleInput } from "#test-support/rule-fixtures";
 
 const ZONE = { day: 4, hour: 19, minute: 0, month: 7, weekday: 6, year: 2026 };
 const READ: AreaState<"calendar"> = {
+  arenaTeam: [],
   binds: [],
+  clearedPending: 0,
+  createdByMe: [],
   details: {},
   events: [
     {
@@ -34,9 +37,13 @@ const READ: AreaState<"calendar"> = {
   receivedAt: 1,
   relationTime: 0,
   resets: [],
+  selfInvites: {},
   serverOffsetSeconds: 25_200,
   serverTime: 1_790_928_000,
   zoneTime: ZONE,
+  filterGuild: [],
+  lockouts: [],
+  lockoutUpdates: [],
 };
 
 function calendarEvent(type: "calendar" | "pending"): AreaEvent {
