@@ -7,6 +7,10 @@ import { testRuleInput } from "#test-support/rule-fixtures";
 
 const INFO: AreaState<"guildadmin"> = {
   disbanded: false,
+  emblem: undefined,
+  eventLog: undefined,
+  permissions: undefined,
+  roster: undefined,
   info: {
     accounts: 1,
     created: {
@@ -63,7 +67,34 @@ describe("guildadmin harness rules", () => {
     expect(attachDrafts(areaRuleSet(), game, testRuleInput())).toEqual([]);
   });
 
-  test("the world acts are info and disband", () => {
-    expect(guildadminHarness.worldActs).toEqual(["info", "disband"]);
+  test("the tabard designer opening writes a log row", () => {
+    const drafts = areaDrafts(
+      areaRuleSet(),
+      { area: "guildadmin", event: { type: "tabard_vendor", npc: 7n } },
+      testRuleInput(),
+    );
+    expect(drafts).toHaveLength(1);
+    expect(drafts[0]).toMatchObject({
+      class: "log",
+      event: "guildadmin/tabard_vendor",
+    });
+  });
+
+  test("an emblem result writes a log row with its code", () => {
+    const drafts = areaDrafts(
+      areaRuleSet(),
+      { area: "guildadmin", event: { type: "emblem_result", code: 2 } },
+      testRuleInput(),
+    );
+    expect(drafts[0]).toMatchObject({
+      data: { code: 2 },
+      event: "guildadmin/emblem_result",
+    });
+  });
+
+  test("the world acts are the guildadmin acts", () => {
+    expect(guildadminHarness.worldActs).toContain("openTabardVendor");
+    expect(guildadminHarness.worldActs).toContain("setInfoText");
+    expect(guildadminHarness.worldActs).toHaveLength(11);
   });
 });
