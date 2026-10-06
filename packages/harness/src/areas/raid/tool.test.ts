@@ -384,10 +384,11 @@ describe("group tool", () => {
       });
       t.uninvite.mockImplementation(() => elapse(3000));
       const out = await withFakeTimers(() =>
-        runTool(t.tool, { do: "kick", to: "Ann" }),
+        runTool(t.tool, { do: "kick", to: "ann" }),
       );
       expect(t.uninvite).toHaveBeenCalledWith("Ann", "");
-      expect(out.text).toContain("UNCONFIRMED");
+      expect(out.text).toContain("UNCONFIRMED no_answer");
+      expect(out.text).toContain("Ann");
     });
 
     test("sends the reason and is done when the member leaves the roster", async () => {

@@ -183,7 +183,7 @@ describe("group tool summon", () => {
     expect(t.answer).not.toHaveBeenCalled();
   });
 
-  test("a pre-aborted decline sends nothing and keeps the offer", async () => {
+  test("a pre-aborted decline rejects before sending", async () => {
     const t = await world();
     const abort = new AbortController();
     abort.abort(new Error("cancelled"));

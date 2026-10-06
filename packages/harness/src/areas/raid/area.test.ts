@@ -44,20 +44,20 @@ describe("raid harness rules", () => {
     ).toEqual([]);
   });
 
-  test("a left change writes one passive roster row", () => {
-    expect(
-      rows({
-        changes: [{ kind: "left", name: "Tom" }],
-        group: GROUP,
-        type: "group_list",
-      }),
-    ).toMatchObject([
+  test("a left change writes one passive roster row that says left", () => {
+    const out = rows({
+      changes: [{ kind: "left", name: "Tom" }],
+      group: GROUP,
+      type: "group_list",
+    });
+    expect(out).toMatchObject([
       {
         class: "passive",
         data: { change: "left", name: "Tom" },
         event: "raid/roster",
       },
     ]);
+    expect(out[0]?.text).toContain("left");
   });
 
   test("becoming leader writes a wake roster row", () => {
@@ -148,7 +148,11 @@ describe("raid roster row detail", () => {
       group: GROUP,
       type: "group_list",
     });
-    expect(row?.data).toMatchObject({ flag: "main_tank", on: true });
+    expect(row?.data).toMatchObject({
+      flag: "main_tank",
+      name: "Tom",
+      on: true,
+    });
     expect(row?.text).toContain("main tank");
     expect(row?.text).toContain("gained");
   });

@@ -64,11 +64,14 @@ at the baseline commit.
   substituted name, an item name resolved from state, a label mapped from a
   code (icon, flag, transition, result table), a computed number (1-based
   index, seconds, distance, bearing), and a branch label unless a status or
-  reason code in the same text already tells the branches apart (`data` does
-  not count: the agent never sees it). Assert the value, not the sentence
+  reason code in the same text already tells the branches apart. `data`,
+  the event key and the row name do not count: the agent never sees them,
+  so the word that tells it what happened (`left`, `came into view`,
+  `accepted`) is a branch label too. Assert the value, not the sentence
   around it. Whole-sentence pins, `toEqual` over a row's prose, names the
   rule copies unchanged from the event when `data` asserts them, and prose
-  beside a code that already proves the branch are wording.
+  beside a code that already proves the branch are wording. Tool results
+  carry no `data`, so a name they render is never covered by one.
 - `WorldHandle` spy assertions in harness tool tests are the harness-to-core
   boundary, unless the mock implements the behaviour under test or another
   test asserts the same call for the same branch.
@@ -92,17 +95,17 @@ at the baseline commit.
 | [area-calendar](#area-calendar) | 5 | 22 | 4 | 0 | 2 |
 | [area-channels](#area-channels) | 5 | 48 | 4 | 3 | 0 |
 | [area-charters](#area-charters) | 4 | 31 | 2 | 1 | 1 |
-| [area-combatlog](#area-combatlog) | 22 | 142 | 14 | 2 | 11 |
+| [area-combatlog](#area-combatlog) | 22 | 143 | 13 | 2 | 11 |
 | [area-complaints](#area-complaints) | 4 | 13 | 0 | 1 | 0 |
 | [area-contacts](#area-contacts) | 4 | 16 | 2 | 1 | 0 |
 | [area-emotes](#area-emotes) | 7 | 36 | 2 | 4 | 2 |
 | [area-framework](#area-framework) | 5 | 40 | 1 | 0 | 2 |
 | [area-guildadmin](#area-guildadmin) | 3 | 12 | 2 | 0 | 2 |
 | [area-inspect](#area-inspect) | 4 | 14 | 1 | 1 | 2 |
-| [area-instances](#area-instances) | 11 | 126 | 16 | 1 | 3 |
+| [area-instances](#area-instances) | 11 | 128 | 14 | 1 | 3 |
 | [area-items-1](#area-items-1) | 17 | 145 | 3 | 1 | 0 |
 | [area-items-2](#area-items-2) | 13 | 129 | 6 | 3 | 1 |
-| [area-lfg](#area-lfg) | 10 | 133 | 7 | 1 | 5 |
+| [area-lfg](#area-lfg) | 10 | 135 | 6 | 1 | 4 |
 | [area-login](#area-login) | 5 | 35 | 1 | 5 | 4 |
 | [area-looting](#area-looting) | 4 | 34 | 2 | 1 | 1 |
 | [area-mail](#area-mail) | 10 | 82 | 2 | 2 | 2 |
@@ -118,8 +121,8 @@ at the baseline commit.
 | [area-time](#area-time) | 4 | 26 | 1 | 1 | 2 |
 | [area-trade](#area-trade) | 10 | 111 | 5 | 7 | 4 |
 | [area-transports](#area-transports) | 9 | 57 | 3 | 0 | 0 |
-| [area-travel](#area-travel) | 7 | 78 | 10 | 2 | 1 |
-| [area-unitmotion](#area-unitmotion) | 5 | 30 | 3 | 6 | 1 |
+| [area-travel](#area-travel) | 7 | 79 | 9 | 2 | 1 |
+| [area-unitmotion](#area-unitmotion) | 5 | 29 | 4 | 6 | 1 |
 | [area-vehicles](#area-vehicles) | 9 | 88 | 11 | 3 | 3 |
 | [core-lib](#core-lib) | 11 | 70 | 2 | 0 | 17 |
 | [core-protocol-1](#core-protocol-1) | 19 | 160 | 20 | 9 | 9 |
@@ -146,7 +149,7 @@ at the baseline commit.
 | [harness-tools-1](#harness-tools-1) | 22 | 146 | 41 | 2 | 7 |
 | [harness-tools-2](#harness-tools-2) | 29 | 181 | 11 | 10 | 1 |
 | [harness-tools-3](#harness-tools-3) | 19 | 128 | 56 | 2 | 1 |
-| **total** | | 7152 | 468 | 164 | 188 |
+| **total** | | 7157 | 464 | 164 | 187 |
 
 ## area-account
 
@@ -432,14 +435,14 @@ at the baseline commit.
 
 ### packages/harness/src/areas/bank/area.test.ts
 - 23 D: restates the `worldActs` constant typed by defineHarnessArea (area.ts:74); no behaviour, no other proof needed
-- 32 F: `toContain("bank")` pins prose ("Opened the bank." never even contains the banker); the banker is copied unchanged from the event, so drop the text assertion and assert data.banker is the guid text "f130000000000055" (ruling A: echoed value, data asserts it)
+- 32 F: `toContain("bank")` is a weak match for the label "Opened the bank."; data carries the banker guid but the agent never sees data. Tighten to `toContain("Opened the bank")`, the only text that says what happened, and keep data.banker "f130000000000055"
 - 47 R: deposit row class/event and item name resolved through lookup
 - 68 R: withdraw row uses the withdraw event name and resolved item name
 - 89 R: unknown entry yields the generic name and the guid is kept in data
-- 106 F: the text echoes event.result unchanged, and data.result already carries it; drop `toContain("ok")` and assert data.result === "ok" (ruling A: echoed name, no computed value)
-- 121 F: the reason and kind are copied unchanged from the event into data and the wake row name "bank/refused" proves the branch; drop `toContain("cant_carry_more")` and assert data.reason "cant_carry_more" and data.kind "deposit" (ruling A: echoed value)
-- 135 R: no_change maps to a wake row named bank/no_change
-- 148 R: unanswered maps to a wake row named bank/unanswered
+- 106 R: text renders event.result as the result code "(ok)" and the agent never sees data, so `toContain("ok")` guards the rendered result code; keep
+- 121 R: the reason code is rendered into text ("was refused (cant_carry_more)") and the agent never sees data or the row name, so `toContain("cant_carry_more")` is a reason-code contract; keep it
+- 135 F: asserts class and event name only; the agent sees only text, so the branch labels "changed nothing" and "went unanswered" are the contract; add toContain("changed nothing") (kind withdraw) here
+- 148 F: asserts class and event name only; add toContain("went unanswered") (kind slot rendered), the label the agent reads
 
 #### Seams
 - none
@@ -516,8 +519,8 @@ at the baseline commit.
 
 ### packages/harness/src/areas/battlegrounds/area.test.ts
 - 11 F: toEqual pins the whole row incl. prose "PvP flag is on."; keep event/class/data. Ruling A: flagText maps wants/timer to a label (on / off / counting down) the agent reads from text only, so keep that branch label as a tight `toContain("on")`-style assertion on `text` (wants:true, timer:false), drop the sentence
-- 36 F: toEqual pins the whole row incl. prose "Earned 100 honor."; keep event/class/data (honor 100, rank 2). Ruling A: the 100 is copied unchanged from the event and data already asserts it, so drop the text pin entirely
-- 58 F: toEqual pins the whole row incl. prose "Zone 42 is under attack."; keep passive class, event and data areaId. Ruling A: 42 is copied unchanged from the event and data asserts it, so drop the text pin entirely
+- 36 F: toEqual pins the whole row incl. prose "Earned 100 honor."; keep event/class/data (honor 100, rank 2) and assert text with a tight `toContain("Earned 100 honor")`-style label+value: the agent never sees data, and "Earned" is the only word that says honor was credited
+- 58 F: toEqual pins the whole row incl. prose "Zone 42 is under attack."; keep passive class, event and data areaId, and assert text `toContain("under attack")` (the label the agent reads; the event name and data are invisible to it) plus the zone number
 - 80 R: honor_inspect and pvp_kill_quest map to inspect and kill log rows
 - 125 R: first queued status logs once; refresh from queued writes nothing
 - 152 R: queue_left row only when previous was queued; active writes nothing
@@ -569,8 +572,8 @@ at the baseline commit.
 - 29 D: restates the declared worldActs constant; no behaviour, no keeper contract
 - 33 F: price is looked up from the remembered listed row and item name resolved via lookup, both rendered only in text; assert toContain("Linen Cloth") and toContain("35 copper"), drop the sentence
 - 53 F: unknown-price branch has no status code; assert text toContain("Linen Cloth") and not toContain("copper") (name lookup + missing price branch), drop the exact sentence
-- 62 F: reason is copied unchanged from the event and data.reason carries it; assert data.reason === "cant_find_item", drop the text toContain prose
-- 76 R: unanswered buyback yields exactly one wake row with event buyback/unanswered
+- 62 R: the reason code is rendered into text ("was refused (cant_find_item)") and the agent never sees data.reason, so `toContain("cant_find_item")` is a reason-code contract; keep it
+- 76 F: asserts the row count and event name only; the agent reads text, so add toContain("went unanswered") (the branch label; the event name and data are invisible to it)
 - 89 C packages/harness/src/areas/buyback/area.test.ts:33: listed-yields-no-rows is already asserted as the first step there
 
 #### Seams
@@ -641,7 +644,7 @@ at the baseline commit.
 ### packages/harness/src/areas/calendar/area.test.ts
 - 50 F: toEqual pins the sentence in text; keep data keys and assert text toContain "1 invites", "1 events", "2026-07-04 19:00" (counts/stamp the agent reads); drop the sentence
 - 75 R: no calendar from the server means no attach row; a fabricated row would mislead the agent
-- 81 F: drop worldActs line and the sentence "The calendar refused with error 6." (code 6 in data proves branch); add toContain("2 pending") on the pending row text (count only data-asserted)
+- 81 F: drop the worldActs line; replace the full sentence "The calendar refused with error 6." with `toContain("refused")` and `toContain("error 6")` (the error code and the refused label are text-only; data.error is invisible to the agent); add toContain("2 pending") on the pending row text
 
 #### Seams
 - packages/harness/src/areas/calendar/area.ts `worldActs`: also read by harness registry code, so it is not test-only; the assertion at line 81 only restates it
@@ -1101,8 +1104,8 @@ at the baseline commit.
 - none
 
 ### packages/harness/src/areas/combatlog/area-dispel.test.ts
-- 38 F: keep text toContain("Defias Mage") (looked-up caster name) and data aura/kind/spellId; drop the "dispels" verb and echoed "168" prose assertions
-- 52 F: data.kind steal tells the branch; drop the "steals" prose assertion, keep data.kind and the row
+- 38 F: keep text toContain("Defias Mage") (looked-up caster name) and the "dispels" verb (kind-to-verb label the agent reads; data is invisible to it); drop the echoed "168" assertion (data asserts aura)
+- 52 R: toContain("steals") asserts the kind-to-verb label (steal vs dispel) the agent reads; data.kind is invisible to it, so keep the text assertion alongside data.kind
 - 58 R: each aura event writes its own row; no dedupe by spell
 - 64 R: own dispel, dispel on someone else, empty caster, failed dispel and execute write no row
 
@@ -1132,7 +1135,7 @@ at the baseline commit.
 - 89 D: plain melee entry writes no row; also silent inside packages/harness/src/areas/combatlog/area.test.ts:224
 - 95 R: damage, heal, kill-by-self, pet and non-player kills write no row
 - 113 F: immune row once per creature entry and spell; keep text toContain(`Mottled Boar u${BOAR}`) (looked-up name+ref) and data entry/spellId; drop "is immune to spell 122."
-- 133 F: immune miss and swing each write once; keep data spellId (5143 vs 0 tells the branch) and toContain(`Mottled Boar u${BOAR}`); drop both "immune to ..." sentences
+- 133 F: immune miss and swing each write once; keep toContain(`Mottled Boar u${BOAR}`) and replace the two sentence pins with the computed label values `toContain("spell 5143")` and `toContain("your attacks")` (spellId 0 maps to "your attacks"; data spellId is invisible to the agent)
 - 159 R: pet immunity does not consume the character's own row
 - 171 F: keep class/data/guid/ref and text toContain(`Mate u${MATE}`) and toContain(`Mottled Boar u${BOAR}`) (looked-up names+refs); drop the "killed your target" sentence from the toEqual
 - 192 F: keep data (durationMs from lastAt-startedAt, totals) in the row; drop the "Fight over:" sentence from the toEqual; text values are asserted in totals.test.ts:99/:110/:116
@@ -1605,12 +1608,12 @@ at the baseline commit.
 - 118 R: already_queued refusal, no join
 - 132 R: queue by id uses named entry and role bit
 - 157 R: asserts role name "damage" in the role_answered row text, mapped from bit 8; only the text shows it; keep
-- 185 F: keep answerProposal(true) and one proposal_answered row; drop toContain("accepted") prose; data.accepted true covers it
+- 185 R: toContain("accepted") is kept: the text says "Accepted the dungeon group proposal." while the failure row says "did not land", and data.accepted is true on both branches and invisible to the agent, so the word is the branch label; keep with answerProposal(true) and one proposal_answered row
 - 216 C packages/harness/src/areas/instances/tool-lfg.test.ts:157: both auto answers already proven separately; no ordering assertion added
 - 260 R: already-open role check answered at join
 - 282 R: auto false answers nothing
 - 315 R: answering role check cancels the no-answer leave timer
-- 346 F: keep leave called once and one role_unanswered row; drop toContain("left the queue") prose (constant, row name proves branch)
+- 346 R: toContain("left the queue") is kept: data is {} and the row name is invisible to the agent, so the text is the only thing saying the character left after a 60 s role-check silence; keep with leave called once and one role_unanswered row
 
 #### Seams
 - none
@@ -2023,7 +2026,7 @@ at the baseline commit.
 
 ### packages/harness/src/areas/items/area-wrap.test.ts
 - 17 R: wrap-kind moved event writes items/wrapped, not items/moved
-- 34 C packages/harness/src/areas/items/area.test.ts:68: same move_refused wake; reason is echoed from the event and in data, so drop the "Move refused: ..." text pin; keeper asserts data reason
+- 34 C packages/harness/src/areas/items/area.test.ts:68: same move_refused wake; the reason is rendered into the text ("Move refused: <reason>.") and data is invisible to the agent, so the keeper's text must keep the reason code; keeper asserts the reason in text (toEqual) and data
 
 ### packages/harness/src/areas/items/area.test.ts
 - 42 R: each move kind maps to its log event name and data
@@ -2328,7 +2331,7 @@ at the baseline commit.
 - 67 R: leaving from queued/proposal writes one passive lfg/left row
 - 76 R: none after none not a leave
 - 81 R: search-flag status never writes queued/left
-- 97 F: ruling A: row.text toContain("deserter") only echoes event.reason that data.reason already asserts; drop the text assertion, keep class/event/data
+- 97 R: row.text toContain("deserter") asserts the join refusal reason code rendered into text; the agent never sees data.reason, so the text is the only carrier; keep
 - 113 R: accepted join writes no refused row
 - 129 R: ruling A: toContain("4 min") asserts the computed minutes (240 s to min) the agent reads; keep it
 - 139 R: ruling A: toContain("16 s") asserts the seconds branch label (under 60 s) with no data field telling branches apart; keep
@@ -2337,11 +2340,11 @@ at the baseline commit.
 - 161 R: open proposal wakes with deadline data
 - 171 R: closed proposal states log, not wake
 - 177 R: already-answered proposal does not wake
-- 183 D: ruling A: only asserts the three texts differ, a prose inequality; state is in data, classes proven by area.test.ts:161,171
+- 183 F: asserts only that the three proposal texts differ; the state-to-label table (waiting for an answer / failed / succeeded) is text-only and data state is invisible to the agent; assert each label via toContain("waiting for an answer"), toContain("failed"), toContain("succeeded") instead of distinctness
 - 190 R: role check start wakes, later state logs
 - 199 R: open kick vote wakes with deadline and counts
 - 223 F: ruling A: drop text not.toBe(open text) prose inequality; keep class log; add open row text toContain("3 of 3") for the rendered agrees/needed counts
-- 240 F: ruling A: text toContain("invalid_location") only echoes event.reason already in data.reason; drop the text assertion, keep data code 6/reason
+- 240 R: text toContain("invalid_location") asserts the teleport-denied reason code rendered into text ("was denied: invalid_location"); the agent never sees data.code/reason, so keep it alongside the class/event/data assertions
 - 254 R: offer continue row carries entry
 - 262 R: reward log progress row with money, xp, item count
 - 288 R: dungeon list arrivals write no row
@@ -3612,7 +3615,7 @@ at the baseline commit.
 ### packages/harness/src/areas/raid/area.test.ts
 - 27 R: conversion produces one passive raid/roster row
 - 37 R: joined changes write no row
-- 47 R: a left change is a passive roster row; data change left and name Tom carry the echoed name, no sentence is pinned (ruling A)
+- 47 R: a left change is a passive roster row; asserts the "left" label the agent reads, and data carries the echoed name Tom
 - 59 R: becoming leader is a wake row with data.change leader
 - 71 R: another member becoming leader stays passive
 - 83 R: other self changes stay passive
@@ -3652,7 +3655,7 @@ at the baseline commit.
 ### packages/harness/src/areas/raid/tool-loot.test.ts
 - 219 R: not_in_group, no_master_loot and not_master refusals open nothing
 - 242 R: needs_item and not_a_member refusals
-- 253 R: keeps toContain("Linen Cloth") (item name resolved from loot state) with DONE and the open, give and release spies; Tom not asserted
+- 253 R: asserts "Linen Cloth" (item resolved from loot state) and "to Tom" (member looked up from the input "tom") with DONE and the open, give and release spies
 - 269 R: no member named gives to @self on the nearest corpse
 - 276 R: naming the caller's own character gives to @self
 - 287 R: lowest slot wins among same-label items
@@ -3778,7 +3781,7 @@ at the baseline commit.
 - 156 R: a throwing send gives FAILED
 - 165 R: an answer throwing no_summon maps to REFUSED no_summon
 - 174 R: pre-aborted accept sends nothing
-- 187 F: pre-aborted decline path (separate from accept) is real, but the final summon-kept check reads a mocked state and is vacuous; drop it
+- 187 F: pre-aborted decline path is real, but the final summon-kept check reads a mocked state and is vacuous; drop it and rename to "rejects before sending"
 - 201 R: a decline aborted while queued sends nothing, the second decline still runs
 - 224 F: aborted-while-queued accept is real, but the trailing summon-defined check reads a mocked state and is vacuous; drop it
 - 247 R: abort after the send rejects with cancelled and frees the wait
@@ -3809,7 +3812,7 @@ at the baseline commit.
 - 453 R: kick DONE on a disbanded event vs a left change differ only in detail (tool.ts:77 "the group disbanded"); keep /disband/i, no code tells them apart
 - 463 R: a server refusal maps to FAILED not_leader
 - 477 R: an ok command result is not a refusal
-- 496 D: silent 3 s UNCONFIRMED is already asserted by the kick-as-assistant test and the left-for-someone-else test; keeper tool.test.ts:390
+- 496 D: silent 3 s kick is UNCONFIRMED; keeper tool.test.ts:390 asserts UNCONFIRMED no_answer and the looked-up "Ann" from the input "ann"
 - 506 R: a throwing send gives FAILED
 - 515 R: a pre-aborted kick rejects and sends nothing
 
@@ -4089,11 +4092,11 @@ at the baseline commit.
 
 ### packages/harness/src/areas/selfstate/area.test.ts
 - 50 F: toEqual pins whole sentence; keep class/event/data and toContain("60 s") (computed seconds in text); drop the rest of the sentence
-- 68 F: asserts class plus sentence "You can breathe again."; assert event selfstate/surfaced (data is {}, event key proves the branch) and drop the prose
+- 68 F: asserts class plus sentence "You can breathe again."; the event name selfstate/surfaced and data {} are invisible to the agent, so keep a tight toContain("breathe again") as the label that tells it the breath timer stopped; drop the full sentence
 - 81 F: toEqual pins whole sentence; keep class/event/data and toContain("10 s") (ceil of 9600 ms, computed in text); drop "Surface now."
 - 94 F: keep class/data/event and toContain("map 36") + toContain("instance is full") (REASON_WORDS label for reason 2, text only); drop the sentence frame
 - 111 F: toBe pins whole sentence; keep toContain("229") and toContain("reason 99") (unknown-reason fallback, text only); drop the rest. Data asserts mapId/reason too
-- 122 F: name is copied unchanged and data already asserts it; keep class/data/event, drop the sentence (toEqual on text)
+- 122 F: the name is echoed from the event and data asserts it, but the row label is text-only; keep class/data/event, replace the toEqual on text with toContain("come back where you died") (the label) and the echoed name inside the brackets
 - 139 R: mount/dismount rows are log class with display id and event keys
 - 150 R: taxi mount and dismount write no row
 - 157 R: state words per drunk state are an enum-to-text label map (DRUNK_TEXT); toContain of tipsy/drunk/smashed/sober plus distinct-text check are contracts; keep
@@ -4589,9 +4592,9 @@ at the baseline commit.
 
 ### packages/harness/src/areas/talents/area.test.ts
 - 24 F: drop the sentence pin "3 talent points free."; keep event/data and assert text contains the count with noun ("3 talent points"); 3 is echoed but the noun is rendered
-- 41 F: drop toBe "Learned talent 1862 rank 2."; id and rank 2 are already in data (echoed, not computed), so keep event/data only
+- 41 F: drop toBe "Learned talent 1862 rank 2."; keep event/data and assert text toContain("Learned") (the label separating it from the refused row's "was not learned") and toContain("rank 2"); data is invisible to the agent
 - 63 F: drop the sentence pin; keep toContain("1g") (cost computed from 10000 copper) and toContain("u64") (npc name looked up by refOf, not in data)
-- 75 F: drop the sentence pin; count is echoed in data, keep event/data and at most toContain("3 points") for the plural noun branch
+- 75 F: drop the sentence pin; keep event/data and assert text toContain("Talents reset") (the reset label; data and event name are invisible to the agent) and toContain("3 points") (plural noun branch)
 - 92 R: unchanged info writes nothing
 - 98 R: wipe_refused writes nothing
 - 104 R: points rise with no lost ranks is not a reset, writes nothing
@@ -4627,7 +4630,7 @@ at the baseline commit.
 - 459 R: schema accepts numeric or word slot
 
 ### packages/harness/src/areas/talents/tool-learn.test.ts
-- 14 F: keep data asserts; of the text asserts keep "rank 1" and add "rank 2" for row 0 (computed entry.rank+1 rendered); drop 124, reason words, not.toBe (echoed, in data)
+- 14 F: keep data asserts; of the text asserts keep "rank 1", add "rank 2" for row 0 (computed entry.rank+1 rendered), and keep the reason codes toContain("not_enough_points")/("unknown_talent") (rendered into the text, data is invisible to the agent); drop the "124" echo and the not.toBe
 
 ### packages/harness/src/areas/talents/tool.test.ts
 - 145 R: minimalArgs hint must pass the schema; agent sees it in error hints
@@ -4711,7 +4714,7 @@ at the baseline commit.
 ### packages/harness/src/areas/threat/area.test.ts
 - 54 R: table, removed, cleared, hostile reaction and a break for an unengaged unit give no row (flood guard)
 - 74 D: asserts glyph "combat" and worldActs [], restating the area declaration; no contract
-- 81 F: whole-draft toEqual pins the sentence "is fighting you"; the unit name is copied from the event and data.name already asserts it; keep class wake, name engaged, ref, guid, data and the second-call [], drop the text line (no computed value in this sentence)
+- 81 F: whole-draft toEqual pins the sentence "is fighting you"; the unit name and ref come from lookup.unitName and refOf (not copied from the event) and data is invisible to the agent: keep class wake, name engaged, ref, guid, data and the second-call [], and assert text toContain(`Wretched Thug u${THUG}`) and toContain("fighting you") (the label that tells the agent what happened); drop the exact sentence
 - 96 R: inside a run the engaged row is a log row
 - 101 R: a table that does not hold the character gives no row
 - 105 R: a victim_changed to the character is the engagement, logged once
@@ -4724,8 +4727,8 @@ at the baseline commit.
 - 200 F: pull_warning sentence pin; keep class, name and data mine/pullAt/victim/victimThreat, and the engaged-then-warn-once order; also keep the computed values in text: toContain "99%" (rounded share) and "Mate" (victim name looked up, absent from data); drop the rest of the sentence and the 110%/130% boilerplate
 - 223 R: a new victim re-arms the pull warning
 - 233 R: no warning for pet, self or creature victims
-- 244 F: pins "noticed you." sentence; the unit name is copied from the event and data.name asserts it; keep class wake, name alerted, data and ref, drop the text line
-- 273 F: pins "vanished from targeting" sentence; the name is copied from the event and data.name asserts it; keep class log, name target_lost, data hostileOnly and the once-only [], drop the text line
+- 244 F: pins "noticed you." sentence; the looked-up name+ref and the label "noticed you" are text-only (the event name alerted and data are invisible to the agent): keep class wake, name alerted, data and ref, assert text toContain the name+ref and "noticed you", drop the rest
+- 273 F: pins "vanished from targeting" sentence; the looked-up name+ref and the label "vanished from targeting" are text-only: keep class log, name target_lost, data hostileOnly and the once-only [], assert text toContain the name+ref and "vanished from targeting"
 - 293 R: a target break on an unengaged unit gives no row
 
 ### packages/harness/src/areas/threat/reads.test.ts
@@ -5013,8 +5016,8 @@ at the baseline commit.
 - 221 R: no DBC source leaves data missing
 
 ### packages/harness/src/areas/transports/area.test.ts
-- 17 F: toEqual pins static prose ("A transport came into view.", "left view.") beside name/data; no rendered value in text. Keep class/name/data (guid hex), drop text
-- 40 F: toEqual pins static prose ("Boarded a transport." etc.); text renders no looked-up value (entry/maps only in data). Keep class/name/data (entry, guid, fromMap, toMap), drop text
+- 17 F: toEqual pins static prose beside name/data; the row name and data guid are invisible to the agent, so the labels "came into view" and "left view" are the only text telling seen from gone: keep class/name/data (guid hex) and assert text toContain("came into view") and toContain("left view")
+- 40 F: toEqual pins static prose beside name/data; the row name and data (entry, guid, maps) are invisible to the agent, so the labels are the contract: keep class/name/data and assert text toContain("Boarded"), toContain("Left a transport") and toContain("Changed maps"); no whole sentences
 
 ### packages/harness/src/areas/transports/stops.test.ts
 - 22 R: names nodes in range on same map only; other map yields none
@@ -5154,7 +5157,7 @@ at the baseline commit.
 - 91 F: keep data; keep computed values toContain("105"), toContain("95 s") (ms to s), and stop count "2 stops"; drop the "copper fare"/"flight" wording
 - 111 R: node id lands in row data
 - 123 R: landing writes a wake-class flight_landed row
-- 135 F: name is echoed from the event and data.name already asserts it; drop the redundant text toContain("not_enough_money")
+- 135 R: the taxi refusal name is rendered into text ("Flight refused: not_enough_money.") and data is invisible to the agent, so `toContain("not_enough_money")` is a reason-code contract; keep it
 - 148 R: named node row carries node data and the catalog name in text (the only carrier of the name)
 - 166 F: fallback label when catalog name is missing renders "node 83" in text only; assert toContain("node 83") and event, drop nothing else
 - 180 R: ok taxi reply writes no row
@@ -5206,8 +5209,8 @@ at the baseline commit.
 - 231 R: dispose drops rows and listeners so later packets emit nothing
 
 ### packages/harness/src/areas/unitmotion/area.test.ts
-- 57 F: keep the looked-up unit name "Springpaw Stalker" (data holds only the guid, so text is the agent's only name) and the computed pct, tightening `toContain("slowed to 50%")` to `toContain("50%")`; the slowed/sped branch is already pinned by the event name, so drop the wording
-- 73 R: rooted text carries the looked-up unit name (data has only the guid), asserted via `toContain("Springpaw Stalker")` with no sentence pinned; rooted/freed branches by event name
+- 57 F: keep the looked-up unit name "Springpaw Stalker" and `toContain("slowed to 50%")`: the event name is invisible to the agent, so "slowed"/"sped up" in text is the branch label and 50% the computed value; add the sped row text `toContain("sped up to 200%")` (pct from 7/3.5) instead of checking only the event name
+- 73 F: asserts the looked-up unit name with `toContain("Springpaw Stalker")` but checks rooted/freed only by event name, which the agent never sees; add toContain("rooted") on the rooted row and toContain("freed from root") on the freed row
 - 86 R: lastAttacker counts as in the fight; without it an attacker's slow would be silent
 - 95 R: 100 ms per-guid throttle boundary at 99 and 100 ms
 - 107 R: throttle is per guid, so a second unit's row is not swallowed
@@ -5311,8 +5314,8 @@ at the baseline commit.
 - 146 R: snapshot maps are copies and dispose clears state and stops events
 
 ### packages/harness/src/areas/vehicles/area.test.ts
-- 19 F: ruling A: sentences are wording, vehicleId 315/0 already in data; replace toEqual with toMatchObject on class/name/data (guid, vehicleId), no text
-- 44 F: ruling A: sentence is wording and data is {}; assert class log and name ride_aura_cancel only, drop text
+- 19 F: toEqual pins sentences; data (guid, vehicleId) and the row name are invisible to the agent, so the became/no-longer branch label is text-only: replace toEqual with toMatchObject on class/name/data (guid, vehicleId) and assert text toContain("became vehicle 315") and toContain("no longer a vehicle")
+- 44 F: data is {} and the row name is invisible to the agent, so the text is the only thing saying the ride aura was cancelled: assert class log, name ride_aura_cancel and a tight toContain("ride aura"); drop the full sentence
 - 57 R: spline events write no row inside or outside a run (flood guard)
 - 92 R: entered is a wake row named entered with entry, seat and hex vehicle data
 - 104 F: ruling A: keep the value; assert data seat 0 with entry undefined (the seatText no-entry branch) and tight toContain("seat 0"), drop other prose
@@ -8723,7 +8726,7 @@ at the baseline commit.
 
 ### packages/harness/src/events/rules-death.test.ts
 - 47 R: watched unit killed by another player wakes once
-- 65 F: tap "none" maps to a label in text and data.by tells the branch: assert data.by === "none" (plus name), text only toContain("no credit to you") and not "killed by another player"; drop whole sentence
+- 65 F: tap "none" maps to a label in text; data.by and the event name are invisible to the agent, so the text carries the branch: assert text toContain("no credit to you") and not toContain("killed by another player"), keep data.by === "none" (plus name) as an extra; drop the whole sentence
 - 73 R: own tap, unwatched unit, non-health change give no row
 - 83 R: active run keeps the row in the log
 - 89 R: a unit that left view is no longer watched
@@ -12072,13 +12075,13 @@ at the baseline commit.
 - 374 F: restates the declared kind flag; assert sequential execution behaviour instead
 
 ### packages/harness/src/tools/social.test.ts
-- 22 F: toBe pins whole DONE sentence with echoed name and text; assert status DONE and the after fields (already toEqual), drop the sentence
-- 45 F: toBe pins 'DONE said: "hello" (echo confirmed)'; echoed text is in after; assert status DONE and after, drop the sentence
+- 22 F: tool text reaches the agent but `after` (details) does not, so the whispered name "Kaelyn" and the echoed text rendered into detail are contract values: assert status DONE, toContain("Kaelyn") and toContain("I'm level 10."), keep the after toEqual; drop only the "(echo confirmed)" frame
+- 45 F: the said text is rendered only into the tool text (after is not shown to the agent): assert status DONE and toContain("hello") plus the say-vs-whisper label "said"; drop the "(echo confirmed)" frame
 - 59 F: toBe pins whole sentence; keep status UNCONFIRMED reason no_answer, toContain("2 s") and the next journal call; drop prose
-- 70 F: toBe pins prose with echoed name; assert status FAILED reason player_not_found via result (after already asserted), drop the sentences
+- 70 F: tool results have no data the agent sees: assert status FAILED reason player_not_found, toContain("Kaelyn") in the detail and the Next ask-the-human line carrying the name; drop the surrounding sentences
 - 89 F: toBe pins prose beside reason secret; assert REFUSED reason secret and nothing sent, drop the sentence
 - 101 F: toBe pins whole refusals; assert reasons missing_text and missing_name via result, plus next call for whisper; drop prose
-- 111 F: toBe pins sentence with echoed name; assert status DONE for the server invite, drop the sentence
+- 111 F: assert status DONE, toContain("Kaelyn") (name rendered into detail and Next) and the "invited" label; drop the rest of the sentence
 - 126 F: toBe pins the sentence; party result word is reason code already_in_group, assert FAILED reason already_in_group, drop prose
 - 141 F: toBe pins whole sentence; keep status UNCONFIRMED reason no_answer and toContain("3 s"), drop the prose
 - 152 F: toBe pins sentence beside reason nothing_to_accept; assert FAILED reason nothing_to_accept, drop prose
@@ -12090,7 +12093,7 @@ at the baseline commit.
 - 64 F: toBe pins whole sentence; keep toContain "r1", "engage, 1 of 3 kills" (computed count), "HP 190/217" and the abort; drop prose
 - 78 F: toBe pins whole sentence; keep toContain "r1", "1 of 3 kills", "HP 190/217" and halt call; drop prose
 - 87 F: toBe pins whole sentence; keep toContain("nothing was running") (branch label, status DONE for both) and "HP 190/217"; drop the rest
-- 94 F: toBe pins whole refusal sentence; assert REFUSED reason no_such_run and next stop() via result; drop prose with echoed r7
+- 94 F: assert REFUSED reason no_such_run, toContain("r7") (run id rendered into detail) and next stop() via result; drop the rest of the sentence
 - 101 F: toEqual of lines pins prose; keep toContain "Springpaw Stalker u1", "0 yd", "88% HP", "HP 190/217" (computed) plus after attackers; drop sentences
 - 121 R: stop works while human message waits
 - 128 F: pins "Channelling spell 5143"; keep only fallback id value toContain("spell 5143") (no definition, id substituted), add a looked-up name case; drop "Channelling"

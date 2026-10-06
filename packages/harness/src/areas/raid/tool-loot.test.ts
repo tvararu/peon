@@ -255,11 +255,12 @@ describe("group tool give", () => {
     const out = await runTool(t.tool, {
       do: "give",
       target: "Springpaw Lynx",
-      to: "Tom",
+      to: "tom",
       what: "linen",
     });
     expect(out.text).toContain("DONE");
     expect(out.text).toContain("Linen Cloth");
+    expect(out.text).toContain("to Tom");
     expect(t.handle.openLoot).toHaveBeenCalledWith(CORPSE);
     expect(t.give).toHaveBeenCalledWith(CORPSE, 1, "Tom");
     expect(t.release).toHaveBeenCalledTimes(1);
