@@ -23,10 +23,11 @@ function designerOf(args: GuildArgs, ctx: GuildCtx): bigint {
       throw refuse("unknown_ref", `${args.npc} is not a known ref.`, "look");
     return guid;
   }
-  for (const row of ctx.handle.queryNearby({ all: true })) {
-    if (!row.self && row.roles.includes("tabard_designer"))
-      return row.entity.guid;
-  }
+  const [nearest] = ctx.handle
+    .queryNearby({ all: true })
+    .filter((row) => !row.self && row.roles.includes("tabard_designer"))
+    .sort((a, b) => (a.distance ?? 1e9) - (b.distance ?? 1e9));
+  if (nearest) return nearest.entity.guid;
   throw refuse(
     "no_designer",
     "No tabard designer is known nearby. Walk to the guild master in a capital city.",

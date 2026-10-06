@@ -9,10 +9,12 @@ function json(value: unknown): Json {
 }
 
 async function run({ handle, settle }: FlowContext): Promise<Json> {
-  const row = await settle(() =>
-    handle
-      .queryNearby({ all: true })
-      .find((r) => !r.self && r.roles.includes("tabard_designer")),
+  const row = await settle(
+    () =>
+      handle
+        .queryNearby({ all: true })
+        .filter((r) => !r.self && r.roles.includes("tabard_designer"))
+        .sort((a, b) => (a.distance ?? 1e9) - (b.distance ?? 1e9))[0],
   );
   if (row === undefined) return { error: "no tabard designer nearby" };
   const npc = row.entity.guid;
@@ -26,7 +28,7 @@ async function run({ handle, settle }: FlowContext): Promise<Json> {
     style: 3,
   });
   const state = handle.guildadmin.state();
-  return json({ npc, opened, saved, emblem: state.emblem });
+  return json({ at: row.position, distance: row.distance, npc, opened, saved, emblem: state.emblem });
 }
 
 export const flow: ProbeFlow = {
