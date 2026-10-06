@@ -1,3 +1,4 @@
+import { arenaTool } from "#harness/areas/arena/tool";
 import { channelTool } from "#harness/areas/channels/tool";
 import { characterTool } from "#harness/areas/character/tool";
 import { guildTool } from "#harness/areas/guildadmin/tool";
@@ -51,6 +52,7 @@ export const GAME_TOOLS = [
   vehicleTool,
   guildTool,
   channelTool,
+  arenaTool,
 ] as const;
 
 type Listed = (typeof GAME_TOOLS)[number]["name"];

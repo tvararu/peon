@@ -247,3 +247,4 @@ two scenarios closest to it. Every scenario appears in at least one row.
 | Instances and dungeon finder (`dungeon`) | `t9-instances-difficulty`, `t9-lfg-queue`, `t9-lfg-run` |
 | Groups and raids (`group` tool) | `t9-raid-kick`, `t9-raid-convert`, `t9-raid-master-loot`, `t9-raid-ready`, `t9-raid-answer`, `t9-raid-summon`, `t9-raid-mark` |
 | Guild (`guild` tool tabard designer and emblem) | `t9-guild-tabard` |
+| Arena (`arena` tool inspect) | `t9-arena-inspect` (blocked by the staging gap: the server sends no inspect reply for teamless targets until an arena setup endpoint exists) |

@@ -5,24 +5,24 @@ columns are explained in [the index](../protocol-coverage.md).
 
 | Opcode | Name | Direction | Status | Live |
 |---|---|---|---|---|
-| `0x348` | `CMSG_ARENA_TEAM_CREATE` | client | missing |  |
-| `0x349` | `SMSG_ARENA_TEAM_COMMAND_RESULT` | server | stub |  |
-| `0x34b` | `CMSG_ARENA_TEAM_QUERY` | client | missing |  |
-| `0x34c` | `SMSG_ARENA_TEAM_QUERY_RESPONSE` | server | missing |  |
-| `0x34d` | `CMSG_ARENA_TEAM_ROSTER` | client | missing |  |
-| `0x34e` | `SMSG_ARENA_TEAM_ROSTER` | server | missing |  |
-| `0x34f` | `CMSG_ARENA_TEAM_INVITE` | client | missing |  |
-| `0x350` | `SMSG_ARENA_TEAM_INVITE` | server | missing |  |
-| `0x351` | `CMSG_ARENA_TEAM_ACCEPT` | client | missing |  |
-| `0x352` | `CMSG_ARENA_TEAM_DECLINE` | client | missing |  |
-| `0x353` | `CMSG_ARENA_TEAM_LEAVE` | client | missing |  |
-| `0x354` | `CMSG_ARENA_TEAM_REMOVE` | client | missing |  |
-| `0x355` | `CMSG_ARENA_TEAM_DISBAND` | client | missing |  |
-| `0x356` | `CMSG_ARENA_TEAM_LEADER` | client | missing |  |
-| `0x357` | `SMSG_ARENA_TEAM_EVENT` | server | stub |  |
-| `0x358` | `CMSG_BATTLEMASTER_JOIN_ARENA` | client | missing |  |
-| `0x35b` | `SMSG_ARENA_TEAM_STATS` | server | missing |  |
-| `0x376` | `SMSG_ARENA_ERROR` | server | missing |  |
-| `0x377` | `MSG_INSPECT_ARENA_TEAMS` | both | missing |  |
-| `0x4c7` | `SMSG_ARENA_UNIT_DESTROYED` | server | missing |  |
-| `0x4c8` | `SMSG_ARENA_TEAM_CHANGE_FAILED_QUEUED` | server | missing |  |
+| `0x348` | `CMSG_ARENA_TEAM_CREATE` | client | dead |  |
+| `0x349` | `SMSG_ARENA_TEAM_COMMAND_RESULT` | server | handled |  |
+| `0x34b` | `CMSG_ARENA_TEAM_QUERY` | client | handled |  |
+| `0x34c` | `SMSG_ARENA_TEAM_QUERY_RESPONSE` | server | handled |  |
+| `0x34d` | `CMSG_ARENA_TEAM_ROSTER` | client | handled |  |
+| `0x34e` | `SMSG_ARENA_TEAM_ROSTER` | server | handled |  |
+| `0x34f` | `CMSG_ARENA_TEAM_INVITE` | client | handled |  |
+| `0x350` | `SMSG_ARENA_TEAM_INVITE` | server | handled |  |
+| `0x351` | `CMSG_ARENA_TEAM_ACCEPT` | client | handled |  |
+| `0x352` | `CMSG_ARENA_TEAM_DECLINE` | client | handled |  |
+| `0x353` | `CMSG_ARENA_TEAM_LEAVE` | client | handled |  |
+| `0x354` | `CMSG_ARENA_TEAM_REMOVE` | client | handled |  |
+| `0x355` | `CMSG_ARENA_TEAM_DISBAND` | client | handled |  |
+| `0x356` | `CMSG_ARENA_TEAM_LEADER` | client | handled |  |
+| `0x357` | `SMSG_ARENA_TEAM_EVENT` | server | handled |  |
+| `0x358` | `CMSG_BATTLEMASTER_JOIN_ARENA` | client | handled |  |
+| `0x35b` | `SMSG_ARENA_TEAM_STATS` | server | handled |  |
+| `0x376` | `SMSG_ARENA_ERROR` | server | handled |  |
+| `0x377` | `MSG_INSPECT_ARENA_TEAMS` | both | handled |  |
+| `0x4c7` | `SMSG_ARENA_UNIT_DESTROYED` | server | handled | not seen live |
+| `0x4c8` | `SMSG_ARENA_TEAM_CHANGE_FAILED_QUEUED` | server | dead |  |

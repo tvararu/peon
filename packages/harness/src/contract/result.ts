@@ -23,7 +23,8 @@ export type ToolName =
   | "mail"
   | "vehicle"
   | "guild"
-  | "channel";
+  | "channel"
+  | "arena";
 
 export type ToolKind = "read" | "action" | "run" | "control";
 
