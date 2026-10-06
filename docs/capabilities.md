@@ -72,6 +72,7 @@ or the page names one that does not exist.
 | Refuse or cancel a trade | `t9-trade-cancel` | |
 | Store items in the bank and take them out | `t9-bank-deposit`, `t9-bank-withdraw` | The bank verbs talk to a banker in range; `journal` `about: bank` reads the stored contents from the login snapshot anywhere. |
 | Buy a bank bag slot | `t9-bank-slot` | The first slot of a fresh character costs 1000 copper. |
+| Use the guild vault: open it, read and rename tabs, move copper and items, set tab text, and read the log and limits | — (no scenario: every verb needs a guild, which eval staging cannot create) | Needs a guild-vault object in range; item moves need a bought tab and tradeable items. |
 | Read mail | `t9-mail-read` | The letter is staged by an offline quest reward; the answer quotes its fixed body. |
 | Collect gold and items from mail | `t9-mail-collect` | Takes money then attachments in order at a mailbox. |
 | Send gold or items by mail | `t9-mail-send` | Postage is 30 copper per item, 30 with no item. |
