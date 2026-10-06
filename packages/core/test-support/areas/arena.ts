@@ -49,7 +49,11 @@ export function arenaRosterBody(extra: boolean): Uint8Array {
   return w.finish();
 }
 
-export function arenaEventBody(event: number, strings: string[], guid?: bigint): Uint8Array {
+export function arenaEventBody(
+  event: number,
+  strings: string[],
+  guid?: bigint,
+): Uint8Array {
   const w = new PacketWriter();
   w.uint8(event);
   w.uint8(strings.length);
@@ -58,7 +62,12 @@ export function arenaEventBody(event: number, strings: string[], guid?: bigint):
   return w.finish();
 }
 
-export function arenaResultBody(action: number, team: string, player: string, error: number): Uint8Array {
+export function arenaResultBody(
+  action: number,
+  team: string,
+  player: string,
+  error: number,
+): Uint8Array {
   const w = new PacketWriter();
   w.uint32LE(action);
   w.cString(team);

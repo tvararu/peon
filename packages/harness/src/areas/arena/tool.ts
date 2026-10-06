@@ -14,7 +14,11 @@ import type { ToolCtx } from "#harness/contract/services";
 import { defineGameTool, result } from "#harness/tools/define";
 import { nextCall } from "#harness/tools/next-call";
 import type { GameToolSpec, ToolRenderers } from "#harness/tools/game-tool";
-import { callLine, callRenderer, resultRenderer } from "#harness/ui/renderers/line";
+import {
+  callLine,
+  callRenderer,
+  resultRenderer,
+} from "#harness/ui/renderers/line";
 import { argText } from "#harness/ui/draw";
 import { knownUnits } from "#harness/ops/views";
 import { parseRef } from "#harness/ops/refs";
@@ -51,8 +55,7 @@ export const arenaParams = Type.Object({
   ),
   size: Type.Optional(
     StringEnum(["2v2", "3v3", "5v5"], {
-      description:
-        "For team info and queue join: the bracket. Default 2v2.",
+      description: "For team info and queue join: the bracket. Default 2v2.",
     }),
   ),
   slot: Type.Optional(
@@ -120,7 +123,10 @@ function teamIdOf(ctx: ArenaCtx, args: ArenaArgs): number | undefined {
 
 function memberLines(team: ArenaTeam): string {
   const members = team.members
-    .map((member: ArenaMember) => `${member.name}${member.captain ? " (captain)" : ""}`)
+    .map(
+      (member: ArenaMember) =>
+        `${member.name}${member.captain ? " (captain)" : ""}`,
+    )
     .join(", ");
   return `${team.type}v${team.type} ${team.name}: rating ${team.rating}, ${team.members.length} members${members === "" ? "" : ` (${members})`}.`;
 }

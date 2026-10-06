@@ -27,9 +27,7 @@ async function run(ctx: FlowContext) {
   const self = handle.getControlState().selfGuid;
   return json({
     id,
-    inspect: await attempt(() =>
-      handle.arena.act.inspect(self ?? 0n),
-    ),
+    inspect: await attempt(() => handle.arena.act.inspect(self ?? 0n)),
     query: await attempt(() => handle.arena.act.query(id)),
     refresh: await attempt(() => handle.arena.act.refresh()),
     roster: await attempt(() => handle.arena.act.roster(id)),

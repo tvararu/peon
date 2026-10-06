@@ -3,11 +3,7 @@ import { validateToolArguments } from "@earendil-works/pi-ai";
 import type { AreaState } from "@peon/core";
 type ArenaTeam = AreaState<"arena">["teams"][string];
 import { arenaParams, arenaSpec, runArena } from "#harness/areas/arena/tool";
-import {
-  setUnits,
-  toolCtx,
-  unitRow,
-} from "#test-support/ops-fixtures";
+import { setUnits, toolCtx, unitRow } from "#test-support/ops-fixtures";
 import { expectSendKind } from "#test-support/tool-harness";
 import { createTestRuntime } from "#test-support/runtime-fixture";
 
@@ -18,7 +14,21 @@ const TEAM: ArenaTeam = {
   emblemColor: 0,
   emblemStyle: 0,
   id: 7,
-  members: [{ captain: true, class: 1, guid: 0xaaaan, level: 80, name: "Boss", online: true, personalRating: 1500, seasonGames: 0, seasonWins: 0, weekGames: 10, weekWins: 6 }],
+  members: [
+    {
+      captain: true,
+      class: 1,
+      guid: 0xaaaan,
+      level: 80,
+      name: "Boss",
+      online: true,
+      personalRating: 1500,
+      seasonGames: 0,
+      seasonWins: 0,
+      weekGames: 10,
+      weekWins: 6,
+    },
+  ],
   name: "Axes",
   rank: 1,
   rating: 1500,
@@ -39,10 +49,12 @@ function callOf() {
   } as const;
 }
 
-async function rig(over: {
-  acts?: Record<string, unknown>;
-  state?: Record<string, unknown>;
-} = {}) {
+async function rig(
+  over: {
+    acts?: Record<string, unknown>;
+    state?: Record<string, unknown>;
+  } = {},
+) {
   const t = await createTestRuntime({});
   setUnits(t.handle, [
     unitRow({
@@ -161,10 +173,7 @@ describe("arena show and team", () => {
 
   test("accept joins the pending team", async () => {
     const t = await rig();
-    const out = await runArena(
-      { action: "accept", do: "team" },
-      toolCtx(t),
-    );
+    const out = await runArena({ action: "accept", do: "team" }, toolCtx(t));
     expect(out.status).toBe("DONE");
     expect(out.detail).toContain("Axes");
   });
@@ -190,10 +199,7 @@ describe("arena inspect and queue", () => {
         })),
       },
     });
-    const out = await runArena(
-      { do: "inspect", unit: "Boss" },
-      toolCtx(t),
-    );
+    const out = await runArena({ do: "inspect", unit: "Boss" }, toolCtx(t));
     expect(out.status).toBe("DONE");
     expect(out.body.join("\n")).toContain("1500");
   });
@@ -208,12 +214,20 @@ describe("arena inspect and queue", () => {
   test("queue join uses the nearest battlemaster", async () => {
     const t = await rig({
       acts: {
-        joinQueue: jest.fn(async () => ({ queue: [], slot: 0, status: "queued" as const })),
+        joinQueue: jest.fn(async () => ({
+          queue: [],
+          slot: 0,
+          status: "queued" as const,
+        })),
       },
     });
     const out = await runArena({ do: "queue", size: "2v2" }, toolCtx(t));
     expect(out.status).toBe("DONE");
-    expect(t.handle.arena.act.joinQueue).toHaveBeenCalledWith(0xbbbbn, 0, false);
+    expect(t.handle.arena.act.joinQueue).toHaveBeenCalledWith(
+      0xbbbbn,
+      0,
+      false,
+    );
   });
 
   test("queue join without a battlemaster refuses", async () => {

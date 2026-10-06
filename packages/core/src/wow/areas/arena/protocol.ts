@@ -215,7 +215,6 @@ export function parseInspectArenaTeams(r: PacketReader): ArenaInspect {
   };
 }
 
-
 export type ArenaQueueStatus = {
   slot: number;
   arenaType: number;
@@ -232,7 +231,8 @@ const STATUS_KINDS: Record<number, ArenaQueueStatus["kind"]> = {
 
 export function parseQueueStatus(r: PacketReader): ArenaQueueStatus {
   const slot = r.uint32LE();
-  if (r.remaining === 8) return { arenaType: 0, kind: "none", rated: false, slot };
+  if (r.remaining === 8)
+    return { arenaType: 0, kind: "none", rated: false, slot };
   const arenaType = r.uint8();
   r.skip(1 + 4 + 2 + 1 + 1 + 4);
   const rated = r.uint8() !== 0;

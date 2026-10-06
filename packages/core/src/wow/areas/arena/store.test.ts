@@ -121,9 +121,9 @@ describe("arena store", () => {
       };
       rig.inject(GameOpcode.MSG_INSPECT_ARENA_TEAMS, row(0));
       rig.inject(GameOpcode.MSG_INSPECT_ARENA_TEAMS, row(0));
-      expect(
-        rig.stores.areas.arena.snapshot().inspected["0xc00"],
-      ).toHaveLength(1);
+      expect(rig.stores.areas.arena.snapshot().inspected["0xc00"]).toHaveLength(
+        1,
+      );
     } finally {
       rig.dispose();
     }

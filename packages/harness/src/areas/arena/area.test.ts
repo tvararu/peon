@@ -7,7 +7,11 @@ const INPUT = testRuleInput();
 const SET = areaRuleSet();
 
 function draftOf(event: unknown) {
-  return areaDrafts(SET, { area: "arena", event } as unknown as AreaEvent, INPUT);
+  return areaDrafts(
+    SET,
+    { area: "arena", event } as unknown as AreaEvent,
+    INPUT,
+  );
 }
 
 describe("arena harness rules", () => {
@@ -111,9 +115,7 @@ describe("arena harness rules", () => {
       rows: [],
       type: "inspect",
     });
-    expect(none).toMatchObject([
-      { class: "log", event: "arena/inspect" },
-    ]);
+    expect(none).toMatchObject([{ class: "log", event: "arena/inspect" }]);
     const some = draftOf({
       guid: 0xc00n,
       rows: [{ personalRating: 0, rating: 1500, teamId: 7 }],

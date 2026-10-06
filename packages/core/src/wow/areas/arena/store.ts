@@ -139,8 +139,9 @@ export class ArenaStore {
     const ids: number[] = [];
     for (let slot = 0; slot < 3; slot++) {
       const id =
-        self?.rawFields.get(PLAYER_FIELDS.ARENA_TEAM_INFO_1_1.offset + slot * 7) ??
-        (self?.createComplete ? 0 : undefined);
+        self?.rawFields.get(
+          PLAYER_FIELDS.ARENA_TEAM_INFO_1_1.offset + slot * 7,
+        ) ?? (self?.createComplete ? 0 : undefined);
       if (id !== undefined && id !== 0) ids.push(id);
     }
     return ids;
@@ -160,7 +161,17 @@ export class ArenaStore {
   receiveStats(stats: ArenaTeamStats): void {
     const known = this.teams.get(stats.id);
     const team: ArenaTeam = {
-      ...(known ?? emptyTeam({ ...stats, backgroundColor: 0, borderColor: 0, borderStyle: 0, emblemColor: 0, emblemStyle: 0, name: "", type: 0 })),
+      ...(known ??
+        emptyTeam({
+          ...stats,
+          backgroundColor: 0,
+          borderColor: 0,
+          borderStyle: 0,
+          emblemColor: 0,
+          emblemStyle: 0,
+          name: "",
+          type: 0,
+        })),
       ...stats,
       stale: false,
     };
@@ -171,18 +182,36 @@ export class ArenaStore {
   receiveRoster(roster: ArenaTeamRoster): void {
     const known = this.teams.get(roster.id);
     const team: ArenaTeam = {
-      ...(known ?? emptyTeam({ backgroundColor: 0, borderColor: 0, borderStyle: 0, emblemColor: 0, emblemStyle: 0, id: roster.id, name: "", type: roster.type })),
+      ...(known ??
+        emptyTeam({
+          backgroundColor: 0,
+          borderColor: 0,
+          borderStyle: 0,
+          emblemColor: 0,
+          emblemStyle: 0,
+          id: roster.id,
+          name: "",
+          type: roster.type,
+        })),
       type: roster.type,
     };
     team.members = [...roster.members];
     team.stale = false;
     this.teams.set(roster.id, team);
-    this.events.emit({ id: roster.id, members: [...roster.members], type: "roster" });
+    this.events.emit({
+      id: roster.id,
+      members: [...roster.members],
+      type: "roster",
+    });
   }
 
   receiveInvite(invite: ArenaTeamInvite): void {
     this.invite = { inviter: invite.inviter, team: invite.team };
-    this.events.emit({ inviter: invite.inviter, team: invite.team, type: "invited" });
+    this.events.emit({
+      inviter: invite.inviter,
+      team: invite.team,
+      type: "invited",
+    });
   }
 
   clearInvite(): void {
@@ -191,7 +220,12 @@ export class ArenaStore {
 
   receiveTeamEvent(packet: ArenaTeamEvent): void {
     this.applyTeamEvent(packet);
-    this.events.emit({ event: packet.event, name: packet.name, strings: [...packet.strings], type: "team_event" });
+    this.events.emit({
+      event: packet.event,
+      name: packet.name,
+      strings: [...packet.strings],
+      type: "team_event",
+    });
   }
 
   receiveCommandResult(packet: ArenaCommandResult): void {
@@ -220,7 +254,11 @@ export class ArenaStore {
       return true;
     });
     this.inspected.set(key, merged);
-    this.events.emit({ guid: inspect.guid, rows: [...merged], type: "inspect" });
+    this.events.emit({
+      guid: inspect.guid,
+      rows: [...merged],
+      type: "inspect",
+    });
   }
 
   receiveQueueStatus(status: ArenaQueueStatus): void {
@@ -252,13 +290,21 @@ export class ArenaStore {
         if (team.name === second) this.teams.delete(id);
       return;
     }
-    if (packet.event === TEAM_EVENT_LEAVE && first !== undefined && second !== undefined) {
+    if (
+      packet.event === TEAM_EVENT_LEAVE &&
+      first !== undefined &&
+      second !== undefined
+    ) {
       for (const team of this.teams.values())
         if (team.name === second)
           team.members = team.members.filter((member) => member.name !== first);
       return;
     }
-    if (packet.event === TEAM_EVENT_REMOVE && first !== undefined && second !== undefined) {
+    if (
+      packet.event === TEAM_EVENT_REMOVE &&
+      first !== undefined &&
+      second !== undefined
+    ) {
       for (const team of this.teams.values())
         if (team.name === second)
           team.members = team.members.filter((member) => member.name !== first);
