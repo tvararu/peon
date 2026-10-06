@@ -427,7 +427,13 @@ async function runQueue(
   args: ArenaArgs,
   ctx: ArenaCtx,
 ): Promise<ToolResult<ArenaAfter>> {
-  const action = (args.action ?? "join") as "join" | "leave";
+  // An explicit slot with no master means leave: the schema documents
+  // slot as "for queue leave" and master as "for queue join".
+  const action =
+    args.action ??
+    (args.slot !== undefined && (args.master ?? "").trim() === ""
+      ? "leave"
+      : "join");
   if (action === "leave") {
     const slot = args.slot ?? 0;
     const left = await ctx.rt.mutex.run(() =>

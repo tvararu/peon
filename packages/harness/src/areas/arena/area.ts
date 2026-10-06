@@ -69,7 +69,15 @@ type Queue = Extract<ArenaEvent, { type: "queue" }>;
 
 function queueDrafts(event: Queue): readonly AreaDraft[] {
   const queued = event.queue.filter((row) => row.kind === "queued");
-  if (queued.length === 0) return [];
+  if (queued.length === 0)
+    return [
+      {
+        class: "log",
+        data: {},
+        name: "queue_left",
+        text: "You are in no arena queue.",
+      },
+    ];
   return [
     {
       class: "log",

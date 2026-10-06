@@ -84,11 +84,11 @@ The acts:
 
 ## Capabilities row
 
-No scenario yet: team verbs need a staged team (eval staging gap: needs
-a guild/arena setup endpoint), and the queue needs a staged team plus a
-battlemaster in view. The `arena` tool reads teams and rosters, invites
-and captains, inspects a nearby player's teams, and joins or leaves an
-arena queue. Not shown by any scenario.
+`t9-arena-skirmish` stages a teamless Horde character next to battlemaster
+Gargok, joins the unrated 2v2 skirmish queue and leaves it. Team verbs
+need a staged team (eval staging gap: needs a guild/arena setup
+endpoint), so only the probe flow shows them. The area logs `arena/queue`
+when a slot is queued and `arena/queue_left` when the queue is empty.
 
 ## Proof
 

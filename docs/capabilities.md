@@ -86,6 +86,7 @@ or the page names one that does not exist.
 | Answer a meeting-stone summon | `t9-raid-summon` | Two partners use the Stormwind stone 179595 and its summoning portal; the agent answers with `group` `summon`. The stone needs a group with both members at level 15. |
 | Mark targets | `t9-raid-mark` | Icon names are unconfirmed. |
 | Spend pet talent points | `t8-pets-talent` | Hunter only; spends one point of the pet's own talent tree at owner level 25. |
+| Join and leave an arena skirmish queue (`arena` `queue`) | `t9-arena-skirmish` | Unrated 2v2 at battlemaster Gargok in the Barrens, with no team. Rated joins, teams, rosters and invites need a staged team (eval staging gap) and are proven by the probe flow `arena-team`. |
 | Inspect a nearby player's arena teams (`arena` `inspect`) | `t9-arena-inspect` | Shows the partner's teams from `MSG_INSPECT_ARENA_TEAMS`. Shows teams only: the agent's own teams, the roster, invites and the queue need a staged team (eval staging gap: needs an arena setup endpoint; `soap gm` is banned in evals) and are proven by the probe flow `arena-team`. |
 
 ## Not shown by any scenario

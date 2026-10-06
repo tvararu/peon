@@ -85,13 +85,11 @@ describe("arena harness rules", () => {
     ).toContain("not in an arena team");
   });
 
-  test("queue rows log only when a slot is queued; a refused join wakes", () => {
-    expect(
-      draftOf({
-        queue: [{ arenaType: 2, kind: "none", rated: false, slot: 0 }],
-        type: "queue",
-      }),
-    ).toEqual([]);
+  test("queue rows log a queued slot or an empty queue; a refused join wakes", () => {
+    expect(draftOf({ queue: [], type: "queue" })[0]).toMatchObject({
+      class: "log",
+      event: "arena/queue_left",
+    });
     const queued = draftOf({
       queue: [{ arenaType: 2, kind: "queued", rated: false, slot: 1 }],
       type: "queue",
