@@ -1,7 +1,7 @@
 import type { AreaEventOf } from "@peon/core";
 import type { AreaDraft } from "#harness/areas/contract";
 import { defineHarnessArea } from "#harness/areas/contract";
-import { guidText } from "#harness/events/rules";
+import { guidText, type RuleInput } from "#harness/events/rules";
 
 type ArenaEvent = AreaEventOf<"arena">;
 type TeamEvent = Extract<ArenaEvent, { type: "team_event" }>;
@@ -43,7 +43,29 @@ function resultRow(event: Result): AreaDraft {
   };
 }
 
-function onEvent(event: ArenaEvent): readonly AreaDraft[] {
+type Inspect = Extract<ArenaEvent, { type: "inspect" }>;
+
+function inspectRow(event: Inspect, rc: RuleInput): AreaDraft {
+  const teams = event.rows
+    .map((row) => `${row.teamId} (${row.rating})`)
+    .join(", ");
+  return {
+    class: "log",
+    data: {
+      guid: guidText(event.guid),
+      teams: event.rows.map((row) => row.teamId),
+    },
+    guid: guidText(event.guid),
+    name: "inspect",
+    ref: rc.refOf(event.guid),
+    text:
+      event.rows.length === 0
+        ? `${rc.refOf(event.guid)} is in no arena team.`
+        : `${rc.refOf(event.guid)} is in arena team${event.rows.length === 1 ? "" : "s"} ${teams}.`,
+  };
+}
+
+function onEvent(event: ArenaEvent, rc: RuleInput): readonly AreaDraft[] {
   if (event.type === "invited")
     return [
       {
@@ -63,6 +85,7 @@ function onEvent(event: ArenaEvent): readonly AreaDraft[] {
       },
     ];
   if (event.type === "result") return [resultRow(event)];
+  if (event.type === "inspect") return [inspectRow(event, rc)];
   if (event.type === "arena_error")
     return [
       {
@@ -112,7 +135,7 @@ function onEvent(event: ArenaEvent): readonly AreaDraft[] {
 
 export const arenaHarness = defineHarnessArea({
   area: "arena",
-  rules: () => ({ event: onEvent }),
+  rules: () => ({ event: (event, rc) => onEvent(event, rc) }),
   worldActs: [
     "refresh",
     "query",

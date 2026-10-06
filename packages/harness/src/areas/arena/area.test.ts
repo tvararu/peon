@@ -100,8 +100,25 @@ describe("arena harness rules", () => {
     });
   });
 
-  test("team, stats, roster and inspect events write no rows", () => {
-    for (const type of ["team", "stats", "roster", "inspect"])
+  test("team, stats and roster events write no rows", () => {
+    for (const type of ["team", "stats", "roster"])
       expect(draftOf({ type })).toEqual([]);
+  });
+
+  test("inspect logs the target and its teams", () => {
+    const none = draftOf({
+      guid: 0xc00n,
+      rows: [],
+      type: "inspect",
+    });
+    expect(none).toMatchObject([
+      { class: "log", event: "arena/inspect" },
+    ]);
+    const some = draftOf({
+      guid: 0xc00n,
+      rows: [{ personalRating: 0, rating: 1500, teamId: 7 }],
+      type: "inspect",
+    });
+    expect(some[0]?.text).toContain("7");
   });
 });
