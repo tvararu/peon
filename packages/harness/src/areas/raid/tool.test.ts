@@ -117,10 +117,11 @@ describe("group tool", () => {
   });
 
   describe("status", () => {
-    test("outside a group it reports DONE and sends nothing", async () => {
+    test("outside a group it says so and sends nothing", async () => {
       const t = await world({ inGroup: false });
       const out = await runTool(t.tool, {});
       expect(out.text).toContain("DONE");
+      expect(out.text).toContain("not in a group");
       expect(t.uninvite).not.toHaveBeenCalled();
       expect(t.handle.setLeader).not.toHaveBeenCalled();
     });
@@ -436,6 +437,7 @@ describe("group tool", () => {
       );
       const out = await runTool(t.tool, { do: "kick", to: "Ann" });
       expect(out.text).toContain("DONE");
+      expect(out.text).toMatch(/disband/i);
     });
 
     test("fails when the server refuses", async () => {

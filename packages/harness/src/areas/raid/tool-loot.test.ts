@@ -259,6 +259,7 @@ describe("group tool give", () => {
       what: "linen",
     });
     expect(out.text).toContain("DONE");
+    expect(out.text).toContain("Linen Cloth");
     expect(t.handle.openLoot).toHaveBeenCalledWith(CORPSE);
     expect(t.give).toHaveBeenCalledWith(CORPSE, 1, "Tom");
     expect(t.release).toHaveBeenCalledTimes(1);
@@ -372,10 +373,11 @@ describe("group tool give", () => {
     expect(t.give).not.toHaveBeenCalled();
   });
 
-  test("refuses a corpse out of reach without opening it", async () => {
+  test("refuses a corpse out of reach with its distance, without opening it", async () => {
     const t = await world({ corpseDistance: 40 });
     const out = await runTool(t.tool, { do: "give", to: "Tom", what: "Linen" });
     expect(out.text).toContain("REFUSED too_far");
+    expect(out.text).toContain("40 yd");
     expect(t.handle.openLoot).not.toHaveBeenCalled();
   });
 });
@@ -409,6 +411,7 @@ describe("group tool roll", () => {
     const t = await world({ rolls: [roll()] });
     const out = await runTool(t.tool, { do: "roll", what: "greed" });
     expect(out.text).toContain("DONE");
+    expect(out.text).toContain("Linen Cloth");
     expect(t.rollLoot).toHaveBeenCalledWith(ROLL_GUID, 1, "greed");
   });
 

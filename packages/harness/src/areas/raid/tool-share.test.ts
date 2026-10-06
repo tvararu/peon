@@ -165,6 +165,20 @@ describe("group tool share_quest", () => {
     expect(out.text).toContain("Ann: has it");
   });
 
+  test("names the declined and busy answers", async () => {
+    const t = await world();
+    jest.spyOn(t.handle.quests.act, "shareQuest").mockImplementation(() => {
+      t.share({ guid: TOM, questId: QUEST, result: 4, type: "result" });
+      t.share({ guid: ANN, questId: QUEST, result: 0, type: "result" });
+      t.share({ guid: ANN, questId: QUEST, result: 3, type: "relayed" });
+      t.share({ questId: QUEST, reason: "complete", type: "closed" });
+      return { ok: true };
+    });
+    const out = await runTool(t.tool, { do: "share_quest", quest: QUEST });
+    expect(out.text).toContain("Tom: busy");
+    expect(out.text).toContain("Ann: declined");
+  });
+
   test("ignores rows for another quest", async () => {
     const t = await world({ log: [QUEST, OTHER] });
     jest.spyOn(t.handle.quests.act, "shareQuest").mockImplementation(() => {

@@ -117,21 +117,21 @@ describe("raid harness rules", () => {
     ).toMatchObject([{ class: "wake", event: "raid/command" }]);
   });
 
-  test("a death writes one passive member row", () => {
-    expect(
-      rows({
-        guid: 0x10n,
-        name: "Tom",
-        transitions: ["died"],
-        type: "member_stats",
-      }),
-    ).toMatchObject([
+  test("a death writes one passive member row that says died", () => {
+    const out = rows({
+      guid: 0x10n,
+      name: "Tom",
+      transitions: ["died"],
+      type: "member_stats",
+    });
+    expect(out).toMatchObject([
       {
         class: "passive",
         data: { name: "Tom", transition: "died" },
         event: "raid/member",
       },
     ]);
+    expect(out[0]?.text).toContain("died");
   });
 
   test("stats with no transition write no rows", () => {
@@ -258,6 +258,7 @@ describe("raid mark harness rules", () => {
     );
     expect(row).toMatchObject({ event: "raid/mark" });
     expect(row?.data).toMatchObject({ icon: 0, name: "Fgk" });
+    expect(row?.text).toContain("Fgk");
     expect(row?.text).toContain("star");
   });
 
@@ -333,7 +334,7 @@ describe("summon harness rules", () => {
     zoneId: 3430,
   } as const;
 
-  test("a request writes one wake row naming summoner, zone and seconds", () => {
+  test("a request writes one wake row with the window in whole seconds", () => {
     const out = rows({ ...base, name: "Tom", zoneName: "Eversong Woods" });
     expect(out).toHaveLength(1);
     expect(out[0]).toMatchObject({
@@ -346,11 +347,13 @@ describe("summon harness rules", () => {
       },
       event: "raid/summon",
     });
+    expect(out[0]?.text).toContain("120 s");
   });
 
   test("without a zone name the row carries the zone id", () => {
     const [row] = rows({ ...base, name: "Tom", zoneName: undefined });
     expect(row?.data).toMatchObject({ zone: "zone 3430" });
+    expect(row?.text).toContain("zone 3430");
   });
 
   test("an unnamed summoner falls back to the lookup, then to Someone", () => {
@@ -363,8 +366,10 @@ describe("summon harness rules", () => {
       testRuleInput({ lookup: testLookup({ unitName: () => "Ann" }) }),
     );
     expect(named[0]?.data).toMatchObject({ name: "Ann" });
+    expect(named[0]?.text).toContain("Ann");
     const [anon] = rows({ ...base, name: "", zoneName: undefined });
     expect(anon?.data).toMatchObject({ name: "Someone" });
+    expect(anon?.text).toContain("Someone");
   });
 
   test("an expiry writes one passive row naming the summoner", () => {
