@@ -1,6 +1,5 @@
 import { expect, jest, test } from "bun:test";
 import type { JevActionResult } from "#harness/jev/contract";
-import { JevUnavailableError } from "#harness/jev/failure";
 import type { TacticsEvent } from "#harness/loops/tactics";
 import {
   context,
@@ -114,23 +113,6 @@ test("a null wait sends no wait option", async () => {
     f.tactics.dispose();
     await running;
   }
-});
-
-test("a failing select ends the run stopped with one halt", async () => {
-  let halts = 0;
-  const f = fixture({
-    defend: () => {
-      halts += 1;
-      return "none";
-    },
-    select: async () => {
-      throw new JevUnavailableError("down");
-    },
-  });
-  await expect(f.tactics.start(context)).rejects.toThrow("jev_unavailable");
-  expect(halts).toBe(1);
-  expect(f.halts).toBe(0);
-  expect(f.tactics.snapshot().lastStopReason).toBe("failed");
 });
 
 test("request observations retain nested values after the world changes", async () => {

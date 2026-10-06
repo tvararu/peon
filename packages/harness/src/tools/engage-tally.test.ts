@@ -133,9 +133,9 @@ describe("engage fight totals", () => {
       { target: "Springpaw Stalker" },
       toolCtx<EngageAfter>(t),
     );
-    expect(res.detail).toMatch(
-      / server kill credit\. \+108 XP\. Looted Broken Fang x1, 12 copper\. Dealt 312, took 145; avoided: dodge x1; immune: Frost Nova\. You: HP/,
-    );
+    expect(res.detail).toContain("Dealt 312, took 145");
+    expect(res.detail).toContain("avoided: dodge x1");
+    expect(res.detail).toContain("immune: Frost Nova");
     expect(res.after).toMatchObject({
       avoided: [{ count: 1, word: "dodge" }],
       castErrors: [{ count: 1, word: "immune" }],

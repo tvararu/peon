@@ -148,7 +148,9 @@ describe("quests-share escort mode", () => {
   test("the sharer waits when the quest never enters the log", () =>
     withFakeTimers(async () => {
       const ctx = sharerContext([]);
-      expect(await fakeRejection(flow.run(ctx), 1000)).not.toBe("resolved");
+      expect(await fakeRejection(flow.run(ctx), 1000)).toContain(
+        `quest ${ESCORT_QUEST} did not enter the log`,
+      );
       expect(ctx.handle.talk).toHaveBeenCalledWith(MIRVEDA);
     }));
 
@@ -164,12 +166,16 @@ describe("quests-share escort mode", () => {
   test("an ordinary shared-quest offer is not an escort prompt", () =>
     withFakeTimers(async () => {
       const ctx = partnerContext({ kind: "share", questId: 8329 });
-      expect(await fakeRejection(flow.run(ctx), 1000)).not.toBe("resolved");
+      expect(await fakeRejection(flow.run(ctx), 1000)).toContain(
+        "no escort prompt was offered",
+      );
     }));
 
   test("a confirm offer for another quest is not the escort prompt", () =>
     withFakeTimers(async () => {
       const ctx = partnerContext({ kind: "confirm", questId: 8329 });
-      expect(await fakeRejection(flow.run(ctx), 1000)).not.toBe("resolved");
+      expect(await fakeRejection(flow.run(ctx), 1000)).toContain(
+        "no escort prompt was offered",
+      );
     }));
 });

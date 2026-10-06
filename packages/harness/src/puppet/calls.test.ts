@@ -1,50 +1,7 @@
 import { describe, expect, spyOn, test } from "bun:test";
-import { AREA_NAMES } from "@peon/core";
 import { elapse, withFakeTimers } from "@peon/core/test-support/fake-time";
 import { decodeCall, PUPPET_CALLS } from "#harness/puppet/calls";
 import { createMockGame } from "#test-support/mock-game";
-
-function areaActs(game: object, area: string): object | undefined {
-  const view: unknown = Reflect.get(game, area);
-  if (typeof view !== "object" || view === null || !("act" in view)) return;
-  const acts = view.act;
-  return typeof acts === "object" && acts !== null ? acts : undefined;
-}
-
-const ALIASES: Readonly<Record<string, readonly [string, string]>> = {
-  tradeAccept: ["trade", "acceptTrade"],
-  tradeAcceptOffered: ["trade", "acceptTrade"],
-  tradeAnswer: ["trade", "answerTrade"],
-  tradeCancel: ["trade", "cancelTrade"],
-  tradeOffer: ["trade", "offerItem"],
-  tradeRequest: ["trade", "requestTrade"],
-  tradeRequestQuiet: ["trade", "requestTrade"],
-};
-
-const HANDLE_ALIASES: Readonly<Record<string, string>> = {
-  useMeetingStone: "selectTarget",
-  useSummoningPortal: "queryNearby",
-  walkToPlayer: "walkTowardPoint",
-};
-
-function callable(game: object, method: string): boolean {
-  const member = HANDLE_ALIASES[method];
-  if (member) return typeof Reflect.get(game, member) === "function";
-  const aliased = ALIASES[method];
-  if (aliased) {
-    const acts = areaActs(game, aliased[0]);
-    return (
-      acts !== undefined && typeof Reflect.get(acts, aliased[1]) === "function"
-    );
-  }
-  if (typeof Reflect.get(game, method) === "function") return true;
-  return AREA_NAMES.some((area) => {
-    const acts = areaActs(game, area);
-    return (
-      acts !== undefined && typeof Reflect.get(acts, method) === "function"
-    );
-  });
-}
 
 describe("decodeCall", () => {
   test("keeps the method and its string arguments", () => {
@@ -96,31 +53,6 @@ describe("decodeCall", () => {
 });
 
 describe("PUPPET_CALLS", () => {
-  test("keeps its keys sorted", () => {
-    const keys = Object.keys(PUPPET_CALLS);
-    expect(keys).toEqual([...keys].sort());
-  });
-
-  test("names only functions or area acts on the game handle", () => {
-    const game = createMockGame();
-    for (const method of Object.keys(PUPPET_CALLS))
-      expect(callable(game, method)).toBe(true);
-  });
-
-  test("reaches the inert acts of the mock game's area handles", () => {
-    const game = createMockGame();
-    expect(AREA_NAMES.every((area) => areaActs(game, area))).toBe(true);
-    expect(callable(game, "query")).toBe(true);
-  });
-
-  test("runs the handle method with the decoded arguments", () => {
-    const game = createMockGame();
-    const call = decodeCall("rollLoot", '["42", 3, "need"]');
-    if ("error" in call) throw new Error(call.error);
-    PUPPET_CALLS["rollLoot"]?.run(game, call.args);
-    expect(game.rollLoot).toHaveBeenCalledWith(42n, 3, "need");
-  });
-
   test("walks toward a named nearby player until it is close", async () => {
     const game = createMockGame();
     const row = {

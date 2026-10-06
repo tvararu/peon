@@ -6,7 +6,6 @@ import {
   petsPetActionSoundBody,
   petsPetDismissSoundBody,
   petsPetLearnedSpellBody,
-  petsPetUnlearnedSpellBody,
   petsPetUpdateComboPointsBody,
   petsStabledPetsBody,
   petsStableResultBody,
@@ -59,11 +58,8 @@ describe("pets protocol", () => {
     const body = petsPetLearnedSpellBody({ spell: 17_253 });
     expect([...body]).toEqual([0x65, 0x43, 0x00, 0x00]);
     expect(parsePetSpellId(new PacketReader(body))).toBe(17_253);
-  });
-
-  test("reads the spell id of SMSG_PET_UNLEARNED_SPELL (Pet.cpp:1965-1968)", () => {
-    const body = petsPetUnlearnedSpellBody({ spell: 2649 });
-    expect(parsePetSpellId(new PacketReader(body))).toBe(2649);
+    const wide = petsPetLearnedSpellBody({ spell: 0x01_00_43_65 });
+    expect(parsePetSpellId(new PacketReader(wide))).toBe(0x01_00_43_65);
   });
 
   test("CMSG_REQUEST_PET_INFO has an empty body (MiscHandler.cpp:1560-1578)", () => {

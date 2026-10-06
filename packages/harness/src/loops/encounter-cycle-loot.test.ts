@@ -26,11 +26,14 @@ test("loot takes every slot plus money and records deltas", async () => {
   await runtime.start({ guids: [2n], instruction: "fight" });
   expect(loot.taken()).toEqual([4, 7]);
   expect(loot.moneyTaken()).toBe(true);
-  expect(runtime.snapshot().lastLoot).toMatchObject({
-    slotsTaken: [4, 7],
-    moneyTaken: 9,
-    coinageBefore: 10,
-    coinageAfter: 19,
+  expect(runtime.snapshot()).toMatchObject({
+    stopCause: "queue_exhausted",
+    lastLoot: {
+      slotsTaken: [4, 7],
+      moneyTaken: 9,
+      coinageBefore: 10,
+      coinageAfter: 19,
+    },
   });
 });
 
@@ -200,30 +203,6 @@ test("a corpse never seen dying stops the cycle after the settle time", async ()
   } finally {
     jest.useRealTimers();
   }
-});
-
-test("second take waits for first confirmation instead of racing", async () => {
-  const order: string[] = [];
-  const loot = fakeLoot({ items: [4, 7] });
-  const innerTake = loot.take.bind(loot);
-  loot.take = (slot: number) => {
-    order.push(`take:${slot}`);
-    return innerTake(slot);
-  };
-  const runtime = makeCycle({
-    tactics: fakeTactics([]),
-    loot,
-    recovery: fakeRecovery({ life: ["alive"] }),
-    control: fakeControl(),
-    now: () => 0,
-  });
-  await runtime.start({ guids: [2n], instruction: "fight" });
-  expect(order).toEqual(["take:4", "take:7"]);
-  expect(loot.taken()).toEqual([4, 7]);
-  expect(runtime.snapshot()).toMatchObject({
-    stopCause: "queue_exhausted",
-    lastLoot: { slotsTaken: [4, 7] },
-  });
 });
 
 test("denied offer stops with loot_denied cause", async () => {

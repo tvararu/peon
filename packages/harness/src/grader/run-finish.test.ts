@@ -332,8 +332,7 @@ describe("writeOutcome", () => {
       "main-hand",
       "vitals",
     ]);
-    expect(draft.checks[0]).toEqual({
-      expected: "the stated level equals T baseline level",
+    expect(draft.checks[0]).toMatchObject({
       id: "level",
       met: false,
       observed: null,

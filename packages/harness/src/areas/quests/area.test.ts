@@ -12,17 +12,6 @@ const ERONA = 0xf1_30_00_3b_a3_00_00_10n;
 const JULIA = 0xf1_30_00_3b_a4_00_00_11n;
 const ARCANIST = 0xf1_30_00_3b_a5_00_00_12n;
 
-describe("quests harness area", () => {
-  test("the area claims the giver, POI and share acts", () => {
-    expect(questsHarness.worldActs).toEqual([
-      "answerShare",
-      "queryGiverStatuses",
-      "queryPoi",
-      "shareQuest",
-    ]);
-  });
-});
-
 const NAMES = new Map<bigint, string>([
   [ERONA, "Magistrix Erona"],
   [JULIA, "Julia Sunstriker"],
@@ -68,9 +57,9 @@ describe("quests marks rule", () => {
       data: { givers: [{ mark: "available", name: "Magistrix Erona" }] },
       name: "marks",
     });
-    expect(rows[0]?.text).toBe(
-      "Quest givers near you: Magistrix Erona u3 has a quest for you.",
-    );
+    expect(rows[0]?.text).toContain("Magistrix Erona u3");
+    expect(rows[0]?.text).toContain("has a quest for you");
+    expect(rows[0]?.text).not.toContain("Arcanist");
   });
 
   test("the same givers with a quest or a turn-in write no second row", () => {
@@ -115,21 +104,18 @@ describe("quests marks rule", () => {
     rule(marks([ERONA, 8, "available"]));
     const rows = rule(marks([ERONA, 5, "incomplete"]));
     expect(rows).toHaveLength(1);
-    expect(rows[0]?.text).toBe(
-      "No quest giver in view has a quest for you or a quest to turn in.",
-    );
+    expect(rows[0]?.text).toContain("No quest giver in view");
   });
 
   test("quest events other than marks write the quiet fallback row", () => {
     const rows = rules()({ count: 3, type: "completed" });
-    expect(rows).toEqual([
-      {
-        class: "log",
-        data: { count: 3, fallback: true, type: "completed" },
-        name: "completed",
-        text: "quests completed",
-      },
-    ]);
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({
+      class: "log",
+      data: { count: 3, fallback: true, type: "completed" },
+      name: "completed",
+    });
+    expect(rows[0]?.text).toContain("completed");
   });
 
   test("a gossip POI writes one quests/gossip_poi row", () => {
@@ -141,9 +127,10 @@ describe("quests marks rule", () => {
     expect(rows).toHaveLength(1);
     expect(rows[0]).toMatchObject({
       class: "log",
+      data: { name: "Lion's Pride Inn" },
       name: "gossip_poi",
     });
-    expect(rows[0]?.text).toContain("Lion's Pride Inn");
+    expect(rows[0]?.text).toContain("Magistrix Erona u3");
   });
 
   test("a share offer writes one quests/offered wake row", () => {
@@ -177,6 +164,7 @@ describe("quests marks rule", () => {
     });
     expect(rows[0]?.text).toContain("Julia Sunstriker");
     expect(rows[0]?.text).toContain("accepted");
+    expect(rows[0]?.text).toContain("quest 8329");
   });
 
   test("a declined first result writes one quests/share_result wake row", () => {
@@ -190,5 +178,7 @@ describe("quests marks rule", () => {
       data: { answer: "declined" },
       name: "share_result",
     });
+    expect(rows[0]?.text).toContain("Arcanist Ithanas");
+    expect(rows[0]?.text).toContain("declined");
   });
 });

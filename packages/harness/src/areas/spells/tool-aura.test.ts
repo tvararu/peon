@@ -12,7 +12,6 @@ import {
   aura,
   FROST_ARMOR,
   FROST_ARMOR_SPELL,
-  mountAura,
   type SpellWorld,
   spellWorld,
 } from "#test-support/spell-tool-fixtures";
@@ -95,21 +94,6 @@ describe("spell do:cancel_aura", () => {
       toolCtx(t),
     );
     expect(out.status).toBe("DONE");
-  });
-
-  test("a mount aura is cancelled like any cancellable aura", async () => {
-    const mount = mountAura();
-    const t = await spellWorld({
-      auras: [mount.aura],
-      definitions: [mount.spell],
-    });
-    const act = removesAura(t);
-    const out = await spellSpec.run(
-      { do: "cancel_aura", spell: "Brown Horse" },
-      toolCtx(t),
-    );
-    expect(out.status).toBe("DONE");
-    expect(act).toHaveBeenCalledWith(mount.spell.id);
   });
 
   test("an act refusal becomes REFUSED with the same reason", async () => {

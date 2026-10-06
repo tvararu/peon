@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import type { NowSnapshot, SelfView, UnitView } from "#harness/contract/views";
-import { formatNow, NOW_MAX_CHARS, nowClock } from "#harness/events/now";
+import { formatNow, NOW_MAX_CHARS } from "#harness/events/now";
 
 const at = Date.UTC(2026, 8, 26, 19, 13, 31);
 
@@ -189,12 +189,6 @@ describe("formatNow", () => {
     const line = formatNow(snapshot({ self: { ...self, mounted: true } }));
     expect(line).toContain("alive in combat mounted ·");
     expect(formatNow(snapshot())).not.toContain("mounted");
-  });
-});
-
-describe("nowClock", () => {
-  test("prints UTC HH:MM:SS", () => {
-    expect(nowClock(at)).toBe("19:13:31");
   });
 });
 

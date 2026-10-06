@@ -1,19 +1,13 @@
 import { describe, expect, jest, test } from "bun:test";
 import { validateToolArguments } from "@earendil-works/pi-ai";
 import { ObjectType, type UnitEntity } from "@peon/core";
-import {
-  talentParams,
-  talentsSpec,
-  talentsTool,
-  wantsOf,
-} from "#harness/areas/talents/tool";
+import { talentParams, talentsSpec } from "#harness/areas/talents/tool";
 import type {
   TalentsCatalog,
   TalentsSnapshot,
 } from "#harness/areas/talents/tool-types";
 import { contentOf, toolCtx } from "#test-support/ops-fixtures";
 import { createTestRuntime } from "#test-support/runtime-fixture";
-import { expectSendKind } from "#test-support/tool-harness";
 
 const CATALOG: TalentsCatalog = {
   glyph: (id) => (id === 21 ? { spellId: 58_366, typeFlags: 0 } : undefined),
@@ -149,20 +143,6 @@ describe("talents tool spec", () => {
         callOf(),
       ),
     ).toEqual(talentsSpec.minimalArgs);
-  });
-
-  test("wantsOf reads talent with rank and plan ranks", () => {
-    expect(wantsOf({ do: "learn", rank: 2, talent: "124" })).toEqual([
-      { rank: 2, talent: "124" },
-    ]);
-    expect(wantsOf({ do: "learn", plan: [{ rank: 1, talent: "a" }] })).toEqual([
-      { rank: 1, talent: "a" },
-    ]);
-    expect(wantsOf({ do: "learn" })).toEqual([]);
-  });
-
-  test("expectSendKind passes for show", async () => {
-    await expectSendKind(talentsTool, { do: "show" });
   });
 });
 

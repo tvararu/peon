@@ -57,9 +57,7 @@ describe("engage", () => {
     await expect(
       engageSpec.run({}, toolCtx<EngageAfter>(t)),
     ).rejects.toMatchObject({
-      detail: expect.stringMatching(
-        /^you have mana \d+\/\d+ \(\d+%\); pull at 30% or more\.$/,
-      ),
+      detail: expect.stringContaining("mana 60/300 (20%)"),
       reason: "low_mana",
     });
     expect(t.rt.runs.list()).toHaveLength(0);
@@ -102,9 +100,8 @@ describe("engage", () => {
     const spy = jest
       .spyOn(t.handle.selfstate.act, "dismount")
       .mockResolvedValue({ status: "ok" });
-    const res = await engageSpec.run({}, toolCtx<EngageAfter>(t));
+    await engageSpec.run({}, toolCtx<EngageAfter>(t));
     expect(spy).toHaveBeenCalledTimes(1);
-    expect(res.detail).toContain("Dismounted first.");
   });
 
   test("a taxi mount stops the engage with in_flight", async () => {

@@ -36,17 +36,18 @@ function guildadminEvent(type: "info" | "disbanded"): AreaEvent {
 
 describe("guildadmin harness rules", () => {
   test("disbanded writes one wake row", () => {
-    expect(
-      areaDrafts(areaRuleSet(), guildadminEvent("disbanded"), testRuleInput()),
-    ).toEqual([
-      {
-        class: "wake",
-        data: { disbanded: true },
-        domain: "guildadmin",
-        event: "guildadmin/disbanded",
-        text: "The guild is disbanded.",
-      },
-    ]);
+    const drafts = areaDrafts(
+      areaRuleSet(),
+      guildadminEvent("disbanded"),
+      testRuleInput(),
+    );
+    expect(drafts).toHaveLength(1);
+    expect(drafts[0]).toMatchObject({
+      class: "wake",
+      data: { disbanded: true },
+      domain: "guildadmin",
+      event: "guildadmin/disbanded",
+    });
   });
 
   test("an info event writes no row", () => {

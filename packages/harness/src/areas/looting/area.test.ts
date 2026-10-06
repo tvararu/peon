@@ -30,14 +30,14 @@ describe("looting harness rules", () => {
       selfGuid: 1n,
       selfName: "Me",
     });
-    expect(areaDrafts(areaRuleSet(), MASTER_CANDIDATES, rc)).toMatchObject([
-      {
-        class: "passive",
-        data: { candidates: ["Me", "Partner"] },
-        event: "looting/master_loot",
-        text: "Master loot candidates: Me, Partner.",
-      },
-    ]);
+    const drafts = areaDrafts(areaRuleSet(), MASTER_CANDIDATES, rc);
+    expect(drafts).toHaveLength(1);
+    expect(drafts[0]).toMatchObject({
+      class: "passive",
+      data: { candidates: ["Me", "Partner"] },
+      event: "looting/master_loot",
+    });
+    expect(drafts[0]?.text).toContain("Me, Partner");
   });
 
   test("an unknown candidate guid falls back to hex", () => {
@@ -50,14 +50,13 @@ describe("looting harness rules", () => {
       } as AreaEvent,
       rc,
     );
-    expect(drafts).toMatchObject([
-      {
-        class: "passive",
-        data: { candidates: ["0x2a"] },
-        event: "looting/master_loot",
-        text: "Master loot candidates: 0x2a.",
-      },
-    ]);
+    expect(drafts).toHaveLength(1);
+    expect(drafts[0]).toMatchObject({
+      class: "passive",
+      data: { candidates: ["0x2a"] },
+      event: "looting/master_loot",
+    });
+    expect(drafts[0]?.text).toContain("0x2a");
   });
 
   test("a loot_owner event writes no row", () => {

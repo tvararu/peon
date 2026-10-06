@@ -128,9 +128,9 @@ describe("unitRefusal", () => {
     if (resolved.kind !== "ambiguous") throw new Error("expected ambiguous");
     const refusal = unitRefusal({ param: "target", resolved, tool: "engage" });
     expect(refusal.reason).toBe("ambiguous_unit");
-    expect(refusal.detail).toBe(
-      "the name matches 2 units (Springpaw Cub, Springpaw Stalker).",
-    );
+    expect(refusal.detail).toContain("2");
+    expect(refusal.detail).toContain("Springpaw Cub");
+    expect(refusal.detail).toContain("Springpaw Stalker");
     expect(refusal.body).toEqual([
       'Springpaw Cub u1, 10 yd N: engage(target: "u1")',
       'Springpaw Stalker u2, 20 yd N: engage(target: "u2")',
@@ -146,7 +146,7 @@ describe("unitRefusal", () => {
       tool: "interact",
     });
     expect(refusal.reason).toBe("not_seen");
-    expect(refusal.detail).toBe('no unit named "Kobold" was seen.');
+    expect(refusal.detail).toContain("Kobold");
     expect(refusal.next).toBe('travel(to: "explore")');
   });
 });

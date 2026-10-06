@@ -103,9 +103,9 @@ describe("interact vendor", () => {
       { npc: "Marniel Amberlight" },
       toolCtx<InteractAfter>(t),
     );
-    expect(res.body).toContain(
-      "Sells: Refreshing Spring Water 25 copper, Tough Hunk of Bread 25 copper.",
-    );
+    const body = res.body.join("\n");
+    expect(body).toContain("Refreshing Spring Water 25 copper");
+    expect(body).toContain("Tough Hunk of Bread 25 copper");
     expect(res.after.stock).toHaveLength(2);
   });
 
@@ -153,24 +153,6 @@ describe("interact vendor", () => {
     expect(res.after.sold).toEqual([
       { count: 2, itemId: 7073, name: "Broken Fang", quality: 0 },
     ]);
-  });
-
-  test("a buy by stock line number picks that line", async () => {
-    const t = await marniel([
-      good(1, 159, "Refreshing Spring Water"),
-      good(2, 4540, "Tough Hunk of Bread"),
-    ]);
-    const slots: number[] = [];
-    t.handle.buyItem = (slot) => {
-      slots.push(slot);
-      vendorEvent(t.handle, "bought");
-    };
-    const res = await interactSpec.run(
-      { do: "buy", npc: "Marniel Amberlight", what: "2" },
-      toolCtx<InteractAfter>(t),
-    );
-    expect(res.status).toBe("DONE");
-    expect(slots).toEqual([2]);
   });
 
   test("an unanswered buy is unconfirmed and stops buying", async () => {

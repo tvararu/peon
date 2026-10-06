@@ -94,6 +94,6 @@ describe("travel <N> yd <direction>", () => {
       { to: "10 yd north" },
       toolCtx<TravelAfter>(t),
     );
-    expect(contentOf(res)).toContain("110");
+    expect(contentOf(res)).toContain("110, 200");
   });
 });

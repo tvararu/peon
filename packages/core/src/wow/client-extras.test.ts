@@ -1,11 +1,13 @@
 import { describe, expect, test } from "bun:test";
 import { creatureQueryResponse } from "#test-support/creature-query-fixtures";
 import { STUB_EXAMPLE, STUB_EXAMPLE_LABEL } from "#test-support/never-handled";
+import type { ClientConfig } from "#wow/client";
 import { extrasMethods, type NoticeEvent } from "#wow/client-extras";
+import type { CombatRuntime } from "#wow/combat";
 import { EntityStore } from "#wow/entity-store";
 import { GameOpcode } from "#wow/protocol/opcodes";
 import { PacketReader, PacketWriter } from "#wow/protocol/packet";
-import type { Runtimes } from "#wow/runtime";
+import { catalogAccess, type Runtimes } from "#wow/runtime";
 import type { WorldConn } from "#wow/world-conn";
 import { createWorldEvents } from "#wow/world-events";
 import { handleCreatureQueryResponse } from "#wow/world-handlers-entity";
@@ -48,18 +50,20 @@ describe("extrasMethods", () => {
     expect(seen).toEqual([notice]);
   });
 
-  test("capabilities come from the runtimes", () => {
-    const flags = {
-      factions: true,
-      spells: false,
-      navigation: true,
-    };
+  test("capabilities report which lazy catalogs have loaded", () => {
     const conn = {
       creatureInfoCache: new Map(),
       events: createWorldEvents(),
     } as unknown as WorldConn;
-    const rt = { capabilities: () => flags } as unknown as Runtimes;
-    expect(extrasMethods(conn, rt).capabilities()).toEqual(flags);
+    const rt = catalogAccess(
+      {} as ClientConfig,
+      { disposed: false, spellsLoaded: true },
+      {} as CombatRuntime,
+    ) as unknown as Runtimes;
+    expect(extrasMethods(conn, rt).capabilities()).toEqual({
+      factions: false,
+      spells: true,
+    });
   });
 
   test("getCreatureInfo returns the cached creature query answer by entry", () => {

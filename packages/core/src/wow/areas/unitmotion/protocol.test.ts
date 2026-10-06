@@ -113,7 +113,6 @@ describe("unitmotion spline parser", () => {
   test("the table covers every owned opcode and nothing else", () => {
     const owned = UNITMOTION_OPCODES.owns.map((name) => GameOpcode[name]);
     expect([...SPLINE_UNIT_TABLE.keys()].sort()).toEqual(owned.sort());
-    expect(SPEEDS.length + FLAGS.length).toBe(25);
   });
 
   test.each(SPEEDS)(

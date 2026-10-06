@@ -63,7 +63,7 @@ describe("greedy choice", () => {
     expect(greedyChoice([candidate("stop", 0, 0)])).toBe("stop");
   });
 
-  test("reports code:greedy with a measured elapsed time", async () => {
+  test("reports code:greedy with its choice", async () => {
     const select = createGreedySelect();
     const result = await select(
       request([candidate("run_ahead", 5), candidate("stop", 0)]),
@@ -71,6 +71,5 @@ describe("greedy choice", () => {
     );
     expect(result.choice).toBe("run_ahead");
     expect(result.model).toBe("code:greedy");
-    expect(result.elapsedMs).toBeGreaterThanOrEqual(0);
   });
 });

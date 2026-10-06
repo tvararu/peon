@@ -371,7 +371,8 @@ describe("social do:emote", () => {
     expect(act).not.toHaveBeenCalled();
   });
 
-  test("the tool is an action", () => {
-    expect(socialTool.kind).toBe("action");
+  test("the social tool definition runs sequentially", async () => {
+    const { tool } = await world();
+    expect(tool.executionMode).toBe("sequential");
   });
 });

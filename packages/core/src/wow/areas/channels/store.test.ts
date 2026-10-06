@@ -55,7 +55,7 @@ describe("ChannelStore", () => {
   });
 
   test("you_left deletes the channel", () => {
-    const { store } = setup();
+    const { seen, store } = setup();
     store.notice({
       channel: "peonab12cd",
       channelId: 7,
@@ -69,6 +69,10 @@ describe("ChannelStore", () => {
       type: "you_left",
     });
     expect(store.snapshot().channels).toEqual([]);
+    expect(seen.map((event) => event.type)).toEqual([
+      "channel_notice",
+      "channel_notice",
+    ]);
   });
 
   test("a self mode_change updates selfFlags, others leave it alone", () => {

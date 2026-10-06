@@ -124,10 +124,14 @@ describe("AmbienceStore", () => {
     ]);
   });
 
-  test("setPhaseMask emits nothing for the same mask and the snapshot light is detached", () => {
+  test("setPhaseMask emits nothing for the same mask", () => {
     const { seen, store } = storeWithEvents();
     store.setPhaseMask(1);
     expect(seen).toEqual([]);
+  });
+
+  test("the snapshot light is detached from the store", () => {
+    const { store } = storeWithEvents();
     store.setLight({ defaultId: 1, fadeMs: 10, overrideId: 2 });
     const light = store.snapshot().light;
     if (!light) throw new Error("no light");

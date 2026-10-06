@@ -1,6 +1,5 @@
 import { describe, expect, test } from "bun:test";
 import type { AreaEventOf } from "@peon/core";
-import { lfgHarness } from "#harness/areas/lfg/area";
 import { areaDrafts, areaRuleSet } from "#harness/areas/rules";
 import { testRuleInput } from "#test-support/rule-fixtures";
 
@@ -180,11 +179,11 @@ describe("lfg harness rules: prompts", () => {
     ).toMatchObject([{ class: "log", event: "lfg/proposal" }]);
   });
 
-  test("proposal rows differ between an open, failed and successful proposal", () => {
-    const texts = [0, 1, 2].map(
-      (state) => rows(proposalEvent({ state }))[0]?.text ?? "",
-    );
-    expect(new Set(texts).size).toBe(3);
+  test("proposal rows name the open, failed and successful states", () => {
+    const text = (state: number) => rows(proposalEvent({ state }))[0]?.text;
+    expect(text(0)).toContain("waiting for an answer");
+    expect(text(1)).toContain("failed");
+    expect(text(2)).toContain("succeeded");
   });
 
   test("a role check start wakes and a later state does not", () => {
@@ -220,7 +219,7 @@ describe("lfg harness rules: prompts", () => {
     });
   });
 
-  test("an ended kick vote does not wake and reads differently", () => {
+  test("an ended kick vote logs and the open vote reads its counts", () => {
     const base = {
       agrees: 3,
       deadline: undefined,
@@ -232,7 +231,7 @@ describe("lfg harness rules: prompts", () => {
     const open = rows({ ...base, deadline: 9, inProgress: true })[0];
     const ended = rows({ ...base, inProgress: false })[0];
     expect(ended?.class).toBe("log");
-    expect(ended?.text).not.toBe(open?.text);
+    expect(open?.text).toContain("3 of 3");
   });
 });
 
@@ -288,22 +287,5 @@ describe("lfg harness rules: other events", () => {
   test("a dungeon list arrival writes no row", () => {
     expect(rows({ scope: "player", type: "dungeons" })).toEqual([]);
     expect(rows({ scope: "party", type: "dungeons" })).toEqual([]);
-  });
-});
-
-describe("lfg world acts", () => {
-  test("the dungeon verbs reach the world", () => {
-    expect(lfgHarness.worldActs).toEqual([
-      "requestDungeons",
-      "requestPartyLocks",
-      "requestStatus",
-      "answerProposal",
-      "join",
-      "leave",
-      "setComment",
-      "setRoles",
-      "teleport",
-      "voteKick",
-    ]);
   });
 });

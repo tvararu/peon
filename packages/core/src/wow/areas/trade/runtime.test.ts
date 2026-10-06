@@ -12,7 +12,6 @@ import {
   buildIgnoreTrade,
   buildInitiateTrade,
 } from "#wow/areas/trade/protocol";
-import type { TradeEvent } from "#wow/areas/trade/store";
 import { GameOpcode } from "#wow/protocol/opcodes";
 
 const flush = () => new Promise((resolve) => setTimeout(resolve, 0));
@@ -48,28 +47,9 @@ describe("trade request", () => {
     }
   });
 
-  test("a refused status settles refused with the status name", async () => {
-    const rig = areaRig("trade", { selfGuid: TRADE_SELF });
-    const events: TradeEvent[] = [];
-    rig.handle.onEvent((event) => events.push(event));
-    try {
-      const pending = rig.handle.act.requestTrade(TRADE_PARTNER);
-      await flush();
-      rig.inject(
-        GameOpcode.SMSG_TRADE_STATUS,
-        tradeStatusBody(TRADE_STATUS.NO_TARGET),
-      );
-      expect(await pending).toEqual({
-        reason: "no_target",
-        status: "refused",
-      });
-    } finally {
-      rig.dispose();
-    }
-  });
-
-  test("stun, death and logout refusals settle refused with the status name", async () => {
+  test("refusal statuses settle refused with the status name and return to idle", async () => {
     for (const [status, name] of [
+      [TRADE_STATUS.NO_TARGET, "no_target"],
       [TRADE_STATUS.TARGET_DEAD, "target_dead"],
       [TRADE_STATUS.TARGET_STUNNED, "target_stunned"],
       [TRADE_STATUS.TARGET_LOGOUT, "target_logout"],
@@ -131,57 +111,6 @@ describe("trade request", () => {
       expect(await canceling).toEqual({ status: "ok" });
     } finally {
       rig.dispose();
-    }
-  });
-
-  test("a second requestTrade starts after settling ends", async () => {
-    jest.useFakeTimers();
-    const rig = areaRig("trade", { selfGuid: TRADE_SELF });
-    try {
-      const pending = rig.handle.act.requestTrade(TRADE_PARTNER);
-      jest.advanceTimersByTime(0);
-      await Promise.resolve();
-      jest.advanceTimersByTime(60_000);
-      await Promise.resolve();
-      await Promise.resolve();
-      expect(await pending).toEqual({ status: "unanswered" });
-      expect(rig.handle.state().phase).toBe("settling");
-      jest.advanceTimersByTime(5000);
-      expect(rig.handle.state().phase).toBe("idle");
-      const next = rig.handle.act.requestTrade(TRADE_PARTNER);
-      jest.advanceTimersByTime(0);
-      await Promise.resolve();
-      rig.inject(
-        GameOpcode.SMSG_TRADE_STATUS,
-        tradeStatusBody(TRADE_STATUS.OPEN_WINDOW, { tradeId: 0 }),
-      );
-      expect(await next).toEqual({ status: "ok" });
-    } finally {
-      rig.dispose();
-      jest.useRealTimers();
-    }
-  });
-
-  test("a stray TRADE_CANCELED during settling ends it", async () => {
-    jest.useFakeTimers();
-    const rig = areaRig("trade", { selfGuid: TRADE_SELF });
-    try {
-      const pending = rig.handle.act.requestTrade(TRADE_PARTNER);
-      jest.advanceTimersByTime(0);
-      await Promise.resolve();
-      jest.advanceTimersByTime(60_000);
-      await Promise.resolve();
-      await Promise.resolve();
-      expect(await pending).toEqual({ status: "unanswered" });
-      expect(rig.handle.state().phase).toBe("settling");
-      rig.inject(
-        GameOpcode.SMSG_TRADE_STATUS,
-        tradeStatusBody(TRADE_STATUS.TRADE_CANCELED),
-      );
-      expect(rig.handle.state().phase).toBe("idle");
-    } finally {
-      rig.dispose();
-      jest.useRealTimers();
     }
   });
 

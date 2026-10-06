@@ -1,7 +1,7 @@
 import { describe, expect, jest, test } from "bun:test";
 import { fakeAwait, withFakeTimers } from "@peon/core/test-support/fake-time";
 import type { InteractAfter } from "#harness/contract/details";
-import { interactSpec, interactTool } from "#harness/tools/interact";
+import { interactSpec } from "#harness/tools/interact";
 import {
   contentOf,
   setSelf,
@@ -11,7 +11,6 @@ import {
 } from "#test-support/ops-fixtures";
 import type { MockHandle, TestRuntime } from "#test-support/runtime-fixture";
 import { createTestRuntime } from "#test-support/runtime-fixture";
-import { expectSendKind } from "#test-support/tool-harness";
 
 const BANKER = 0xf1_30_00_00_00_00_00_55n;
 const NAME = "Novia";
@@ -333,7 +332,10 @@ describe("interact bank", () => {
         () => undefined,
         (error: unknown) => error,
       );
-    expect(refusal).toMatchObject({ reason: "not_carried" });
+    expect(refusal).toMatchObject({
+      body: ["1. Linen Cloth x20"],
+      reason: "not_carried",
+    });
     expect(deposit).not.toHaveBeenCalled();
   });
 
@@ -455,9 +457,5 @@ describe("interact bank", () => {
       reason: "no_answer",
       status: "UNCONFIRMED",
     });
-  });
-
-  test("expectSendKind passes for bank", async () => {
-    await expectSendKind(interactTool, { do: "bank", npc: NAME });
   });
 });

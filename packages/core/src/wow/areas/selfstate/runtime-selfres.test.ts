@@ -265,15 +265,20 @@ describe("selfstate runtime: queryCorpseMapPosition", () => {
     }
   });
 
-  test("a reply that arrives with nobody asking is read without error", () => {
+  test("a reply that arrives with nobody asking does not resolve a later query", async () => {
+    jest.useFakeTimers();
     const { rig } = rigWithSelf(undefined);
     try {
       rig.inject(
         GameOpcode.SMSG_CORPSE_MAP_POSITION_QUERY_RESPONSE,
         selfstateCorpseMapPositionQueryResponseBody(),
       );
+      const pending = rig.handle.act.queryCorpseMapPosition();
+      jest.advanceTimersByTime(3000);
+      expect(await pending).toEqual({ status: "no_answer" });
     } finally {
       rig.dispose();
+      jest.useRealTimers();
     }
   });
 
@@ -287,22 +292,6 @@ describe("selfstate runtime: queryCorpseMapPosition", () => {
       expect(jest.getTimerCount()).toBe(0);
     } finally {
       rig.dispose();
-      jest.useRealTimers();
-    }
-  });
-
-  test("disposing the area rejects a pending query", async () => {
-    jest.useFakeTimers();
-    const { rig } = rigWithSelf(undefined);
-    try {
-      const pending = rig.handle.act.queryCorpseMapPosition();
-      rig.dispose();
-      const outcome = await pending.then(
-        () => "resolved",
-        () => "rejected",
-      );
-      expect(outcome).toBe("rejected");
-    } finally {
       jest.useRealTimers();
     }
   });

@@ -11,8 +11,6 @@ import {
   instancesRaidInstanceMessageBody,
   instancesSaveCreatedBody,
 } from "#test-support/areas/instances";
-import { areaStubs } from "#wow/areas/compose";
-import { INSTANCES_OPCODES } from "#wow/areas/instances/opcodes";
 import type { InstancesEvent } from "#wow/areas/instances/store";
 import { GameOpcode } from "#wow/protocol/opcodes";
 
@@ -286,31 +284,6 @@ describe("instances store", () => {
         mapDifficulty: undefined,
         homebindTimer: undefined,
       });
-    } finally {
-      rig.dispose();
-    }
-  });
-
-  test("the two stubs are gone and the rig dispatch owns all eight opcodes", () => {
-    const { rig } = rigWithEvents();
-    try {
-      const stubbed = new Set(areaStubs().map(([opcode]) => opcode));
-      expect(stubbed.has(GameOpcode.SMSG_INSTANCE_DIFFICULTY)).toBe(false);
-      expect(stubbed.has(GameOpcode.SMSG_RAID_INSTANCE_MESSAGE)).toBe(false);
-      expect(INSTANCES_OPCODES.stubs).toEqual([]);
-      const eight = [
-        "MSG_SET_DUNGEON_DIFFICULTY",
-        "MSG_SET_RAID_DIFFICULTY",
-        "SMSG_INSTANCE_DIFFICULTY",
-        "SMSG_UPDATE_INSTANCE_OWNERSHIP",
-        "SMSG_UPDATE_LAST_INSTANCE",
-        "SMSG_RAID_INSTANCE_MESSAGE",
-        "SMSG_RAID_GROUP_ONLY",
-        "SMSG_CORPSE_NOT_IN_INSTANCE",
-      ] as const;
-      expect(
-        eight.filter((name) => !rig.dispatch.has(GameOpcode[name])),
-      ).toEqual([]);
     } finally {
       rig.dispose();
     }

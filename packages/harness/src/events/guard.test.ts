@@ -136,9 +136,10 @@ describe("createStuckWatch", () => {
       expect(stuck()).toEqual([
         expect.objectContaining({
           class: "wake",
-          text: 'No progress for 5 min. Untried: travel(to: "unstick"). Tell the human what blocks you.',
+          text: expect.stringContaining("5 min"),
         }),
       ]);
+      expect(stuck()[0]?.text).toContain('travel(to: "unstick")');
       now += STUCK_WAKE_MS;
       jest.advanceTimersByTime(1000);
       expect(stuck()).toHaveLength(1);

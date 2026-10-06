@@ -3,6 +3,7 @@ import { type VehiclesEvent, VehiclesStore } from "#wow/areas/vehicles/store";
 
 const GUID = 0xf1_30_00_3e_ea_00_0a_bcn;
 const TRANSPORT = 0xf1_30_00_3e_ea_00_0b_bcn;
+const OTHER = 0xf1_30_00_3e_ea_00_0c_bcn;
 
 function storeWithEvents(self = 0n) {
   const store = new VehiclesStore({
@@ -53,10 +54,24 @@ describe("VehiclesStore", () => {
       seat: -1,
       transportGuid: TRANSPORT,
     });
-    expect(store.snapshot().passengers.get(GUID)).toEqual({
-      seat: -1,
+    store.receiveTransport({
+      guid: OTHER,
+      move: {
+        extra: 0,
+        guid: OTHER,
+        kind: "stop",
+        splineId: 10,
+        start: { x: 1, y: 2, z: 3 },
+      },
+      seat: 3,
       transportGuid: TRANSPORT,
     });
+    expect(store.snapshot().passengers).toEqual(
+      new Map([
+        [GUID, { seat: -1, transportGuid: TRANSPORT }],
+        [OTHER, { seat: 3, transportGuid: TRANSPORT }],
+      ]),
+    );
   });
 
   test("a self boarding spline sets the seat and emits entered with the spline id", () => {

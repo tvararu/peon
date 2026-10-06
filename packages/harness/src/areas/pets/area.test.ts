@@ -75,11 +75,9 @@ describe("pets rules", () => {
   test("a bar with a new guid gives one out row naming the pet, its family, stance and command", () => {
     const [row, ...rest] = rules().event(barEvent());
     expect(rest).toEqual([]);
-    expect(row).toMatchObject({
-      class: "log",
-      name: "out",
-      text: "Fang (Wolf) is out: defensive, follow.",
-    });
+    expect(row).toMatchObject({ class: "log", name: "out" });
+    for (const value of ["Fang", "Wolf", "defensive", "follow"])
+      expect(row?.text).toContain(value);
     expect(row?.guid).toBeDefined();
   });
 
@@ -100,7 +98,8 @@ describe("pets rules", () => {
 
   test("an unseen pet name and an unknown family still give a readable row", () => {
     const [row] = rules().event(barEvent({ family: 99, guid: RAVAGER }));
-    expect(row?.text).toBe("Your pet (family 99) is out: defensive, follow.");
+    for (const value of ["Your pet", "family 99", "defensive, follow"])
+      expect(row?.text).toContain(value);
   });
 
   test("the clear gives one gone row, and a clear with no pet out gives none", () => {
@@ -116,7 +115,8 @@ describe("pets rules", () => {
     const r = rules();
     const rows = r.attach(state(bar()));
     expect(rows.map((row) => row.name)).toEqual(["out"]);
-    expect(rows.at(0)?.text).toBe("Fang (Wolf) is out: defensive, follow.");
+    for (const value of ["Fang", "Wolf", "defensive", "follow"])
+      expect(rows.at(0)?.text).toContain(value);
     expect(r.event(barEvent())).toEqual([]);
     expect(r.event(CLEARED).map((row) => row.name)).toEqual(["gone"]);
   });
@@ -135,13 +135,10 @@ describe("pets rules", () => {
       pets: { ...game.pets, state: () => ({ ...current, bar: bar() }) },
     });
     const rows = attachDrafts(areaRuleSet(), withBar, input());
-    expect(rows.filter((row) => row.domain === "pets")).toMatchObject([
-      {
-        domain: "pets",
-        event: "pets/out",
-        text: "Fang (Wolf) is out: defensive, follow.",
-      },
-    ]);
+    const petRows = rows.filter((row) => row.domain === "pets");
+    expect(petRows).toMatchObject([{ domain: "pets", event: "pets/out" }]);
+    for (const value of ["Fang", "Wolf", "defensive", "follow"])
+      expect(petRows.at(0)?.text).toContain(value);
   });
 
   test("feedback and a failed pet cast give one refused row each with the reason", () => {
@@ -149,6 +146,7 @@ describe("pets rules", () => {
     const feedback = r.event({ reason: "nothing_to_attack", type: "feedback" });
     expect(feedback.map((row) => row.name)).toEqual(["refused"]);
     expect(feedback.at(0)?.text).toContain("nothing to attack");
+    expect(feedback.at(0)?.data).toMatchObject({ reason: "nothing_to_attack" });
     const cast = r.event({
       castCount: 1,
       reason: "not_ready",
@@ -157,6 +155,8 @@ describe("pets rules", () => {
     });
     expect(cast.map((row) => row.name)).toEqual(["refused"]);
     expect(cast.at(0)?.text).toContain("not_ready");
+    expect(cast.at(0)?.text).toContain("spell 1742");
+    expect(cast.at(0)?.data).toMatchObject({ reason: "not_ready" });
   });
 
   test("a silent cast failure writes no row", () => {
@@ -194,15 +194,19 @@ describe("pets rules", () => {
       type: "name_invalid",
     } as never);
     expect(bad.map((row) => row.name)).toEqual(["refused"]);
+    expect(bad.at(0)?.text).toContain("profane");
     const failed = r.event({ code: 7, reason: "no_pet", type: "tame_failed" });
     expect(failed.map((row) => row.name)).toEqual(["refused"]);
+    expect(failed.at(0)?.text).toContain("no pet");
     const stabled = r.event({
       code: 8,
       result: "stabled",
       type: "stable_result",
     });
     expect(stabled.map((row) => row.name)).toEqual(["stable"]);
+    expect(stabled.at(0)?.text).toContain("stabled");
     const silent = r.event({ request: "rename", type: "unanswered" });
     expect(silent.map((row) => row.name)).toEqual(["unanswered"]);
+    expect(silent.at(0)?.text).toContain("rename");
   });
 });

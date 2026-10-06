@@ -26,10 +26,10 @@ describe("strayWorktree", () => {
     expect(await strayWorktree(repo)).toBe("/wt/run-26");
   });
 
-  test("the message names the value and the unset command", () => {
+  test("the message names the stray path and the unset command", () => {
     const message = strayMessage("/wt/run-26", "/r");
-    expect(message).toContain(
-      "git config --file /r/.git/config --unset core.worktree",
-    );
+    expect(message).toContain("/wt/run-26");
+    expect(message).toContain("/r/.git/config");
+    expect(message).toContain("--unset core.worktree");
   });
 });

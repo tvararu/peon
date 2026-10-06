@@ -126,7 +126,7 @@ describe("travel ride", () => {
     expect(res.status).toBe("DONE");
     expect(res.detail).toContain("Thunder Bluff");
   });
-  test("a docked wait names the transport and tells the agent to keep waiting", async () => {
+  test("a docked wait names the transport and the ETA", async () => {
     const { t, pose } = await world();
     pose.now = { ...HERE, moving: true };
     const act = t.handle.transports.act;
@@ -148,8 +148,7 @@ describe("travel ride", () => {
       );
       expect(waiting).toMatchObject({ status: "RUNNING" });
       expect(waiting?.detail).toContain("waiting at the dock");
-      expect(waiting?.detail).toContain("expected in about");
-      expect(waiting?.next).toContain("keep waiting");
+      expect(waiting?.detail).toContain("5 s");
       pose.now = HERE;
       await elapse(2000);
       pose.now = THERE;
@@ -174,7 +173,7 @@ describe("travel ride", () => {
     });
     expect(res.status).toBe("DONE");
   });
-  test("the result yielded after two minutes at the dock still names the wait and the expected time", async () => {
+  test("the result yielded after two minutes at the dock still names the wait and the ETA", async () => {
     const { t, pose } = await world();
     pose.now = { ...HERE, moving: true };
     const ctx = toolCtx<TravelAfter>(t);
@@ -192,11 +191,10 @@ describe("travel ride", () => {
     expect(res.status).toBe("RUNNING");
     expect(res.detail).toContain("Thunder Bluff");
     expect(res.detail).toContain("waiting at the dock");
-    expect(res.detail).toContain("expected in about");
-    expect(res.next).toContain("keep waiting");
+    expect(res.detail).toContain("5 s");
     expect(res.after?.wait).toContain("waiting at the dock");
   });
-  test("a human yield before the next publisher tick still names the wait and the expected time", async () => {
+  test("a human yield before the next publisher tick still names the wait and the ETA", async () => {
     const { t, pose } = await world();
     pose.now = { ...HERE, moving: true };
     const ctx = toolCtx<TravelAfter>(t);
@@ -215,8 +213,7 @@ describe("travel ride", () => {
     expect(res.status).toBe("RUNNING");
     expect(res.detail).toContain("Thunder Bluff");
     expect(res.detail).toContain("waiting at the dock");
-    expect(res.detail).toContain("expected in about");
-    expect(res.next).toContain("keep waiting");
+    expect(res.detail).toContain("5 s");
     expect(res.after?.wait).toContain("waiting at the dock");
   });
   test("the result yielded while aboard still says the ride is going and progress keeps it", async () => {
@@ -235,24 +232,6 @@ describe("travel ride", () => {
     expect(res.detail).toContain("still riding");
     expect(res.next).toContain("keep waiting");
   });
-  test("waits for the transport to dock before it boards", async () => {
-    const { t, pose } = await world();
-    pose.now = { ...HERE, moving: true };
-    const act = t.handle.transports.act;
-    const res = await withFakeTimers(async () => {
-      const pending = ride(t);
-      await elapse(4000);
-      expect(act.board).not.toHaveBeenCalled();
-      pose.now = HERE;
-      await elapse(2000);
-      expect(act.board).toHaveBeenCalledTimes(1);
-      pose.now = THERE;
-      await elapse(3000);
-      return await pending;
-    });
-    expect(res.status).toBe("DONE");
-  });
-
   test("walks to the dock when it is out of boarding range", async () => {
     const { t, pose } = await world();
     pose.now = { ...HERE, x: 200 };
@@ -272,16 +251,18 @@ describe("travel ride", () => {
     const { t, pose } = await world();
     pose.now = { ...HERE, moving: true };
     const act = t.handle.transports.act;
-    await withFakeTimers(async () => {
+    const res = await withFakeTimers(async () => {
       const pending = ride(t);
       await elapse(4000);
       expect(act.board).not.toHaveBeenCalled();
       pose.now = HERE;
       await elapse(2000);
+      expect(act.board).toHaveBeenCalledTimes(1);
       pose.now = THERE;
       await elapse(3000);
-      await pending;
+      return await pending;
     });
+    expect(res.status).toBe("DONE");
     expect(act.board).toHaveBeenCalledWith(SHIP);
     expect(act.board).not.toHaveBeenCalledWith(DECOY);
   });

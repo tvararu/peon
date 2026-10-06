@@ -75,7 +75,7 @@ describe("lfg runtime", () => {
     }
   });
 
-  test("requestStatus reports no comment, since the status reply carries none (LFGMgr.cpp:2876-2879)", async () => {
+  test("requestStatus settles ok when the player update carries a comment", async () => {
     const rig = solo();
     try {
       const pending = rig.handle.act.requestStatus();
@@ -141,6 +141,29 @@ describe("lfg runtime", () => {
         const pending = rig.handle.act.requestDungeons();
         const assertion = pending.then((result) =>
           expect(result).toEqual({ status: "no_answer" }),
+        );
+        await elapse(5100);
+        await assertion;
+      } finally {
+        rig.dispose();
+      }
+    });
+  });
+
+  test("a silent join settles refused lfg_disabled_or_ignored after 5 s", async () => {
+    await withFakeTimers(async () => {
+      const rig = solo();
+      try {
+        rig.inject(GameOpcode.SMSG_LFG_PLAYER_INFO, INFO);
+        const pending = rig.handle.act.join({
+          roles: 8,
+          entries: [0x01_00_00_12],
+        });
+        const assertion = pending.then((result) =>
+          expect(result).toEqual({
+            status: "refused",
+            reason: "lfg_disabled_or_ignored",
+          }),
         );
         await elapse(5100);
         await assertion;
@@ -316,7 +339,7 @@ describe("lfg runtime", () => {
     }
   });
 
-  test("a non-zero join result settles refused with the locks", async () => {
+  test("a refused join returns the typed party locks", async () => {
     const rig = solo();
     try {
       rig.inject(
@@ -345,79 +368,6 @@ describe("lfg runtime", () => {
         status: "refused",
         reason: "party_not_meet_reqs",
       });
-    } finally {
-      rig.dispose();
-    }
-  });
-
-  test("a silent join settles refused lfg_disabled_or_ignored after 5 s", async () => {
-    await withFakeTimers(async () => {
-      const rig = solo();
-      try {
-        rig.inject(
-          GameOpcode.SMSG_LFG_PLAYER_INFO,
-          lfgPlayerInfoBody({
-            random: [{ entry: 0x06_00_01_06 }],
-            locks: [],
-          }),
-        );
-        const pending = rig.handle.act.join({
-          roles: 8,
-          entries: [0x06_00_01_06],
-        });
-        const assertion = pending.then((result) =>
-          expect(result).toEqual({
-            status: "refused",
-            reason: "lfg_disabled_or_ignored",
-          }),
-        );
-        await elapse(5100);
-        await assertion;
-      } finally {
-        rig.dispose();
-      }
-    });
-  });
-
-  test("join refuses an empty dungeon list without sending (LFGHandler.cpp:56-60)", async () => {
-    const rig = solo();
-    try {
-      const result = await rig.handle.act.join({ roles: 8, entries: [] });
-      expect(result).toMatchObject({
-        status: "refused",
-        reason: "no_dungeons",
-      });
-      expect(sentOpcode(rig, GameOpcode.CMSG_LFG_JOIN)).toHaveLength(0);
-    } finally {
-      rig.dispose();
-    }
-  });
-
-  test("a refused join returns the typed party locks", async () => {
-    const rig = solo();
-    try {
-      rig.inject(
-        GameOpcode.SMSG_LFG_PLAYER_INFO,
-        lfgPlayerInfoBody({
-          random: [{ entry: 0x06_00_01_06 }],
-          locks: [],
-        }),
-      );
-      const pending = rig.handle.act.join({
-        roles: 8,
-        entries: [0x06_00_01_06],
-      });
-      rig.inject(
-        GameOpcode.SMSG_LFG_JOIN_RESULT,
-        lfgJoinResultBody({
-          result: 6,
-          state: 3,
-          partyLocks: [
-            { guid: 0xden, locks: [{ entry: 0x06_00_01_06, status: 2 }] },
-          ],
-        }),
-      );
-      const result = await pending;
       const locks =
         result.status === "refused" ? (result.partyLocks ?? []) : [];
       expect(locks.map((p) => p.guid)).toEqual([0xden]);

@@ -66,6 +66,15 @@ describe("coverRows", () => {
 
   test("a failed call or another tool covers nothing", () => {
     const log = setup();
+    for (const id of ["c1", "c2"]) {
+      log.append({
+        class: "log",
+        data: { toolCallId: id },
+        domain: "tool",
+        event: "tool/call",
+        text: "called",
+      });
+    }
     const accepted = log.append(draft("quest/accepted"));
     coverRows(log, {
       status: "FAILED",
@@ -170,20 +179,6 @@ describe("coverRows", () => {
       text: "travel called",
     });
     coverRows(log, { status: "DONE", tool: "travel", toolCallId: "c1" });
-    const landed = log.append(draft("travel/flight_landed"));
-    expect(log.get(landed.seq)?.consumedBy).toBeUndefined();
-  });
-
-  test("a landing after a PARTLY fly stays uncovered", () => {
-    const log = setup();
-    log.append({
-      class: "log",
-      data: { toolCallId: "c1" },
-      domain: "tool",
-      event: "tool/call",
-      text: "travel called",
-    });
-    coverRows(log, { status: "PARTLY", tool: "travel", toolCallId: "c1" });
     const landed = log.append(draft("travel/flight_landed"));
     expect(log.get(landed.seq)?.consumedBy).toBeUndefined();
   });

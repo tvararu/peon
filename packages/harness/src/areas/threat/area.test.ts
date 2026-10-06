@@ -70,26 +70,22 @@ describe("threat flood guard", () => {
     for (const event of quiet)
       expect(areaDrafts(set, { area: "threat", event }, rc)).toEqual([]);
   });
-
-  test("the threat area draws with the combat glyph and has no world act", () => {
-    expect(threatHarness.glyph).toBe("combat");
-    expect(threatHarness.worldActs).toEqual([]);
-  });
 });
 
 describe("threat/engaged", () => {
   test("the first table that holds the character wakes outside a run", () => {
     const event = rules();
-    expect(event(fightingMe)).toEqual([
-      {
-        class: "wake",
-        data: { name: "Wretched Thug", unit: THUG.toString(16) },
-        guid: THUG.toString(16),
-        name: "engaged",
-        ref: `u${THUG}`,
-        text: `Wretched Thug u${THUG} is fighting you.`,
-      },
-    ]);
+    const rows = event(fightingMe);
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({
+      class: "wake",
+      data: { name: "Wretched Thug", unit: THUG.toString(16) },
+      guid: THUG.toString(16),
+      name: "engaged",
+      ref: `u${THUG}`,
+    });
+    expect(rows[0]?.text).toContain(`Wretched Thug u${THUG}`);
+    expect(rows[0]?.text).toContain("fighting you");
     expect(event(fightingMe)).toEqual([]);
   });
 
@@ -137,41 +133,40 @@ describe("threat/aggro_switch", () => {
   test("a switch from the pet to the character is a log row", () => {
     const event = rules();
     event(table(THUG, PET, [entry(PET, 900, true), entry(SELF, 100)]));
-    expect(event(turn(THUG, PET, SELF))).toEqual([
-      {
-        class: "log",
-        data: {
-          fromVictim: PET.toString(16),
-          name: "Wretched Thug",
-          toVictim: SELF.toString(16),
-          unit: THUG.toString(16),
-        },
-        guid: THUG.toString(16),
-        name: "aggro_switch",
-        ref: `u${THUG}`,
-        text: `Wretched Thug u${THUG} turned from Cat u${PET} to you.`,
+    const rows = event(turn(THUG, PET, SELF));
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({
+      class: "log",
+      data: {
+        fromVictim: PET.toString(16),
+        name: "Wretched Thug",
+        toVictim: SELF.toString(16),
+        unit: THUG.toString(16),
       },
-    ]);
+      guid: THUG.toString(16),
+      name: "aggro_switch",
+      ref: `u${THUG}`,
+    });
+    expect(rows[0]?.text).toContain("Cat");
+    expect(rows[0]?.text).toContain("to you");
   });
 
   test("a switch from another player to the character wakes", () => {
     const event = rules();
     event(table(SHADE, MATE, [entry(MATE, 500, true), entry(SELF, 100)]));
     const [row] = event(turn(SHADE, MATE, SELF));
-    expect(row).toMatchObject({
-      class: "wake",
-      text: `Angershade u${SHADE} turned from Mate u${MATE} to you.`,
-    });
+    expect(row).toMatchObject({ class: "wake", name: "aggro_switch" });
+    expect(row?.text).toContain("Mate");
+    expect(row?.text).toContain("to you");
   });
 
   test("a switch from the character to the pet is a log row", () => {
     const event = rules();
     event(fightingMe);
     const [row] = event(turn(THUG, SELF, PET));
-    expect(row).toMatchObject({
-      class: "log",
-      text: `Wretched Thug u${THUG} turned from you to Cat u${PET}.`,
-    });
+    expect(row).toMatchObject({ class: "log", name: "aggro_switch" });
+    expect(row?.text).toContain("from you");
+    expect(row?.text).toContain("Cat");
   });
 
   test("a switch between players on a unit not fighting the character gives no row", () => {
@@ -200,23 +195,24 @@ describe("threat/pull_warning", () => {
   test("near 90% of the melee pull point on another player's target warns once", () => {
     const event = rules();
     expect(event(onMate(980)).map((row) => row.name)).toEqual(["engaged"]);
-    expect(event(onMate(990))).toEqual([
-      {
-        class: "log",
-        data: {
-          mine: 990,
-          name: "Angershade",
-          pullAt: 1100,
-          unit: SHADE.toString(16),
-          victim: MATE.toString(16),
-          victimThreat: 1000,
-        },
-        guid: SHADE.toString(16),
-        name: "pull_warning",
-        ref: `u${SHADE}`,
-        text: `Your threat on Angershade u${SHADE} is near pulling it off Mate u${MATE}: 99% of theirs; it turns at 110% in melee range, 130% at range.`,
+    const rows = event(onMate(990));
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({
+      class: "log",
+      data: {
+        mine: 990,
+        name: "Angershade",
+        pullAt: 1100,
+        unit: SHADE.toString(16),
+        victim: MATE.toString(16),
+        victimThreat: 1000,
       },
-    ]);
+      guid: SHADE.toString(16),
+      name: "pull_warning",
+      ref: `u${SHADE}`,
+    });
+    expect(rows[0]?.text).toContain("99%");
+    expect(rows[0]?.text).toContain("Mate");
     expect(event(onMate(1050))).toEqual([]);
   });
 
@@ -242,24 +238,23 @@ describe("threat/pull_warning", () => {
 
 describe("threat/alerted", () => {
   test("an alert reaction wakes", () => {
-    expect(
-      rules()({
-        code: 0,
-        pet: false,
-        reaction: "alert",
-        type: "reaction",
-        unit: THUG,
-      }),
-    ).toEqual([
-      {
-        class: "wake",
-        data: { name: "Wretched Thug", unit: THUG.toString(16) },
-        guid: THUG.toString(16),
-        name: "alerted",
-        ref: `u${THUG}`,
-        text: `Wretched Thug u${THUG} noticed you.`,
-      },
-    ]);
+    const rows = rules()({
+      code: 0,
+      pet: false,
+      reaction: "alert",
+      type: "reaction",
+      unit: THUG,
+    });
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({
+      class: "wake",
+      data: { name: "Wretched Thug", unit: THUG.toString(16) },
+      guid: THUG.toString(16),
+      name: "alerted",
+      ref: `u${THUG}`,
+    });
+    expect(rows[0]?.text).toContain(`Wretched Thug u${THUG}`);
+    expect(rows[0]?.text).toContain("noticed you");
   });
 });
 
@@ -273,20 +268,20 @@ describe("threat/target_lost", () => {
   test("a target break for an engaged unit logs once", () => {
     const event = rules();
     event(fightingMe);
-    expect(event(broken)).toEqual([
-      {
-        class: "log",
-        data: {
-          hostileOnly: false,
-          name: "Wretched Thug",
-          unit: THUG.toString(16),
-        },
-        guid: THUG.toString(16),
-        name: "target_lost",
-        ref: `u${THUG}`,
-        text: `Your target Wretched Thug u${THUG} vanished from targeting.`,
+    const [row] = event(broken);
+    expect(row).toMatchObject({
+      class: "log",
+      data: {
+        hostileOnly: false,
+        name: "Wretched Thug",
+        unit: THUG.toString(16),
       },
-    ]);
+      guid: THUG.toString(16),
+      name: "target_lost",
+      ref: `u${THUG}`,
+    });
+    expect(row?.text).toContain(`Wretched Thug u${THUG}`);
+    expect(row?.text).toContain("vanished from targeting");
     expect(event({ ...broken, hostileOnly: true })).toEqual([]);
   });
 

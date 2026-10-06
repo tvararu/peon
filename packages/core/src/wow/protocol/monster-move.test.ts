@@ -290,13 +290,18 @@ describe("parseCreateSpline", () => {
 });
 
 describe("parseMonsterMoveBody", () => {
-  test("body after the guid matches parseMonsterMove", () => {
+  test("body after the guid parses to the stop result", () => {
     const body = [0x00, ...f32(1), ...f32(2), ...f32(3), ...u32(9), 0x01];
-    const full = parseMonsterMove(reader([0x01, 0x17, ...body]));
     const part = parseMonsterMoveBody(
       new PacketReader(Uint8Array.from(body)),
       0x17n,
     );
-    expect(part).toEqual(full);
+    expect(part).toEqual({
+      kind: "stop",
+      guid: 0x17n,
+      extra: 0,
+      start: { x: 1, y: 2, z: 3 },
+      splineId: 9,
+    });
   });
 });

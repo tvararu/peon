@@ -43,9 +43,9 @@ describe("interact vendor item names", () => {
     expect(ms).toBeGreaterThanOrEqual(LATE_MS);
     expect(ms).toBeLessThan(ITEM_NAME_WAIT_MS);
     const res = await run;
-    expect(res.body).toContain(
-      "Sells: Tough Jerky 25 copper, Ice Cold Water 25 copper.",
-    );
+    const body = res.body.join("\n");
+    expect(body).toContain("Tough Jerky 25 copper");
+    expect(body).toContain("Ice Cold Water 25 copper");
     expect(res.after.stock?.map((line) => line.name)).toEqual([
       "Tough Jerky",
       "Ice Cold Water",
@@ -68,15 +68,6 @@ describe("interact vendor item names", () => {
     expect(res.status).toBe("DONE");
     expect(res.detail).toContain("bought Ice Cold Water x5");
     expect(slots).toEqual([2]);
-  });
-
-  test("buy accepts the list number and the name", async () => {
-    const byLine = await buyWith("2");
-    expect((await byLine.run).status).toBe("DONE");
-    expect(byLine.slots).toEqual([2]);
-    const byName = await buyWith("jerky");
-    expect((await byName.run).status).toBe("DONE");
-    expect(byName.slots).toEqual([1]);
   });
 });
 

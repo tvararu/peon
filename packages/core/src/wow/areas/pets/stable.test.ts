@@ -1,6 +1,8 @@
 import { describe, expect, test } from "bun:test";
 import { areaRig } from "#test-support/area-rig";
 import {
+  petsNameQueryResponseBody,
+  petsPetSpellsBody,
   petsStabledPetsBody,
   petsStableResultBody,
 } from "#test-support/areas/pets";
@@ -8,6 +10,19 @@ import type { PetsEvent } from "#wow/areas/pets/store";
 import { GameOpcode } from "#wow/protocol/opcodes";
 
 const NPC = 0xf1_30_00_41_11_00_00_01n;
+const PET = 0xf1_40_00_0c_a9_00_02_0bn;
+
+const BAR = petsPetSpellsBody({
+  command: 1,
+  cooldowns: [],
+  duration: 0,
+  family: 31,
+  flags: 0,
+  guid: PET,
+  react: 0,
+  slots: Array.from({ length: 10 }, () => ({ action: 0, type: 0x01 })),
+  spells: [],
+});
 
 function rig() {
   const r = areaRig("pets", { now: () => 1000, selfGuid: 0x2an });
@@ -37,6 +52,10 @@ describe("pets stable store", () => {
       expect(stable?.pets.map((pet) => [pet.number, pet.state])).toEqual([
         [5, "active"],
         [9, "stabled"],
+      ]);
+      expect(stable?.pets.map((pet) => pet.name)).toEqual([
+        "Ravager",
+        "Ravager",
       ]);
       expect(seen.map((event) => event.type)).toEqual(["stable_list"]);
     } finally {
@@ -125,12 +144,17 @@ describe("pets stable store", () => {
     expect(r.handle.state().stable).toBeUndefined();
   });
 
-  test("a stable list does not disturb the pet bar", () => {
+  test("a stable list does not disturb the pet bar or cached names", () => {
     const { r } = rig();
     try {
+      r.inject(GameOpcode.SMSG_PET_SPELLS, BAR);
+      r.inject(
+        GameOpcode.SMSG_PET_NAME_QUERY_RESPONSE,
+        petsNameQueryResponseBody({ name: "Rex", number: 5, timestamp: 7 }),
+      );
       r.inject(GameOpcode.MSG_LIST_STABLED_PETS, LIST);
-      expect(r.handle.state().bar).toBeUndefined();
-      expect(r.handle.state().names).toEqual({});
+      expect(r.handle.state().bar?.guid).toBe(PET);
+      expect(r.handle.state().names[5]?.name).toBe("Rex");
     } finally {
       r.dispose();
     }
@@ -147,19 +171,6 @@ describe("pets stable store", () => {
       );
       expect(before).toHaveLength(2);
       expect(r.handle.state().stable?.pets).toHaveLength(0);
-    } finally {
-      r.dispose();
-    }
-  });
-
-  test("a duplicate pet label stays as two rows", () => {
-    const { r } = rig();
-    try {
-      r.inject(GameOpcode.MSG_LIST_STABLED_PETS, LIST);
-      expect(r.handle.state().stable?.pets.map((pet) => pet.name)).toEqual([
-        "Ravager",
-        "Ravager",
-      ]);
     } finally {
       r.dispose();
     }

@@ -58,11 +58,15 @@ describe("chat commands", () => {
     await run("guild", "   ");
     await run("tell", "Kaelyn");
     await run("3");
-    expect(named("notify")).toEqual([
-      ["Use /guild <text>.", "warning"],
-      ["Use /tell <name> <text>.", "warning"],
-      ["Use /3 <text>.", "warning"],
+    const notices = named("notify");
+    expect(notices.map(([, level]) => level)).toEqual([
+      "warning",
+      "warning",
+      "warning",
     ]);
+    expect(notices[0]?.[0]).toContain("/guild");
+    expect(notices[1]?.[0]).toContain("/tell");
+    expect(notices[2]?.[0]).toContain("/3");
     expect(handle.sendGuild).not.toHaveBeenCalled();
     expect(handle.sendWhisper).not.toHaveBeenCalled();
     expect(handle.sendChannel).not.toHaveBeenCalled();
@@ -88,7 +92,10 @@ describe("chat commands", () => {
     );
     await run("5", "anyone?");
     expect(handle.sendChannel).toHaveBeenCalledTimes(1);
-    expect(named("notify")).toEqual([["You are not in channel 5.", "warning"]]);
+    const [notice] = named("notify");
+    expect(named("notify")).toHaveLength(1);
+    expect(notice?.[0]).toContain("5");
+    expect(notice?.[1]).toBe("warning");
   });
 
   test("chat commands refuse when the connection is down", async () => {

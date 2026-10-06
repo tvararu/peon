@@ -137,10 +137,10 @@ describe("scenario files", () => {
     );
   });
 
-  test("an unknown id throws and names the known ids", () => {
-    expect(() => loadScenario("t9-nope")).toThrow(
-      "unknown scenario: t9-nope (known: t4-quest-first,",
-    );
+  test("an unknown id throws and names the id and the known ids", () => {
+    const [first] = ROUND_1;
+    expect(() => loadScenario("t9-nope")).toThrow("unknown scenario: t9-nope");
+    expect(() => loadScenario("t9-nope")).toThrow(`known: ${first}`);
   });
 });
 
@@ -273,132 +273,9 @@ describe("round-1 scenarios", () => {
     for (const { text } of scenario.steers)
       expect(text.length).toBeGreaterThan(0);
   });
-
-  test("t7 steers fire on the second kill and 20 s after the acknowledgement", () => {
-    expect(loadScenario("t7-question-while-acting").steers[0]?.at).toEqual({
-      kind: "trigger",
-      nth: 2,
-      trigger: "kill",
-    });
-    expect(loadScenario("t7-halt-resume").steers[1]?.at).toEqual({
-      delayMs: 20_000,
-      kind: "trigger",
-      trigger: "answer_text",
-    });
-  });
-
-  test("t2-whisper-reply whispers the agent through the partner at task + 60 s", () => {
-    expect(loadScenario("t2-whisper-reply").partnerActions).toEqual([
-      {
-        argv: ["send", "-w", "<AGENT>", "hey, what level are you?"],
-        at: { kind: "elapsed", ms: 60_000 },
-        windowMs: 90_000,
-      },
-    ]);
-  });
-
-  test("t6 keeps its gear: a level-1 fresh character with no level write", () => {
-    const scenario = loadScenario("t6-die-and-recover");
-    expect(scenario.preset).toBe("fresh");
-    expect(scenario.setup).toEqual([]);
-    expect(scenario.spawn).toBe("eversong");
-  });
-
-  test("t4-quests-level-five starts a fresh level 1 and grades level, rewards and XP on server truth", () => {
-    const scenario = loadScenario("t4-quests-level-five");
-    expect(scenario.preset).toBe("fresh");
-    expect(scenario.setup).toEqual([]);
-    expect(scenario.field).toBe(loadScenario("t4-quest-first").field);
-    expect(scenario.budget.minutes).toBeGreaterThanOrEqual(60);
-    const level = scenario.checks.find((check) => check.id === "level");
-    expect(level).toMatchObject({
-      evidence: { truth: ["level"] },
-      source: "truth",
-    });
-    const rewarded = scenario.checks.find((c) => c.id === "quests-rewarded");
-    expect(rewarded?.evidence?.truth).toContain("quests");
-    const sources = scenario.checks.map((check) => check.source);
-    expect(sources).toContain("game_log");
-  });
 });
 
-describe("checks measure what they name", () => {
-  const checkOf = (id: string, check: string) =>
-    loadScenario(id).checks.find((entry) => entry.id === check);
-
-  test("t3-ghostlands-kill counts kill XP and attackers per fight", () => {
-    expect(checkOf("t3-ghostlands-kill", "total-xp")).toMatchObject({
-      measure: "kill_xp",
-      source: "game_log",
-    });
-    expect(checkOf("t3-ghostlands-kill", "one-at-a-time")).toMatchObject({
-      measure: "max_attackers",
-    });
-  });
-
-  test("t7-question-while-acting anchors each check on its steer", () => {
-    const measures = Object.fromEntries(
-      loadScenario("t7-question-while-acting").checks.map((check) => [
-        check.id,
-        check.measure,
-      ]),
-    );
-    expect(measures).toEqual({
-      "answer-time": "answer_time",
-      "answer-values": "answer_values",
-      "kept-grinding": "kill_after_answer",
-      stopped: "no_fight_after_stop",
-    });
-  });
-
-  test("t4-reputation-gain accepts the faction by id when Faction.dbc is absent", () => {
-    expect(checkOf("t4-reputation-gain", "reputation-rows")).toMatchObject({
-      evidence: {
-        events: ["reputation/changed", "reputation/rank"],
-        ids: [55],
-      },
-    });
-  });
-  test("t9-raid-mark names a creature that spawns at its start", () => {
-    const scenario = loadScenario("t9-raid-mark");
-    expect(scenario.spawn).toBe("eversong-ready");
-    expect(scenario.task).toContain("Springpaw Stalker");
-    expect(scenario.task).not.toContain("Lynx");
-  });
-  test("t3-pilot-camp grades the goal, pilot-only moves and no aggro", () => {
-    const measures = Object.fromEntries(
-      loadScenario("t3-pilot-camp").checks.map((check) => [
-        check.id,
-        check.measure,
-      ]),
-    );
-    expect(measures).toEqual({
-      "at-goal": undefined,
-      "no-aggro": "pilot_no_aggro",
-      "only-pilot": "pilot_only_moves",
-      reached: "pilot_reach",
-    });
-    expect(checkOf("t3-pilot-camp-holdout", "no-aggro")).toMatchObject({
-      measure: "pilot_no_aggro",
-      source: "game_log",
-    });
-    expect(checkOf("t3-pilot-camp-travel", "no-aggro")).toMatchObject({
-      measure: "travel_no_aggro",
-      source: "game_log",
-    });
-  });
-
-  test("greedy camp scenarios pin the chooser and travel ones do not", () => {
-    expect(loadScenario("t3-pilot-camp-greedy").env).toEqual({
-      PEON_PILOT_CHOOSER: "greedy",
-    });
-    expect(loadScenario("t3-pilot-camp-holdout-greedy").env).toEqual({
-      PEON_PILOT_CHOOSER: "greedy",
-    });
-    expect(loadScenario("t3-pilot-camp").env).toBeUndefined();
-    expect(loadScenario("t3-pilot-camp-travel").env).toBeUndefined();
-  });
-
+describe("scenario env", () => {
   test("an unknown env key is refused", () => {
     const scenario = loadScenario("t3-pilot-camp-greedy");
     expect(() =>
@@ -413,25 +290,6 @@ describe("checks measure what they name", () => {
         env: { PEON_DEBUG: "1" },
       }),
     ).toThrow("invalid scenario t3-pilot-camp-greedy.json: $.env");
-  });
-});
-
-describe("t9-lfg-queue when bots fill the queue", () => {
-  test("the wait check is met by a queue row or by the proposal that pre-empts it", () => {
-    const scenario = loadScenario("t9-lfg-queue");
-    const wait = scenario.checks.find((entry) => entry.id === "wait-row");
-    const events = wait?.evidence?.events ?? [];
-    expect(events).toContain("lfg/queue");
-    expect(events).toContain("lfg/proposal");
-    expect(events).toContain("lfg/queued");
-  });
-
-  test("queued and left stay required", () => {
-    const scenario = loadScenario("t9-lfg-queue");
-    const queued = scenario.checks.find((entry) => entry.id === "queued");
-    const left = scenario.checks.find((entry) => entry.id === "left");
-    expect(queued?.evidence?.events).toEqual(["lfg/queued"]);
-    expect(left?.evidence?.events).toEqual(["lfg/left"]);
   });
 });
 

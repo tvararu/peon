@@ -1,6 +1,5 @@
 import { describe, expect, test } from "bun:test";
 import type { AreaEvent } from "@peon/core";
-import { chartersHarness } from "#harness/areas/charters/area";
 import { areaDrafts, areaRuleSet } from "#harness/areas/rules";
 import { testRuleInput } from "#test-support/rule-fixtures";
 
@@ -12,16 +11,6 @@ function charters(event: unknown): AreaEvent {
 }
 
 describe("charters harness rules", () => {
-  test("it exposes the charter acts to the world", () => {
-    expect(chartersHarness.worldActs).toEqual([
-      "showList",
-      "buy",
-      "query",
-      "showSignatures",
-      "rename",
-    ]);
-  });
-
   test("a showlist writes one log row with the price and signatures needed", () => {
     const rows = areaDrafts(
       areaRuleSet(),
@@ -47,8 +36,8 @@ describe("charters harness rules", () => {
       domain: "charters",
       event: "charters/showlist",
     });
-    expect(rows[0]?.text).toContain("1000");
-    expect(rows[0]?.text).toContain("9");
+    expect(rows[0]?.text).toContain("1000 copper");
+    expect(rows[0]?.text).toContain("9 signatures");
   });
 
   test("a charter query writes no rows", () => {

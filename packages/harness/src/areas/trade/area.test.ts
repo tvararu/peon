@@ -1,7 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import type { AreaEvent } from "@peon/core";
 import { areaDrafts, areaRuleSet } from "#harness/areas/rules";
-import { tradeHarness } from "#harness/areas/trade/area";
 import { testLookup, testRuleInput } from "#test-support/rule-fixtures";
 
 function trade(event: unknown): AreaEvent {
@@ -108,18 +107,5 @@ describe("trade harness rules", () => {
     expect(
       areaDrafts(areaRuleSet(), trade({ type: "back_to_trade" }), input()),
     ).toEqual([]);
-  });
-
-  test("worldActs lists every trade act", () => {
-    expect(tradeHarness.worldActs).toEqual([
-      "acceptTrade",
-      "answerTrade",
-      "cancelTrade",
-      "offerGold",
-      "offerItem",
-      "requestTrade",
-      "unacceptTrade",
-      "withdrawItem",
-    ]);
   });
 });

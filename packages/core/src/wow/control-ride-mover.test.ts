@@ -6,6 +6,7 @@ import {
   buildMoveMessage,
   type MovementInfo,
   parseMovementInfo,
+  speedAckFor,
 } from "#wow/protocol/movement";
 import { GameOpcode } from "#wow/protocol/opcodes";
 import { PacketReader } from "#wow/protocol/packet";
@@ -240,8 +241,11 @@ describe("driving the vehicle", () => {
 
   test("speed acks for the vehicle use the vehicle guid", () => {
     const { runtime, sent } = drive();
-    runtime.forceRoot(9);
-    expect(decodeMove(sent.at(-1)).guid).toBe(VEHICLE);
+    const spec = must(speedAckFor(GameOpcode.SMSG_FORCE_RUN_SPEED_CHANGE));
+    runtime.forceSpeed(spec, { counter: 9, guid: VEHICLE, speed: 12 });
+    const ack = must(sent.at(-1));
+    expect(ack.opcode).toBe(GameOpcode.CMSG_FORCE_RUN_SPEED_CHANGE_ACK);
+    expect(new PacketReader(ack.body).packedGuidBig()).toBe(VEHICLE);
   });
 });
 

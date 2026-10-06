@@ -212,20 +212,6 @@ describe("resetTalents", () => {
     }
   });
 
-  test("a guid-0 reply after the confirm without a buy error is nothing_to_reset", async () => {
-    const { rig } = rigged();
-    try {
-      const pending = rig.handle.act.resetTalents(REQUEST);
-      await flush();
-      rig.inject(WIPE, offer(10_000));
-      await flush();
-      rig.inject(WIPE, offer(0, 0n));
-      expect(await pending).toEqual({ outcome: "nothing_to_reset" });
-    } finally {
-      rig.dispose();
-    }
-  });
-
   test("a payment failure of one reset does not turn the next into not_enough_money", async () => {
     const { rig } = rigged();
     try {

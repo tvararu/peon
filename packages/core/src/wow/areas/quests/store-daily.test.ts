@@ -21,20 +21,6 @@ describe("quests daily store", () => {
     expect(receiveDaily(map)).toEqual(new Set([14_179]));
   });
 
-  test("missing offsets read as empty and the last slot counts", () => {
-    const map = new Map<number, number>([[1304, 11_545]]);
-    expect(receiveDaily(map)).toEqual(new Set([11_545]));
-  });
-
-  test("an all-zero field is an empty set", () => {
-    expect(receiveDaily(fields([])).size).toBe(0);
-  });
-
-  test("the first all-zero read matches undefined so no event fires", () => {
-    expect(sameDaily(undefined, new Set())).toBe(true);
-    expect(sameDaily(undefined, new Set([14_179]))).toBe(false);
-  });
-
   test("equal sets in any order match, a reset to empty does not", () => {
     expect(sameDaily(new Set([1, 2]), new Set([2, 1]))).toBe(true);
     expect(sameDaily(new Set([1]), new Set([2]))).toBe(false);

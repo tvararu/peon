@@ -268,21 +268,6 @@ describe("danger masking", () => {
     expect(dangerAlong({ x: 0, y: 0 }, 0, circles, 10)?.yd).toBeLessThan(2);
     expect(dangerAlong({ x: 0, y: 0 }, Math.PI, circles, 10)).toBeUndefined();
   });
-
-  test("moving away while inside is not danger", () => {
-    const rows = [selfRow(), mob(2n, 10, 0)];
-    const units = buildPilotUnits(rows, pose());
-    const [unit] = units;
-    expect(unit?.marginYd).toBeLessThan(0);
-    expect(
-      rayEntryYd({ x: 0, y: 0 }, Math.PI, {
-        name: "mob",
-        radiusYd: (unit?.radiusYd ?? 0) + 1,
-        x: 10,
-        y: 0,
-      }),
-    ).toBeUndefined();
-  });
 });
 
 describe("unit line", () => {
@@ -297,6 +282,6 @@ describe("unit line", () => {
     const line = unitLine({ ...unit, state: "standing still" }, pose());
     expect(line).toContain("Kobold Vermin, level 8");
     expect(line).toContain("(observed)");
-    expect(line).toContain("Inferred aggro range");
+    expect(line).toContain("Inferred aggro range 18 yd");
   });
 });

@@ -33,14 +33,16 @@ function environmental(over: Partial<CombatlogEvent> = {}): CombatlogEvent {
 
 describe("combatlog environmental rule", () => {
   test("outside a run one wake row names the damage type and amount", () => {
-    expect(rows(environmental(), false)).toEqual([
+    const drafts = rows(environmental(), false);
+    expect(drafts).toEqual([
       expect.objectContaining({
         class: "wake",
         domain: "combatlog",
         event: "combatlog/environmental",
-        text: "You took 120 fall damage.",
       }),
     ]);
+    expect(drafts[0]?.text).toContain("fall");
+    expect(drafts[0]?.text).toContain("120");
   });
 
   test("inside a run the row is class log", () => {
@@ -62,7 +64,7 @@ describe("combatlog environmental rule", () => {
 
   test("a type outside 0-5 still writes a row", () => {
     const [row] = rows(environmental({ extra: 9 } as never), false);
-    expect(row?.text).toContain("120");
+    expect(row?.text).toContain("unknown_9");
     expect(row?.data).toMatchObject({ type: "unknown_9" });
   });
 

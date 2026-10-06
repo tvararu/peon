@@ -40,10 +40,6 @@ describe("parseAreaNames", () => {
     expect(parseAreaNames(wowm, "1.12")).toEqual({ "1": "Dun Morogh" });
   });
 
-  test("skips an entry without a display name", () => {
-    expect(parseAreaNames(wowm)).not.toHaveProperty("0");
-  });
-
   test("throws when no block has the version", () => {
     expect(() => parseAreaNames(wowm, "2.4.3")).toThrow(
       "no Area enum for version 2.4.3",

@@ -173,10 +173,13 @@ describe("selfstate runtime: aborting a corpse query releases its wait", () => {
       rig.dispose();
       expect(await outcome).toBe("rejected");
       expect(jest.getTimerCount()).toBe(0);
-      rig.inject(
-        GameOpcode.SMSG_CORPSE_MAP_POSITION_QUERY_RESPONSE,
-        selfstateCorpseMapPositionQueryResponseBody(),
-      );
+      expect(() =>
+        rig.inject(
+          GameOpcode.SMSG_CORPSE_MAP_POSITION_QUERY_RESPONSE,
+          selfstateCorpseMapPositionQueryResponseBody(),
+        ),
+      ).not.toThrow();
+      expect(jest.getTimerCount()).toBe(0);
     } finally {
       jest.useRealTimers();
     }

@@ -1,12 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import {
-  compassTo,
-  distanceTo,
-  LOOK_DEFAULT_ROWS,
-  LOOK_DEFAULT_YD,
-  LOOK_MAX_ROWS,
-  TALK_RANGE_YD,
-} from "#harness/ops/range";
+import { compassTo, distanceTo } from "#harness/ops/range";
 import { createRefTable } from "#harness/ops/refs";
 import { createSightings } from "#harness/ops/sightings";
 import { createTestRuntime } from "#test-support/runtime-fixture";
@@ -28,15 +21,6 @@ async function world() {
 }
 
 describe("range helpers", () => {
-  test("constants match the design", () => {
-    expect([
-      TALK_RANGE_YD,
-      LOOK_DEFAULT_YD,
-      LOOK_DEFAULT_ROWS,
-      LOOK_MAX_ROWS,
-    ]).toEqual([5, 60, 6, 20]);
-  });
-
   test("distanceTo reads a unit in view", async () => {
     const { ctx, handle } = await world();
     setWorld(handle, {

@@ -70,12 +70,14 @@ function filesOf() {
     talentsTalentDbc([
       { column: 1, id: 124, ranks: [1, 2, 3], row: 0, tab: 161 },
       { column: 1, id: 130, ranks: [4, 5, 6], row: 0, tab: 161 },
+      { column: 0, id: 3, ranks: [11_113], row: 0, tab: 41 },
     ]),
   );
   files.set(
     "TalentTab.dbc",
     talentsTabDbc([
       { classMask: 1, id: 161, name: TALENTS_TAB_NAMES.arms, page: 0 },
+      { classMask: 1 << 7, id: 41, name: TALENTS_TAB_NAMES.fire, page: 0 },
     ]),
   );
   return dbcFiles(files);
@@ -278,42 +280,12 @@ describe("talents runtime: learn", () => {
       rig.inject(INFO, talentsTalentsInfoBody({ freePoints: 3, specs: [{}] }));
       const before = rig.sent.length;
       const result = await rig.handle.act.learnTalents([
-        { rank: 0, talentId: 9999 },
+        { rank: 0, talentId: 3 },
       ]);
       expect(rig.sent.length).toBe(before);
       expect(result).toMatchObject({
         catalog: true,
-        entries: [{ outcome: "unknown_talent", rank: 0, talentId: 9999 }],
-      });
-    } finally {
-      rig.dispose();
-    }
-  });
-
-  test("with the catalog one legal entry goes as CMSG_LEARN_TALENT", async () => {
-    const rig = areaRig("talents", {
-      dbc: filesOf(),
-      getEntity: (guid) => (guid === ME ? warrior() : undefined),
-      selfGuid: ME,
-    });
-    try {
-      rig.inject(INFO, talentsTalentsInfoBody({ freePoints: 3, specs: [{}] }));
-      const pending = rig.handle.act.learnTalents([{ rank: 0, talentId: 124 }]);
-      await flush();
-      expect(rig.sent.at(-1)).toEqual({
-        body: buildLearnTalent({ rank: 0, talentId: 124 }),
-        opcode: LEARN,
-      });
-      rig.inject(
-        INFO,
-        talentsTalentsInfoBody({
-          freePoints: 2,
-          specs: [{ talents: [{ rank: 0, talentId: 124 }] }],
-        }),
-      );
-      expect(await pending).toEqual({
-        catalog: true,
-        entries: [{ outcome: "learned", rank: 0, talentId: 124 }],
+        entries: [{ outcome: "wrong_class", rank: 0, talentId: 3 }],
       });
     } finally {
       rig.dispose();

@@ -57,14 +57,6 @@ function table(store: ThreatStore, unit = UNIT) {
 }
 
 describe("ThreatStore", () => {
-  test("starts with no tables", () => {
-    expect(setup().store.snapshot()).toEqual({
-      petReaction: undefined,
-      reactions: [],
-      tables: [],
-    });
-  });
-
   test("a highest update sets the victim and a later update keeps it", () => {
     const { store, advance } = setup();
     store.update({
@@ -186,17 +178,6 @@ describe("ThreatStore", () => {
       pullAt: undefined,
       victim: undefined,
     });
-  });
-
-  test("a clear deletes the table", () => {
-    const { store } = setup();
-    store.update({
-      entries: [{ threat: 500, victim: ME }],
-      newVictim: ME,
-      unit: UNIT,
-    });
-    store.clearTable({ unit: UNIT });
-    expect(store.snapshot().tables).toEqual([]);
   });
 
   test("forget drops one table in silence and clear drops them all", () => {
@@ -352,21 +333,6 @@ describe("ThreatStore reactions and target breaks", () => {
     core.combat.petCommanded(other, UNIT);
     store.reaction({ code: 2, reaction: "hostile", unit: other });
     expect(store.snapshot().petReaction).toBeUndefined();
-  });
-
-  test("0x152 and 0x3BF emit target_broken and change no state", () => {
-    const { store, seen } = setup();
-    store.breakTarget({ unit: UNIT });
-    store.clearTarget({ caster: OTHER });
-    expect(seen).toEqual([
-      { hostileOnly: false, type: "target_broken", unit: UNIT },
-      { hostileOnly: true, type: "target_broken", unit: OTHER },
-    ]);
-    expect(store.snapshot()).toEqual({
-      petReaction: undefined,
-      reactions: [],
-      tables: [],
-    });
   });
 
   test("forget of the pet drops the pet reaction", () => {

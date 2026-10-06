@@ -61,12 +61,12 @@ describe("instances harness rules", () => {
   });
 
   test("each warning kind writes one wake row with the map and the time left", () => {
-    for (const [kind, secondsLeft] of [
-      [1, 7200],
-      [2, 600],
-      [3, 240],
-      [4, 86_400],
-      [5, 0],
+    for (const [kind, secondsLeft, span] of [
+      [1, 7200, "2 h"],
+      [2, 600, "10 min"],
+      [3, 240, "4 min"],
+      [4, 86_400, "1 d"],
+      [5, 0, undefined],
     ] as const) {
       const drafts = rows({ ...WARNING, kind, secondsLeft });
       expect(drafts).toMatchObject([
@@ -76,7 +76,7 @@ describe("instances harness rules", () => {
           event: "instances/warning",
         },
       ]);
-      expect(drafts[0]?.text).toContain("533");
+      if (span) expect(drafts[0]?.text).toContain(span);
     }
   });
 
@@ -121,7 +121,6 @@ describe("instances harness rules", () => {
       event: "instances/reset",
       progress: true,
     });
-    expect(row?.text).toContain("36");
   });
 
   test("reset_failed wakes with the map and names each failure reason", () => {
@@ -135,8 +134,8 @@ describe("instances harness rules", () => {
       });
       return row?.text ?? "";
     });
-    for (const text of texts) expect(text).toContain("36");
-    expect(new Set(texts).size).toBe(3);
+    for (const [index, label] of ["inside", "offline", "zoning"].entries())
+      expect(texts[index]).toContain(label);
   });
 
   test("reset_blocked wakes with the map", () => {
@@ -147,7 +146,6 @@ describe("instances harness rules", () => {
       data: { mapId: 36 },
       event: "instances/reset_blocked",
     });
-    expect(row?.text).toContain("36");
   });
 
   test("bind_offer wakes with the choice window and the bind call", () => {
@@ -164,7 +162,7 @@ describe("instances harness rules", () => {
       event: "instances/bind_offer",
     });
     expect(row?.text).toContain("60 s");
-    expect(row?.text).toContain("bind");
+    expect(row?.text).toContain('dungeon(do: "bind")');
   });
 
   test("bound writes one passive row", () => {
@@ -192,7 +190,6 @@ describe("instances harness rules", () => {
       { class: "log", data: { added: [533], removed: [] } },
     ]);
     expect(changed[0]?.event).toBe("instances/lockouts");
-    expect(changed[0]?.text).toContain("533");
     expect(
       rows({ added: [], locks: [lock], removed: [], type: "lockouts" }),
     ).toEqual([]);

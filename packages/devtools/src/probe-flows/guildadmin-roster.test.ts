@@ -32,7 +32,7 @@ describe("guildadmin-roster flow", () => {
         {
           area: 1,
           gender: 0,
-          guid: 1n,
+          guid: 0x2an,
           level: 80,
           name: "FacABCDEF0123",
           officerNote: "",
@@ -51,5 +51,7 @@ describe("guildadmin-roster flow", () => {
     expect(result.roster.guildName).toBe("FacABCDEF0123");
     expect(result.roster.rankNames).toStrictEqual(["Guild Master", "Member"]);
     expect(result.roster.members).toHaveLength(1);
+    const member: unknown = result.roster.members[0];
+    expect(member).toMatchObject({ guid: "0x2a" });
   });
 });

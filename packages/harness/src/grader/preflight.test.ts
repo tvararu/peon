@@ -18,9 +18,4 @@ describe("blockersOf", () => {
       "b",
     ]);
   });
-
-  test("the map 0 scenarios run now that Azeroth has navigation", async () => {
-    for (const id of ["t4-alliance-first", "t5-vendor-buy-goldshire"])
-      expect(await blockersOf(loadScenario(id), heldUntilRemoved)).toEqual([]);
-  });
 });

@@ -163,14 +163,20 @@ describe("tickerLines", () => {
 });
 
 describe("createTicker", () => {
-  test("keeps its lines within a second and redraws when a new row arrives", () => {
+  test("keeps its lines within a second and redraws when the second turns or a new row arrives", () => {
     const rows = [...entries];
-    const component = createTicker(source(rows, run))(
-      createFakeTui().tui,
-      theme,
-    );
+    let at = now;
+    const component = createTicker({
+      ...source(rows, run),
+      now: () => at,
+    })(createFakeTui().tui, theme);
     const before = component.render(120);
+    at = now + 999;
     expect(component.render(120)).toBe(before);
+    at = now + 1000;
+    const next = component.render(120);
+    expect(next).not.toBe(before);
+    expect(plain(next).join("\n")).toContain(" 10s ");
     rows.push(row(5, { text: "a new row" }));
     expect(plain(component.render(120))[5]).toContain("a new row");
   });

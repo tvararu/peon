@@ -64,25 +64,21 @@ describe("taxi route", () => {
     });
   });
 
-  test("one hop gives a two-node route", async () => {
-    const catalog = await loadTaxiCatalog(
-      travelTaxiDbc({ nodes: NODES, paths: PATHS }),
-    );
-    expect(taxiRoute(catalog, new Set([82, 83]), 82, 83)).toEqual({
-      nodes: [82, 83],
-      price: 210,
-    });
-  });
-
   test("returns undefined when a hop crosses an unknown node or no chain exists", async () => {
     const catalog = await loadTaxiCatalog(
       travelTaxiDbc({ nodes: NODES, paths: PATHS }),
     );
     expect(taxiRoute(catalog, new Set([82, 84]), 82, 84)).toBeUndefined();
+    expect(taxiRoute(catalog, new Set([82]), 82, 84)).toBeUndefined();
+  });
+
+  test("returns the reverse chain with its summed price over known nodes", async () => {
+    const catalog = await loadTaxiCatalog(
+      travelTaxiDbc({ nodes: NODES, paths: PATHS }),
+    );
     expect(taxiRoute(catalog, new Set([82, 83, 84]), 84, 82)).toEqual({
       nodes: [84, 83, 82],
       price: 640,
     });
-    expect(taxiRoute(catalog, new Set([82]), 82, 84)).toBeUndefined();
   });
 });

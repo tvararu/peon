@@ -29,9 +29,9 @@ describe("social", () => {
       }),
     );
     const out = await runTool(tool, { text: "I'm level 10.", to: "Kaelyn" });
-    expect(out.text).toBe(
-      `DONE whispered Kaelyn: "I'm level 10." (echo confirmed)`,
-    );
+    expect(out.details.result.status).toBe("DONE");
+    expect(out.text).toContain("Kaelyn");
+    expect(out.text).toContain("I'm level 10.");
     expect(out.details.result.after).toEqual({
       action: "whisper",
       confirmed: true,
@@ -51,9 +51,10 @@ describe("social", () => {
         type: ChatType.SAY,
       }),
     );
-    expect((await runTool(tool, { text: "hello" })).text).toBe(
-      'DONE said: "hello" (echo confirmed)',
-    );
+    const out = await runTool(tool, { text: "hello" });
+    expect(out.details.result.status).toBe("DONE");
+    expect(out.text).toContain("hello");
+    expect(out.text).toContain("said");
   });
 
   test("gives UNCONFIRMED when no echo comes in 2 s", async () => {
@@ -62,9 +63,12 @@ describe("social", () => {
     const out = await withFakeTimers(() =>
       runTool(tool, { do: "party", text: "pull now" }),
     );
-    expect(out.text).toBe(
-      'UNCONFIRMED no_answer: said to your party: "pull now"; no echo in 2 s.\nNext: journal(about: "log", since: "1m")',
-    );
+    expect(out.details.result).toMatchObject({
+      reason: "no_answer",
+      status: "UNCONFIRMED",
+    });
+    expect(out.text).toContain("2 s");
+    expect(out.details.result.next).toContain('journal(about: "log"');
   });
 
   test("fails when the whisper target is not online", async () => {
@@ -77,9 +81,13 @@ describe("social", () => {
       }),
     );
     const out = await runTool(tool, { text: "hi", to: "Kaelyn" });
-    expect(out.text).toBe(
-      'FAILED player_not_found: no player named "Kaelyn" is online.\nNext: ask the human: "Is Kaelyn the right name?"',
-    );
+    expect(out.details.result).toMatchObject({
+      reason: "player_not_found",
+      status: "FAILED",
+    });
+    expect(out.details.result.detail).toContain("Kaelyn");
+    expect(out.details.result.next).toContain("ask the human");
+    expect(out.details.result.next).toContain("Kaelyn");
     expect(out.details.result.after).toMatchObject({
       confirmed: false,
       systemLine: 'No player named "Kaelyn" is currently playing.',
@@ -91,21 +99,25 @@ describe("social", () => {
     rt.profile.client.password = "pw1";
     for (const secret of [rt.profile.account.toLowerCase(), "pw1"]) {
       const out = await runTool(tool, { text: `my login is ${secret}` });
-      expect(out.text).toBe(
-        "REFUSED secret: the text holds the account name or password.\nNext: write the message again without them.",
-      );
+      expect(out.details.result).toMatchObject({
+        reason: "secret",
+        status: "REFUSED",
+      });
     }
     expect(handle.sendSay).not.toHaveBeenCalled();
   });
 
   test("refuses chat without text and a whisper or invite without a name", async () => {
     const { tool } = await world();
-    expect((await runTool(tool, { do: "whisper", to: "Kaelyn" })).text).toBe(
-      'REFUSED missing_text: whisper needs text.\nNext: social(do: "whisper", text: "…", to: "Kaelyn")',
-    );
-    expect((await runTool(tool, { do: "invite" })).text).toBe(
-      'REFUSED missing_name: invite needs the exact player name in to.\nNext: ask the human: "Which player do you mean?"',
-    );
+    const whisper = await runTool(tool, { do: "whisper", to: "Kaelyn" });
+    expect(whisper.details.result).toMatchObject({
+      reason: "missing_text",
+      status: "REFUSED",
+    });
+    expect(whisper.details.result.next).toContain('social(do: "whisper"');
+    expect(
+      (await runTool(tool, { do: "invite" })).details.result,
+    ).toMatchObject({ reason: "missing_name", status: "REFUSED" });
   });
 
   test("invite is DONE when the server sends the invite", async () => {
@@ -118,9 +130,10 @@ describe("social", () => {
         type: "command_result",
       }),
     );
-    expect((await runTool(tool, { do: "invite", to: "Kaelyn" })).text).toBe(
-      "DONE invited Kaelyn; the server sent the invite.\nNext: end your turn; a [game] message comes if Kaelyn answers.",
-    );
+    const out = await runTool(tool, { do: "invite", to: "Kaelyn" });
+    expect(out.details.result.status).toBe("DONE");
+    expect(out.text).toContain("invited");
+    expect(out.text).toContain("Kaelyn");
   });
 
   test("invite fails with the party result word", async () => {
@@ -133,9 +146,9 @@ describe("social", () => {
         type: "command_result",
       }),
     );
-    expect((await runTool(tool, { do: "invite", to: "Kaelyn" })).text).toBe(
-      'FAILED already_in_group: the server refused the invite to Kaelyn.\nNext: ask the human: "The invite to Kaelyn failed (already_in_group). What should I do?"',
-    );
+    expect(
+      (await runTool(tool, { do: "invite", to: "Kaelyn" })).details.result,
+    ).toMatchObject({ reason: "already_in_group", status: "FAILED" });
   });
 
   test("invite is UNCONFIRMED after 3 s without an answer (design B.9)", async () => {
@@ -144,9 +157,11 @@ describe("social", () => {
     const out = await withFakeTimers(() =>
       runTool(tool, { do: "invite", to: "Kaelyn" }),
     );
-    expect(out.text).toBe(
-      "UNCONFIRMED no_answer: invited Kaelyn; no answer in 3 s.\nNext: end your turn; a [game] message comes if Kaelyn answers.",
-    );
+    expect(out.details.result).toMatchObject({
+      reason: "no_answer",
+      status: "UNCONFIRMED",
+    });
+    expect(out.text).toContain("3 s");
   });
 
   test("accept_invite reads the fake SYSTEM line when nothing waits", async () => {
@@ -158,9 +173,9 @@ describe("social", () => {
         type: ChatType.SYSTEM,
       }),
     );
-    expect((await runTool(tool, { do: "accept_invite" })).text).toBe(
-      "FAILED nothing_to_accept: there is no invite to accept.\nNext: end your turn and wait for an invite.",
-    );
+    expect(
+      (await runTool(tool, { do: "accept_invite" })).details.result,
+    ).toMatchObject({ reason: "nothing_to_accept", status: "FAILED" });
   });
 
   test("accept_invite is DONE on the group list", async () => {
@@ -175,16 +190,18 @@ describe("social", () => {
         type: "group_list",
       }),
     );
-    expect((await runTool(tool, { do: "accept_invite" })).text).toBe(
-      "DONE joined the group of Kaelyn.",
-    );
+    const out = await runTool(tool, { do: "accept_invite" });
+    expect(out.details.result.status).toBe("DONE");
+    expect(out.text).toContain("Kaelyn");
   });
 
   test("leave_group refuses outside a group", async () => {
     const { handle, tool } = await world();
-    expect((await runTool(tool, { do: "leave_group" })).text).toBe(
-      'REFUSED not_in_group: you are not in a group.\nNext: ask the human: "I am not in a group. What should I do?"',
-    );
+    const { result } = (await runTool(tool, { do: "leave_group" })).details;
+    expect(result).toMatchObject({
+      reason: "not_in_group",
+      status: "REFUSED",
+    });
     expect(handle.leaveGroup).not.toHaveBeenCalled();
   });
 

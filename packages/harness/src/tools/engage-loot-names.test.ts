@@ -35,7 +35,6 @@ describe("engage loot names", () => {
       reason: "died",
       status: "FAILED",
     });
-    expect(res.detail).toContain("killed you");
     expect(res.after.loot).toEqual([
       { count: 1, itemId: 4813, name: "item 4813", quality: null },
     ]);

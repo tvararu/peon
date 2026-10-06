@@ -275,6 +275,7 @@ describe("SpellCatalog.get", () => {
     const catalog = await loadSpellCatalog(dbcFiles(dir));
     expect(catalog.get(78)?.power.costRaw).toBe(150);
     expect(catalog.get(78)?.power.type).toBe(1);
+    expect(catalog.get(9999)).toBeDefined();
   });
 
   test("treats duration index 0 as no duration row", async () => {

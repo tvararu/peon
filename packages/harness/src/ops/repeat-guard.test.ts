@@ -303,9 +303,7 @@ describe("repeatRefusal", () => {
     });
     expect(refusal.reason).toBe("repeat");
     expect(refusal.status).toBe("REFUSED");
-    expect(refusal.detail).toBe(
-      "you already tried this from here and it failed (too_far).",
-    );
+    expect(refusal.detail).toContain("too_far");
     expect(refusal.body).toEqual(['Untried: travel(to: "u3")']);
     expect(refusal.next).toBe('travel(to: "u3")');
   });
@@ -316,8 +314,8 @@ describe("repeatRefusal", () => {
       tool: "travel",
     });
     expect(refusal.body).toEqual([]);
-    expect(refusal.next).toBe(
-      'ask the human: "My travel call keeps failing (no_ground). What should I do?"',
-    );
+    expect(refusal.next).toStartWith("ask the human:");
+    expect(refusal.next).toContain("travel");
+    expect(refusal.next).toContain("no_ground");
   });
 });

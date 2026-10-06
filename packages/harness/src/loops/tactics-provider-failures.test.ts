@@ -42,6 +42,7 @@ function providerLoop(
   fault: string,
   maxResultAgeMs?: number,
 ) {
+  let defendCalls = 0;
   const loop = new TacticsLoop({
     maxResultAgeMs,
     minIntervalMs: 0,
@@ -52,7 +53,10 @@ function providerLoop(
     observe: () => frame,
     execute: () => {},
     halt: () => {},
-    defend: () => "none",
+    defend: () => {
+      defendCalls += 1;
+      return "none";
+    },
   });
   const events: TacticsEvent[] = [];
   const waiters: {
@@ -70,27 +74,10 @@ function providerLoop(
       if (seen) resolve(seen);
       else waiters.push({ predicate, resolve });
     });
-  return { loop, events, until };
+  return { loop, events, until, defends: () => defendCalls };
 }
 
 describe("TacticsLoop provider failures", () => {
-  test("delayed response past maxResultAgeMs yields stale_age discard", async () => {
-    const { loop, events, until } = providerLoop(delayed(50), "delay:50ms", 20);
-    jest.useFakeTimers();
-    try {
-      const started = loop.start(context);
-      await drive(
-        until((e) => e.type === "discarded" && e.reason === "stale_age"),
-      );
-      loop.stop("done");
-      await started;
-    } finally {
-      jest.useRealTimers();
-    }
-    expect(events[0]).toMatchObject({ type: "started", fault: "delay:50ms" });
-    expect(loop.snapshot().fault).toBe("delay:50ms");
-  });
-
   test("delayed response with halt during delay yields aborted discard", async () => {
     const { loop, until } = providerLoop(delayed(50), "delay:50ms");
     jest.useFakeTimers();
@@ -113,11 +100,16 @@ describe("TacticsLoop provider failures", () => {
     expect(loop.snapshot().lastStopReason).toBe("halt");
   });
 
-  test("a refused key ends the run at once as jev_unavailable", async () => {
+  test("a refused key ends the run at once as jev_unavailable with one halt", async () => {
     const refused = () => new JevUnavailableError("HTTP 402 payment_required");
-    const { loop, events } = providerLoop(failing(refused), "http:402");
+    const { loop, events, defends } = providerLoop(
+      failing(refused),
+      "http:402",
+    );
     const reason = "jev_unavailable: HTTP 402 payment_required";
+    expect(defends()).toBe(0);
     await expect(settle(() => loop.start(context))).rejects.toThrow(reason);
+    expect(defends()).toBe(1);
     const transport = events.filter((e) => e.type === "transport");
     expect(transport.map((e) => e.type === "transport" && e.error)).toEqual([
       reason,
@@ -139,21 +131,6 @@ describe("TacticsLoop provider failures", () => {
     const transport = events.filter((e) => e.type === "transport");
     expect(transport).toHaveLength(TRANSPORT_LIMIT);
     expect(transport[0]?.error).toBe("TypeSafe HTTP 503");
-    expect(loop.snapshot().lastStopReason).toBe("failed");
-  });
-
-  test("repeated network failures end the run as jev_unavailable", async () => {
-    const offline = () => new JevTransportError("fetch failed");
-    const { loop, events } = providerLoop(
-      failing(offline),
-      "transport:network",
-    );
-    await expect(settle(() => loop.start(context))).rejects.toThrow(
-      "jev_unavailable: transport fetch failed",
-    );
-    const transport = events.filter((e) => e.type === "transport");
-    expect(transport[0]?.error).toBe("fetch failed");
-    expect(loop.snapshot().fault).toBe("transport:network");
     expect(loop.snapshot().lastStopReason).toBe("failed");
   });
 

@@ -6,14 +6,9 @@ import {
   type GameObjectEntity,
 } from "@peon/core";
 import { objectRows, reachYd } from "#harness/areas/objects/reads";
-import {
-  emptyUse,
-  useParams,
-  useSpec,
-  useTool,
-} from "#harness/areas/objects/tool";
+import { useParams, useSpec, useTool } from "#harness/areas/objects/tool";
 import { createRefTable } from "#harness/ops/refs";
-import { contentOf, toolCtx } from "#test-support/ops-fixtures";
+import { toolCtx } from "#test-support/ops-fixtures";
 import { createTestRuntime } from "#test-support/runtime-fixture";
 import { expectSendKind, runTool } from "#test-support/tool-harness";
 import {
@@ -342,7 +337,7 @@ describe("use tool", () => {
     expect(outcome).toMatchObject({ reason: "locked" });
   });
 
-  test("a far open stays server-decidable through the cast margin", async () => {
+  test("a far open passes the cast margin and reaches the lock lookup", async () => {
     const t = await world(10);
     const outcome = await useSpec
       .run({ do: "open", object: "o1" }, toolCtx(t))
@@ -350,7 +345,7 @@ describe("use tool", () => {
         () => ({ reason: "resolved" }),
         (error: unknown) => error,
       );
-    expect(outcome).not.toMatchObject({ reason: "too_far" });
+    expect(outcome).toMatchObject({ reason: "no_lock_data" });
   });
 
   test("an unlocked chest without an open spell refuses no_open_spell", async () => {
@@ -444,44 +439,29 @@ describe("use tool", () => {
 
   test("a default goober with a page reads instead of using", async () => {
     const t = await world(2, "text");
-    t.handle.objects.act.readPage = (async () => ({
+    const readPage = jest.fn(async () => ({
       firstPageId: 2936,
       pages: [{ pageId: 2936, text: "You have discovered the shrine." }],
-    })) as typeof t.handle.objects.act.readPage;
+    }));
+    const use = jest.fn();
+    t.handle.objects.act.readPage =
+      readPage as unknown as typeof t.handle.objects.act.readPage;
+    t.handle.objects.act.use =
+      use as unknown as typeof t.handle.objects.act.use;
     const outcome = (await useSpec.run({ object: "o1" }, toolCtx(t))) as {
       status: string;
     };
     expect(outcome.status).toBe("DONE");
+    expect(readPage).toHaveBeenCalledWith(2936);
+    expect(use).not.toHaveBeenCalled();
   });
 
-  test("a locked chest without an open spell refuses locked", async () => {
-    const t = await world();
-    t.handle.objects.act.openLockSpell = async () => ({
-      need: 1,
-      ok: false as const,
-      reason: "locked" as const,
-      skill: 633,
-    });
-    const res = useSpec.run({ do: "open", object: "o1" }, toolCtx(t));
-    await expect(res).rejects.toMatchObject({ reason: "locked" });
-  });
-
-  test("fallback returns an empty after", () => {
-    expect(emptyUse()).toEqual({
-      do: "use",
-      object: "",
-      opened: false,
-      taken: [],
-      text: undefined,
-    });
-  });
-
-  test("the call renders as use", async () => {
+  test("the call renders the object name and ref", async () => {
     const t = await world(2, "generic");
     const { text } = await runTool(useTool.definition(t.rt), {
       object: "o1",
     });
-    expect(text).toContain("Used Milly's Harvest (o1).");
-    expect(contentOf).toBeDefined();
+    expect(text).toContain("Milly's Harvest");
+    expect(text).toContain("o1");
   });
 });

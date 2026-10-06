@@ -92,9 +92,11 @@ describe("puppet wrapper", () => {
 
   test("refuses a config that logs in another account", async () => {
     await writeAccountConfig("x", character);
-    const { code, out } = await run();
+    const { code, out, err } = await run();
     expect(code).not.toBe(0);
     expect(out).toBe("");
+    expect(err).toContain(`x/${character}`);
+    expect(err).toContain(`${account}/${character}`);
   });
 
   test("refuses when the account's config is missing", async () => {

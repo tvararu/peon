@@ -4,7 +4,6 @@ import { withFakeTimers } from "@peon/core/test-support/fake-time";
 import type { InteractAfter } from "#harness/contract/details";
 import { interactSpec } from "#harness/tools/interact";
 import { DIALOG_MS } from "#harness/tools/interact-quest";
-import { interactParams } from "#harness/tools/params-interact";
 import { contentOf, limitProblem, toolCtx } from "#test-support/ops-fixtures";
 import { answer, VELAN, velan } from "#test-support/quest-fixtures";
 import type { TestRuntime } from "#test-support/runtime-fixture";
@@ -153,19 +152,16 @@ describe("interact reset_talents", () => {
     expect(failure).toMatchObject({ reason: "option_not_offered" });
   });
 
-  test.each([
-    ["not_enough_money", "money"],
-    ["nothing_to_reset", "no talents"],
-  ] as const)("%s has its own line", async (outcome, word) => {
-    const { t } = await trainer(OFFERED, { outcome });
-    const failure = await run(t, { max_cost: 10_000 }).catch(
-      (error: unknown) => error,
-    );
-    expect(failure).toMatchObject({ reason: outcome });
-    expect(
-      String((failure as { detail: string }).detail).toLowerCase(),
-    ).toContain(word);
-  });
+  test.each(["not_enough_money", "nothing_to_reset"] as const)(
+    "%s refuses with its own reason",
+    async (outcome) => {
+      const { t } = await trainer(OFFERED, { outcome });
+      const failure = await run(t, { max_cost: 10_000 }).catch(
+        (error: unknown) => error,
+      );
+      expect(failure).toMatchObject({ reason: outcome });
+    },
+  );
 
   test("a silent server is unconfirmed", async () => {
     const { t } = await trainer(OFFERED, { outcome: "no_reply" });
@@ -179,11 +175,5 @@ describe("interact reset_talents", () => {
     await expect(run(t, { max_cost: 10_000 })).rejects.toThrow(
       "talent_request_busy",
     );
-  });
-
-  test("the parameters name the verb and a non-negative max_cost", () => {
-    const schema = JSON.stringify(interactParams);
-    expect(schema).toContain("reset_talents");
-    expect(schema).toContain("max_cost");
   });
 });

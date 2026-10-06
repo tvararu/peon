@@ -136,6 +136,7 @@ describe("reputation store", () => {
     expect(row(store, BLOODSAIL)?.atWar).toBe(false);
     store.setStanding(standing(SILVERMOON, -9500));
     expect(seen.at(-1)).toMatchObject({ after: -6500, atWar: false, rank: 0 });
+    expect(row(store, SILVERMOON)?.atWar).toBe(false);
   });
 
   test("a new faction list drops the inferred flags", async () => {
@@ -159,7 +160,6 @@ describe("reputation store", () => {
       type: "visible",
     });
     expect(row(store, BLOODSAIL)?.visible).toBe(true);
-    expect(FACTION_FLAGS.VISIBLE).toBe(0x01);
   });
 
   test("the watched field reports changes only, and 0xFFFFFFFF is none (Player.cpp:549)", async () => {
@@ -378,6 +378,14 @@ describe("reputation store pending flags", () => {
     store.setPendingFlag(SILVERMOON, "inactive", false);
     expect(row(store, SILVERMOON)?.inactive).toBe(false);
     expect(row(store, SILVERMOON)?.atWar).toBe(false);
+    store.setPendingFlag(SILVERMOON, "inactive", true);
+    store.initialize({
+      entries: [
+        ...new Array(SILVERMOON).fill({ flags: 0, standing: 0 }),
+        { flags: 0x01, standing: 0 },
+      ],
+    });
+    expect(row(store, SILVERMOON)?.inactive).toBe(false);
   });
 
   test("a pending flag on a slot the list left out creates the slot", async () => {
@@ -395,9 +403,10 @@ describe("reputation store pending flags", () => {
   });
 
   test("an unchanged standing flushed with an unrelated gain keeps a pending peace (ReputationMgr.cpp:193-202,373,532)", async () => {
-    const { store } = await setup();
+    const { seen, store } = await setup();
     store.setStanding(standing(BLOODSAIL, -700));
     store.setPendingFlag(BLOODSAIL, "atWar", false);
+    expect(seen.at(-1)).toMatchObject({ atWar: false, type: "flags_pending" });
     store.setStanding({
       entries: [
         { repListId: SILVERMOON, standing: 300 },
@@ -409,6 +418,7 @@ describe("reputation store pending flags", () => {
     expect((store.flagsOf(BLOODSAIL) ?? 0) & FACTION_FLAGS.AT_WAR).toBe(0);
     store.setPendingFlag(BLOODSAIL, "atWar", true);
     expect(row(store, BLOODSAIL)?.atWar).toBe(true);
+    expect(store.flagsOf(BLOODSAIL)).toBe(FACTION_FLAGS.AT_WAR);
   });
 
   test("an unchanged standing that heads the packet infers war after a peace request (floor-clamped loss, ReputationMgr.cpp:188-189,409-412,430-433)", async () => {
@@ -425,18 +435,6 @@ describe("reputation store pending flags", () => {
     });
     expect(row(store, BLOODSAIL)?.atWar).toBe(true);
     expect((store.flagsOf(BLOODSAIL) ?? 0) & FACTION_FLAGS.AT_WAR).not.toBe(0);
-  });
-
-  test("a manual peace request after an inferred war keeps a later war declaration", async () => {
-    const { seen, store } = await setup();
-    store.setStanding(standing(BLOODSAIL, -700));
-    store.setPendingFlag(BLOODSAIL, "atWar", false);
-    expect(row(store, BLOODSAIL)?.atWar).toBe(false);
-    expect((store.flagsOf(BLOODSAIL) ?? 0) & FACTION_FLAGS.AT_WAR).toBe(0);
-    expect(seen.at(-1)).toMatchObject({ atWar: false, type: "flags_pending" });
-    store.setPendingFlag(BLOODSAIL, "atWar", true);
-    expect(row(store, BLOODSAIL)?.atWar).toBe(true);
-    expect(store.flagsOf(BLOODSAIL)).toBe(FACTION_FLAGS.AT_WAR);
   });
 
   test("a manual war declaration after an inferred peace replaces the inference", async () => {
@@ -463,11 +461,5 @@ describe("reputation store inferred at-war flags", () => {
     expect(row(store, BLOODSAIL)?.atWar).toBe(true);
     store.setStanding(standing(BLOODSAIL, -800));
     expect(row(store, BLOODSAIL)?.atWar).toBe(true);
-  });
-
-  test("peace-forced factions never infer at war", async () => {
-    const { store } = await setup();
-    store.setStanding(standing(SILVERMOON, -9500));
-    expect(row(store, SILVERMOON)?.atWar).toBe(false);
   });
 });

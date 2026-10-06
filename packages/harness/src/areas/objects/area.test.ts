@@ -1,6 +1,5 @@
 import { describe, expect, test } from "bun:test";
 import type { AreaEvent } from "@peon/core";
-import { objectsHarness } from "#harness/areas/objects/area";
 import { areaDrafts, areaRuleSet } from "#harness/areas/rules";
 import { testRuleInput } from "#test-support/rule-fixtures";
 
@@ -11,10 +10,6 @@ function event(type: string, inner: object): AreaEvent {
 }
 
 describe("objects harness area", () => {
-  test("the area claims the use, open and readPage acts", () => {
-    expect(objectsHarness.worldActs).toEqual(["use", "open", "readPage"]);
-  });
-
   test("a use writes one objects/used log row", () => {
     const drafts = areaDrafts(
       areaRuleSet(),

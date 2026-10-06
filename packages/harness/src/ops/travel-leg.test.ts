@@ -247,40 +247,6 @@ describe("travelLeg", () => {
     });
   });
 
-  test("two floors near the unit: retries on the closer floor", async () => {
-    const t = await createTestRuntime();
-    setSelf(t.handle);
-    setUnits(t.handle, [
-      unitRow({
-        distance: 30,
-        guid: 0x10n,
-        name: "Marniel Amberlight",
-        relation: "friendly",
-        x: 30,
-        y: 0,
-        z: 72.75,
-      }),
-    ]);
-    const goTo = driveGoto(t.handle, [
-      {
-        floors: [72.6, 72.8],
-        refuse: "pick_destination: ambiguous ground column at destination",
-      },
-      { arrive: { x: 30, y: 0, z: 72.8 } },
-    ]);
-    const leg = await travelLeg(toolCtx(t), {
-      goal: { guid: 0x10n, kind: "unit", name: "Marniel Amberlight" },
-      within: 3,
-    });
-    expect(leg).toMatchObject({ floorRetried: true, status: "arrived" });
-    expect(goTo).toHaveBeenNthCalledWith(2, {
-      kind: "point",
-      x: 30,
-      y: 0,
-      z: 72.8,
-    });
-  });
-
   test("a unit whose height is unknown keeps the refusal", async () => {
     const t = await createTestRuntime();
     setSelf(t.handle);

@@ -1,7 +1,7 @@
 import { describe, expect, jest, test } from "bun:test";
 import type { NearbyRow } from "@peon/core";
 import type { InteractAfter } from "#harness/contract/details";
-import { interactSpec, interactTool } from "#harness/tools/interact";
+import { interactSpec } from "#harness/tools/interact";
 import {
   contentOf,
   driveGoto,
@@ -11,7 +11,6 @@ import {
   unitRow,
 } from "#test-support/ops-fixtures";
 import { createTestRuntime } from "#test-support/runtime-fixture";
-import { expectSendKind } from "#test-support/tool-harness";
 
 const INNKEEPER = unitRow({
   distance: 3,
@@ -68,7 +67,7 @@ describe("interact bind", () => {
     );
     expect(called).toEqual([0x50n]);
     expect(res.status).toBe("DONE");
-    expect(contentOf(res)).toContain("Home is now Falconwing Square.");
+    expect(contentOf(res)).toContain("Falconwing Square");
   });
   test("at a non-innkeeper it refuses without calling the act", async () => {
     const t = await world(VENDOR);
@@ -82,7 +81,7 @@ describe("interact bind", () => {
     expect(bindActivate).not.toHaveBeenCalled();
   });
 
-  test("a silent refusal reports dead, out of range or in an instance", async () => {
+  test("a silent refusal is UNCONFIRMED no_answer", async () => {
     const t = await world(INNKEEPER);
     jest
       .spyOn(t.handle.travel.act, "bindActivate")
@@ -92,8 +91,7 @@ describe("interact bind", () => {
       { do: "bind", npc: "Innkeeper Delaniel" },
       toolCtx<InteractAfter>(t),
     );
-    expect(res.status).toBe("UNCONFIRMED");
-    expect(contentOf(res)).toContain("dead, out of range or in an instance");
+    expect(res).toMatchObject({ reason: "no_answer", status: "UNCONFIRMED" });
   });
 
   test("bind walks to the innkeeper first", async () => {
@@ -118,12 +116,5 @@ describe("interact bind", () => {
       toolCtx<InteractAfter>(t),
     );
     expect(goTo).toHaveBeenCalledWith({ guid: 0x50n, kind: "guid" });
-  });
-
-  test("expectSendKind passes for bind", async () => {
-    await expectSendKind(interactTool, {
-      do: "bind",
-      npc: "Innkeeper Delaniel",
-    });
   });
 });

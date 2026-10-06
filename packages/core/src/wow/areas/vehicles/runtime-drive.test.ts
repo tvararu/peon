@@ -335,18 +335,4 @@ describe("driving acts", () => {
       jest.useRealTimers();
     }
   });
-
-  test("changeSeatOnControlled with no seat change answer settles no_answer after 3 s", async () => {
-    jest.useFakeTimers();
-    const { made } = rig();
-    try {
-      made.events.control.emit(controlEvent("vehicle", VEHICLE));
-      const pending = made.handle.act.changeSeatOnControlled(ACCESSORY, 2);
-      jest.advanceTimersByTime(3000);
-      expect(await pending).toEqual({ status: "no_answer" });
-    } finally {
-      made.dispose();
-      jest.useRealTimers();
-    }
-  });
 });

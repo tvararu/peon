@@ -166,16 +166,30 @@ describe("talents glyph", () => {
     expect(apply).not.toHaveBeenCalled();
   });
 
-  test("a slot outside 1-6 or a locked kind is refused before sending", async () => {
-    const { apply, t } = await rig();
-    for (const slot of [0, 7, "huge"]) {
-      await expect(
-        talentsSpec.run(
+  test("a slot outside 1-6 is bad_slot and a locked slot or locked kind is slot_locked, before sending", async () => {
+    const slots = snapshot().slots.map((slot) => ({ ...slot }));
+    const first = slots[0];
+    if (first) first.unlocked = false;
+    const { apply, t } = await rig({ state: { ...snapshot(), slots } });
+    const reasons: string[] = [];
+    for (const slot of [0, 7, "huge", 1, "major"]) {
+      try {
+        await talentsSpec.run(
           { do: "glyph", item: "Glyph of Battle", slot } as never,
           toolCtx(t),
-        ),
-      ).rejects.toBeInstanceOf(Refusal);
+        );
+        reasons.push("sent");
+      } catch (error) {
+        reasons.push((error as Refusal).reason);
+      }
     }
+    expect(reasons).toEqual([
+      "bad_slot",
+      "bad_slot",
+      "bad_slot",
+      "slot_locked",
+      "slot_locked",
+    ]);
     expect(apply).not.toHaveBeenCalled();
   });
 
@@ -201,12 +215,12 @@ describe("talents glyph", () => {
     const { apply, t } = await rig({
       held: [{ ...GLYPH, region: "bag", slot: 19 }],
     });
-    await expect(
-      talentsSpec.run(
-        { do: "glyph", item: "Glyph of Battle", slot: 1 },
-        toolCtx(t),
-      ),
-    ).rejects.toBeInstanceOf(Refusal);
+    const run = talentsSpec.run(
+      { do: "glyph", item: "Glyph of Battle", slot: 1 },
+      toolCtx(t),
+    );
+    await expect(run).rejects.toBeInstanceOf(Refusal);
+    await expect(run).rejects.toMatchObject({ reason: "no_such_item" });
     expect(apply).not.toHaveBeenCalled();
   });
 
@@ -247,7 +261,7 @@ describe("talents glyph", () => {
     });
   });
 
-  test("refusal outcomes give REFUSED with the reason and the item stays", async () => {
+  test("refusal outcomes give REFUSED with the reason", async () => {
     for (const outcome of [
       "slot_locked",
       "not_a_glyph",

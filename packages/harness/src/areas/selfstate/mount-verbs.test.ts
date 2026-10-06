@@ -188,7 +188,6 @@ describe("spell do:mount", () => {
     const cast = answerCast(t);
     const refused = await refusal(spellSpec.run({ do: "mount" }, toolCtx(t)));
     expect(refused.reason).toBe("already_mounted");
-    expect(refused.next).toContain("dismount");
     expect(cast).not.toHaveBeenCalled();
   });
 

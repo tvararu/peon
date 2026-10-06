@@ -158,7 +158,7 @@ describe("createReadyGate", () => {
     }
   });
 
-  test("a new handle resets readiness", async () => {
+  test("detaching the handle resets readiness", async () => {
     jest.useFakeTimers();
     try {
       const { clock, gate, handle } = await setup();

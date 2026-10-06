@@ -55,7 +55,9 @@ describe("quests daily journal", () => {
       texts: new Map(),
     });
     const out = await runTool(tool, { about: "quests" });
-    expect(out.text).toContain("#14179 quest 14179: done today.");
+    expect(out.text).toContain("#14179");
+    expect(out.text).toContain("quest 14179");
+    expect(out.text).toContain("done today");
   });
 
   test("a quest both logged and done today shows the log line only", async () => {
@@ -99,7 +101,7 @@ describe("quests daily journal", () => {
     });
     const out = await runTool(tool, { about: "quests" });
     const logIndex = out.text.indexOf("#8326");
-    const dailyIndex = out.text.indexOf("#14179 quest 14179: done today.");
+    const dailyIndex = out.text.indexOf("#14179");
     expect(logIndex).toBeGreaterThanOrEqual(0);
     expect(dailyIndex).toBeGreaterThan(logIndex);
   });

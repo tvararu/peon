@@ -48,7 +48,7 @@ test("a give cancels an opened trade when a later offer fails", async () => {
   expect(t.acts.cancelTrade).toHaveBeenCalled();
 });
 
-test("an offer swaps two offered items without a duplicate-slot error", async () => {
+test("an offer that swaps two offered items withdraws before offering", async () => {
   const t = await world();
   tradeState(t.handle, {
     ownOffer: {
@@ -66,7 +66,11 @@ test("an offer swaps two offered items without a duplicate-slot error", async ()
     { do: "offer", items: ["Linen Cloth", WATER_ARG] },
     toolCtx(t),
   );
-  expect(t.acts.withdrawItem.mock.calls.length).toBeGreaterThan(0);
+  const withdrawn = t.acts.withdrawItem.mock.invocationCallOrder;
+  const offered = t.acts.offerItem.mock.invocationCallOrder;
+  expect(withdrawn.length).toBeGreaterThan(0);
+  expect(offered.length).toBeGreaterThan(0);
+  expect(Math.max(...withdrawn)).toBeLessThan(Math.min(...offered));
   expect(out.status).toBe("DONE");
 });
 
@@ -87,5 +91,4 @@ test("an answer decline that the server refuses busy settles DONE", async () => 
   t.acts.answerTrade.mockResolvedValue({ reason: "busy", status: "refused" });
   const out = await tradeSpec.run({ accept: false, do: "answer" }, toolCtx(t));
   expect(out.status).toBe("DONE");
-  expect(out.detail).toContain("Declined");
 });

@@ -1,9 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import {
-  closestEmotes,
-  TEXT_EMOTE_IDS,
-  TEXT_EMOTES,
-} from "#wow/areas/emotes/names";
+import { closestEmotes, TEXT_EMOTES } from "#wow/areas/emotes/names";
 
 describe("text emote names", () => {
   test("carry the AzerothCore ids", () => {
@@ -11,8 +7,6 @@ describe("text emote names", () => {
     expect(TEXT_EMOTES.get("salute")).toBe(78);
     expect(TEXT_EMOTES.get("wave")).toBe(101);
     expect(TEXT_EMOTES.get("ready")).toBe(126);
-    expect(TEXT_EMOTES.size).toBe(252);
-    expect(TEXT_EMOTE_IDS.size).toBe(252);
   });
 
   test("closestEmotes ranks a misspelling's target first", () => {

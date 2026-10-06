@@ -252,10 +252,29 @@ describe("createCharacter", () => {
     }
   });
 
-  test("a failure result is recorded before the close settles it", async () => {
+  test("a failure result rejects with its name only after the connection closes", async () => {
+    const realConnect = Bun.connect;
+    const order: string[] = [];
+    const openHook = spyOn(Bun, "connect").mockImplementation(((
+      options: unknown,
+    ) => {
+      const opts = options as {
+        socket: Record<string, unknown> & { close: () => void };
+      };
+      const wrapped = {
+        ...opts.socket,
+        close() {
+          order.push("close");
+          opts.socket.close();
+        },
+      };
+      return realConnect({
+        ...(options as object),
+        socket: wrapped,
+      } as unknown as Parameters<typeof Bun.connect>[0]);
+    }) as unknown as typeof Bun.connect);
     const server = await startMockWorldServer();
     try {
-      const order: string[] = [];
       const done = createCharacter(
         config(server.port),
         auth(server.port),
@@ -270,8 +289,9 @@ describe("createCharacter", () => {
       );
       server.inject(GameOpcode.SMSG_CHAR_CREATE, new Uint8Array([0x32]));
       await expect(done).rejects.toThrow("name_in_use");
-      expect(order).toEqual(["rejected"]);
+      expect(order).toEqual(["close", "rejected"]);
     } finally {
+      openHook.mockRestore();
       server.stop();
     }
   });

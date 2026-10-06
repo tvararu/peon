@@ -61,10 +61,9 @@ describe("installCommands", () => {
     await run("wake", "off");
     expect(rt.session.wake).toBe(false);
     await run("wake", "maybe");
-    expect(named("notify")).toEqual([
-      ["Wake is off.", "info"],
-      ["Use /wake on or /wake off.", "warning"],
-    ]);
+    const notices = named("notify");
+    expect(notices.map(([, level]) => level)).toEqual(["info", "warning"]);
+    expect(notices[0]?.[0]).toContain("off");
   });
 
   test("/now prints the last [now] line the model got", async () => {
@@ -112,10 +111,12 @@ describe("installCommands", () => {
     rt.connect = () => Promise.reject(new Error("auth failed"));
     await run("connect");
     expect(rt.disconnect).toHaveBeenCalledTimes(1);
-    expect(named("notify")).toEqual([
-      ["The game connection is already up.", "info"],
-      ["Disconnected. Run /connect to log in again.", "info"],
-      ["Connect failed: auth failed", "error"],
+    const notices = named("notify");
+    expect(notices.map(([, level]) => level)).toEqual([
+      "info",
+      "info",
+      "error",
     ]);
+    expect(notices[2]?.[0]).toContain("auth failed");
   });
 });

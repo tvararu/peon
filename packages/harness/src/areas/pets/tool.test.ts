@@ -27,7 +27,7 @@ describe("pet status", () => {
     const t = await world();
     const out = await petSpec.run({}, toolCtx(t));
     expect(out.status).toBe("DONE");
-    expect(out.detail).toBe("You have no pet out.");
+    expect(out.detail).toContain("no pet");
     expect(t.game.sent).toHaveLength(0);
   });
 

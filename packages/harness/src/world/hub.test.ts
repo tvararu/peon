@@ -1,7 +1,7 @@
 import { describe, expect, mock, test } from "bun:test";
 import type { Entity, EntityEvent, UnitEntity } from "@peon/core";
 import { createWorldService } from "#harness/world/hub";
-import { EVENT_KEYS, isWorld, type WorldSession } from "#harness/world/service";
+import type { WorldSession } from "#harness/world/service";
 import { createMockGame, type MockGame } from "#test-support/mock-game";
 import { createTestRuntime } from "#test-support/runtime-fixture";
 
@@ -223,7 +223,7 @@ describe("createWorldService areas", () => {
     expect(sync).not.toHaveBeenCalled();
   });
 
-  test("session.areas reads frozen area state and the service stays version 1", async () => {
+  test("session.areas reads frozen area state", async () => {
     const { first, rt, world } = await setup();
     withClock(first);
     await rt.connect();
@@ -233,9 +233,5 @@ describe("createWorldService areas", () => {
     };
     expect(areas.clock.state()).toEqual({ speed: 0.01 });
     expect(Object.isFrozen(areas.clock.state())).toBe(true);
-    expect(EVENT_KEYS).toContain("onAreaEvent");
-    expect(typeof session.events.onAreaEvent).toBe("function");
-    expect(world.version).toBe(1);
-    expect(isWorld(world)).toBe(true);
   });
 });

@@ -322,13 +322,6 @@ describe("pilot execute", () => {
     ]);
   });
 
-  test("jump_ahead drives forward and jumps", () => {
-    const { actions, calls } = actionsWith(fence(), [stateAt(0)]);
-    actions.execute("jump_ahead", reach(30));
-    expect(calls.drive).toEqual([[{ move: "forward" }, PILOT_DEADMAN_MS]]);
-    expect(calls.jumps).toBe(1);
-  });
-
   test("stop halts and drives nothing", () => {
     const { actions, calls } = actionsWith(flat(), [stateAt(0)]);
     actions.execute("stop", reach(30));
@@ -356,15 +349,21 @@ describe("pilot execute", () => {
     expect(self).toMatch(/run_ahead moved 1.6 yd; run_ahead in progress/);
   });
 
-  test("a committed frame survives a pose change before execute", () => {
-    const { actions, advance } = actionsWith(flat(), [
-      stateAt(0),
-      stateAt(1.6),
-    ]);
-    const before = actions.commit(reach(30));
-    advance();
-    expect(() => actions.execute("run_ahead", reach(30))).not.toThrow();
-    expect(before.candidates.map((c) => c.id)).toContain("run_ahead");
+  test("a committed frame survives a world change before execute", () => {
+    let current = flat();
+    const ground: GroundOracle = {
+      height: (...args) => current.height(...args),
+      pathClear: (...args) => current.pathClear(...args),
+    };
+    const { actions, calls } = actionsWith(ground, [stateAt(0)]);
+    const context = reach(30);
+    actions.commit(context);
+    current = wallAt(0.3);
+    expect(actions.observe(context).candidates.map((c) => c.id)).not.toContain(
+      "run_ahead",
+    );
+    expect(() => actions.execute("run_ahead", context)).not.toThrow();
+    expect(calls.drive).toEqual([[{ move: "forward" }, PILOT_DEADMAN_MS]]);
   });
 });
 

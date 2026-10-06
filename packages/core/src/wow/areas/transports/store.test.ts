@@ -184,8 +184,11 @@ describe("transports area wiring", () => {
       );
       expect(
         rig.handle.state().templates.get(TRANSPORTS_STRAIGHT_ENTRY),
-      ).toMatchObject({ taxiPathId: TRANSPORTS_STRAIGHT_PATH, mapId: 1 });
-      void NODES;
+      ).toMatchObject({
+        taxiPathId: TRANSPORTS_STRAIGHT_PATH,
+        moveSpeed: 30,
+        mapId: 1,
+      });
     } finally {
       rig.dispose();
     }

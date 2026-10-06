@@ -247,7 +247,7 @@ describe("selfstate runtime: SMSG_DISMOUNT", () => {
     }
   });
 
-  test("a dismount after a mount the fields never showed still clears the state", () => {
+  test("another guid's dismount leaves a mounted self mounted", () => {
     const { rig, events, update } = rigMounted();
     try {
       update(unit(SELF, RIDING));

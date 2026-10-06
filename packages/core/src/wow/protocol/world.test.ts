@@ -1,4 +1,5 @@
 import { describe, expect, jest, test } from "bun:test";
+import { createHash } from "node:crypto";
 import { must } from "#test-support/must";
 import { Arc4 } from "#wow/crypto/arc4";
 import { PacketReader, PacketWriter } from "#wow/protocol/packet";
@@ -7,22 +8,42 @@ import {
   buildOutgoingPacket,
   buildWorldAuthPacket,
   decryptIncomingHeader,
-  INCOMING_HEADER_SIZE,
   OpcodeDispatch,
   OUTGOING_HEADER_SIZE,
   parseCharacterList,
 } from "#wow/protocol/world";
 
-test("buildWorldAuthPacket produces valid packet", async () => {
-  const sessionKey = new Uint8Array(40);
-  const serverSeed = new Uint8Array(4);
+test("buildWorldAuthPacket lays out build, upper-cased account, seeds, realm and the SHA-1 digest", () => {
+  const sessionKey = new Uint8Array(40).fill(7);
+  const serverSeed = new Uint8Array([1, 2, 3, 4]);
+  const clientSeed = new Uint8Array([9, 8, 7, 6]);
   const result = buildWorldAuthPacket({
     account: "Test",
     sessionKey,
     serverSeed,
-    realmId: 1,
+    realmId: 5,
+    clientSeed,
   });
-  expect(result.byteLength).toBeGreaterThan(6);
+  const r = new PacketReader(result);
+  expect(r.uint32LE()).toBe(12_340);
+  expect(r.uint32LE()).toBe(0);
+  expect(r.cString()).toBe("TEST");
+  expect(r.uint32LE()).toBe(0);
+  expect([...r.bytes(4)]).toEqual([...clientSeed]);
+  expect(r.uint32LE()).toBe(0);
+  expect(r.uint32LE()).toBe(0);
+  expect(r.uint32LE()).toBe(5);
+  expect(r.uint32LE()).toBe(2);
+  expect(r.uint32LE()).toBe(0);
+  const expectedDigest = createHash("sha1")
+    .update("TEST")
+    .update(new Uint8Array(4))
+    .update(clientSeed)
+    .update(serverSeed)
+    .update(sessionKey)
+    .digest();
+  expect([...r.bytes(20)]).toEqual([...expectedDigest]);
+  expect(r.remaining).toBeGreaterThan(0);
 });
 
 test("parseCharacterList extracts character names and GUIDs", () => {
@@ -68,25 +89,6 @@ test("parseCharacterList extracts character names and GUIDs", () => {
   expect(must(chars[0]).level).toBe(80);
   expect(must(chars[0]).zone).toBe(1);
   expect(must(chars[0]).map).toBe(0);
-});
-
-test("OpcodeDispatch persistent handler fires on matching opcode", () => {
-  const dispatch = new OpcodeDispatch();
-  let called = false;
-  dispatch.on(0x01, () => {
-    called = true;
-  });
-  dispatch.handle(0x01, new PacketReader(new Uint8Array(0)));
-  expect(called).toBe(true);
-});
-
-test("OpcodeDispatch expect resolves on matching opcode", async () => {
-  const dispatch = new OpcodeDispatch();
-  const promise = dispatch.expect(0x02);
-  const reader = new PacketReader(new Uint8Array([0x42]));
-  dispatch.handle(0x02, reader);
-  const result = await promise;
-  expect(result.uint8()).toBe(0x42);
 });
 
 test("OpcodeDispatch runs the handler before resolving a waiter at the body start", async () => {
@@ -195,14 +197,23 @@ test("buildOutgoingPacket creates correct header without encryption", () => {
   expect(pkt[7]).toBe(0xbb);
 });
 
-test("buildOutgoingPacket encrypts header with arc4", () => {
+test("buildOutgoingPacket encrypts the header with the arc4 keystream and leaves the body plain", () => {
   const sessionKey = new Uint8Array(40);
   for (let i = 0; i < 40; i++) sessionKey[i] = i;
-  const arc4 = new Arc4(sessionKey);
   const body = new Uint8Array([0xcc]);
-  const pkt = buildOutgoingPacket(0x01_ed, body, arc4);
+  const plain = buildOutgoingPacket(0x01_ed, body);
+  const pkt = buildOutgoingPacket(0x01_ed, body, new Arc4(sessionKey));
+  const expectedHeader = new Arc4(sessionKey).encrypt(
+    plain.subarray(0, OUTGOING_HEADER_SIZE),
+  );
   expect(pkt.byteLength).toBe(OUTGOING_HEADER_SIZE + 1);
-  expect(pkt[6]).toBe(0xcc);
+  expect([...pkt.subarray(0, OUTGOING_HEADER_SIZE)]).not.toEqual([
+    ...plain.subarray(0, OUTGOING_HEADER_SIZE),
+  ]);
+  expect([...pkt.subarray(0, OUTGOING_HEADER_SIZE)]).toEqual([
+    ...expectedHeader,
+  ]);
+  expect(pkt[OUTGOING_HEADER_SIZE]).toBe(0xcc);
 });
 
 test("decryptIncomingHeader parses without encryption", () => {
@@ -215,26 +226,7 @@ test("decryptIncomingHeader parses without encryption", () => {
   expect(result.opcode).toBe(0x01_ee);
 });
 
-test("INCOMING_HEADER_SIZE is 4", () => {
-  expect(INCOMING_HEADER_SIZE).toBe(4);
-});
-
-test("OUTGOING_HEADER_SIZE is 6", () => {
-  expect(OUTGOING_HEADER_SIZE).toBe(6);
-});
-
 describe("OpcodeDispatch", () => {
-  test("has() returns false for unregistered opcode", () => {
-    const d = new OpcodeDispatch();
-    expect(d.has(0x99_99)).toBe(false);
-  });
-
-  test("has() returns true after on()", () => {
-    const d = new OpcodeDispatch();
-    d.on(0x42, () => {});
-    expect(d.has(0x42)).toBe(true);
-  });
-
   test("on() refuses a second handler and keeps the first", () => {
     const d = new OpcodeDispatch();
     const seen: string[] = [];

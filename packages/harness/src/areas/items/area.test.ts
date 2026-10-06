@@ -234,7 +234,7 @@ describe("items harness timer rows", () => {
     expect(at(59)?.text).toContain("59 s");
   });
 
-  test("a temporary enchant timer is an expiring row that names the enchant slot", () => {
+  test("a temporary enchant timer is an expiring row naming the item and time left", () => {
     const rows = areaDrafts(
       areaRuleSet(),
       timerEvent({
@@ -252,10 +252,11 @@ describe("items harness timer rows", () => {
       data: { enchantSlot: 1, seconds: 30 },
       event: "items/expiring",
     });
-    expect(rows[0]?.text).toContain("enchant");
+    expect(rows[0]?.text).toContain("Dragonmaw Key");
+    expect(rows[0]?.text).toContain("30 s");
   });
 
-  test("the death durability notice wakes with a repair hint", () => {
+  test("the death durability notice wakes with a durability_loss row", () => {
     const rows = areaDrafts(
       areaRuleSet(),
       timerEvent({ type: "durability_loss_death" }),
@@ -266,7 +267,6 @@ describe("items harness timer rows", () => {
       class: "wake",
       event: "items/durability_loss",
     });
-    expect(rows[0]?.text).toContain("repair");
   });
 
   test("new skills write a log row naming them", () => {

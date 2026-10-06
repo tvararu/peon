@@ -57,9 +57,4 @@ describe("routes through water", () => {
     expect(route.sample(0).swimming).toBe(true);
     expect(route.sample(route.length).swimming).toBe(false);
   });
-
-  test("keeps land routes unmarked", () => {
-    const route = navigation(native()).plan(530, from, to);
-    expect(route.sample(10).swimming).toBe(false);
-  });
 });

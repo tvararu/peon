@@ -29,12 +29,13 @@ describe("battlegrounds acts", () => {
   test("act.setPvp resolves without sending when the flag already matches", async () => {
     const { rig, update } = battlegroundsScene();
     try {
-      await rig.handle.act.setPvp(false);
+      const first = rig.handle.act.setPvp(true);
+      update(BG_ME, { byte2: 0x01_00, playerFlags: 0x2_00 });
+      await first;
       const before = rig.sent.length;
-      const result = await rig.handle.act.setPvp(false);
-      expect(result).toEqual({ kind: "set", on: false });
+      const result = await rig.handle.act.setPvp(true);
+      expect(result).toEqual({ kind: "set", on: true });
       expect(rig.sent.length).toBe(before);
-      void update;
     } finally {
       rig.dispose();
     }

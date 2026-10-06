@@ -7,7 +7,7 @@ import {
   type MockHandle,
   type TestRuntime,
 } from "#test-support/runtime-fixture";
-import { expectSendKind } from "#test-support/tool-harness";
+import { runTool } from "#test-support/tool-harness";
 
 type Occupied = {
   bag: number;
@@ -478,6 +478,17 @@ describe("gear tool", () => {
     expect(acts.setAmmo).not.toHaveBeenCalled();
   });
 
+  test("the registered gear tool reports a refusal code from its first call", async () => {
+    const t = await createTestRuntime();
+    stocked(t.handle, []);
+    const { text } = await runTool(gearTool.definition(t.rt), {
+      do: "equip",
+      item: "Missing Sword",
+    });
+    expect(text).toContain("REFUSED");
+    expect(text).toContain("no_such_item");
+  });
+
   test("an unknown item refuses before any send", async () => {
     const t = await createTestRuntime();
     stocked(t.handle, []);
@@ -515,7 +526,4 @@ describe("gear tool", () => {
     expect(res).toMatchObject({ reason: "no_such_slot" });
     expect(acts.equipTo).not.toHaveBeenCalled();
   });
-
-  test("a sending tool is kind action", async () =>
-    expectSendKind(gearTool, { do: "equip", item: "x" }));
 });

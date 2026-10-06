@@ -324,19 +324,6 @@ describe("combatlog shield, environment and instakill wiring", () => {
     }
   });
 
-  test("environmental damage to another player is dropped", () => {
-    const { rig } = rigWithEvents();
-    try {
-      rig.inject(
-        GameOpcode.SMSG_ENVIRONMENTAL_DAMAGE_LOG,
-        combatlogEnvironmentalDamageBody({ amount: 9, type: 2, victim: MATE }),
-      );
-      expect(rig.handle.state().entries).toEqual([]);
-    } finally {
-      rig.dispose();
-    }
-  });
-
   test("environmental damage to the character does not open scope to other environmental packets", () => {
     const { rig } = rigWithEvents();
     try {

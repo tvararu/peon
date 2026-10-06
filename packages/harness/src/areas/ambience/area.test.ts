@@ -54,18 +54,6 @@ describe("ambience/movie", () => {
       },
     ]);
   });
-
-  test("the movie row is passive inside a run", () => {
-    const [row] = rules()(
-      {
-        movie: { at: 1_000_000, movieId: 14 },
-        previous: undefined,
-        type: "movie",
-      },
-      testRuleInput({ runActive: true }),
-    );
-    expect(row?.class).toBe("passive");
-  });
 });
 
 describe("ambience/phase", () => {

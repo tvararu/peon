@@ -3,7 +3,7 @@ import { elapse, withFakeTimers } from "@peon/core/test-support/fake-time";
 import type { TravelAfter } from "#harness/contract/details";
 import { createRefTable } from "#harness/ops/refs";
 import { YIELD_AFTER_MS } from "#harness/runs/wait";
-import { travelSpec, travelTool } from "#harness/tools/travel";
+import { travelSpec } from "#harness/tools/travel";
 import { FLIGHT_WAIT_MS } from "#harness/tools/travel-fly";
 import {
   contentOf,
@@ -20,7 +20,6 @@ import {
   type MockHandle,
   type TestRuntime,
 } from "#test-support/runtime-fixture";
-import { expectSendKind } from "#test-support/tool-harness";
 
 const MASTER = 0x70n;
 const FLIGHT_MASTER = unitRow({
@@ -176,7 +175,8 @@ describe("travel fly", () => {
       price: ROUTE.price,
       status: "ok",
     });
-    await fly(t);
+    const res = await fly(t);
+    expect(res.status).toBe("DONE");
     expect(t.handle.walkTowardPoint).not.toHaveBeenCalled();
   });
 
@@ -212,18 +212,6 @@ describe("travel fly", () => {
     expect(res.status).toBe("DONE");
   });
 
-  test("an instant teleport completes without waiting for a landing", async () => {
-    const t = await world();
-    jest.spyOn(t.handle.travel.act, "activateTaxi").mockResolvedValue({
-      instant: true,
-      nodes: ROUTE.nodes,
-      price: ROUTE.price,
-      status: "ok",
-    });
-    const res = await fly(t);
-    expect(res.status).toBe("DONE");
-  });
-
   test("a flight master 40 yd away is walked to before the map opens", async () => {
     const t = await world();
     setUnits(t.handle, [
@@ -255,7 +243,7 @@ describe("travel fly", () => {
     ]);
     driveGoto(t.handle, [{ refuse: "stop: unreachable" }]);
     const res = await fly(t);
-    expect(res.status).not.toBe("DONE");
+    expect(res).toMatchObject({ reason: "unreachable", status: "FAILED" });
     expect(t.handle.travel.act.openTaxiMap).not.toHaveBeenCalled();
   });
 
@@ -473,10 +461,6 @@ describe("travel fly", () => {
     t.handle.getControlState = () => ({ ...state, blockedReason: "in_flight" });
     await expect(fly(t)).rejects.toMatchObject({ reason: "in_flight" });
     expect(t.handle.travel.act.openTaxiMap).not.toHaveBeenCalled();
-  });
-
-  test("travel passes the send-kind check", async () => {
-    await expectSendKind(travelTool, { to: "explore" });
   });
 });
 

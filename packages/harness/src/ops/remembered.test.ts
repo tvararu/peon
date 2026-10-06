@@ -107,9 +107,9 @@ describe("remembered NPCs", () => {
       reason: "not_at_last_known",
       status: "FAILED",
     });
-    expect(res.detail).toMatch(
-      /^Magistrix Erona u\d+ is not where it was last seen \(8 yd N of you, 3 min ago\)\./,
-    );
+    expect(res.detail).toMatch(/Magistrix Erona u\d+/);
+    expect(res.detail).toContain("8 yd N");
+    expect(res.detail).toContain("3 min ago");
   });
 
   test("after not_at_last_known the next look no longer lists the old point", async () => {

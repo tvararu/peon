@@ -97,7 +97,7 @@ describe("lfg protocol", () => {
     expect(info.locks).toEqual([{ entry: 0x01_00_00_12, status: 2 }]);
   });
 
-  test("lock block is shared by player info, party info and the join result", () => {
+  test("party lock block parses per-member locks and an empty list", () => {
     const body = lfgPartyInfoBody([
       { guid: 0xden, locks: [{ entry: 0x01_00_00_12, status: 6 }] },
     ]);

@@ -195,7 +195,7 @@ describe("GuildStore", () => {
     expect(must(store.all()[0]).name).toBe("Thrall");
   });
 
-  test("no event fires without listener", () => {
+  test("mutations work without a listener", () => {
     const store = new GuildStore();
 
     store.setRoster("motd", "info", [makeMember({ guid: 1n, name: "Thrall" })]);
@@ -214,20 +214,5 @@ describe("GuildStore", () => {
     expect(roster.rankNames).toEqual(["GM", "Officer", "Member"]);
     expect(roster.motd).toBe("motd");
     expect(roster.members).toHaveLength(1);
-  });
-});
-
-describe("GuildStore.get with a known id and no members", () => {
-  test("returns an empty roster after setGuildMeta() with no members", () => {
-    const store = new GuildStore();
-    store.setGuildMeta("FacSeedAlpha", ["Guild Master", "Officer"]);
-
-    const roster = store.get();
-    expect(roster?.guildName).toBe("FacSeedAlpha");
-    expect(roster?.members).toEqual([]);
-  });
-
-  test("returns undefined with no name and no members", () => {
-    expect(new GuildStore().get()).toBeUndefined();
   });
 });

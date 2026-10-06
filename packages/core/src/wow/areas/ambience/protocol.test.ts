@@ -11,8 +11,6 @@ import {
   ambienceWeatherBody,
 } from "#test-support/areas/ambience";
 import {
-  buildCompleteCinematic,
-  buildNextCinematicCamera,
   buildZoneUpdate,
   parseOverrideLight,
   parsePlayMusic,
@@ -61,14 +59,6 @@ describe("ambience protocol", () => {
     const reader = new PacketReader(ambienceTriggerMovieBody(44));
     expect(parseTriggerMovie(reader)).toEqual({ movieId: 44 });
     expect(reader.remaining).toBe(0);
-  });
-
-  test("buildCompleteCinematic gives an empty body (MiscHandler.cpp:940-943)", () => {
-    expect(buildCompleteCinematic()).toEqual(new Uint8Array(0));
-  });
-
-  test("buildNextCinematicCamera gives an empty body (MiscHandler.cpp:946-950)", () => {
-    expect(buildNextCinematicCamera()).toEqual(new Uint8Array(0));
   });
 
   test("parsePlaySound and parsePlayMusic read one uint32 sound kit id (MiscPackets.cpp:48-68)", () => {

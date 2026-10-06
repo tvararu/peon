@@ -211,8 +211,8 @@ describe("applyGlyph", () => {
         "talent_request_busy",
       );
       expect(rig.sent.length).toBe(before);
-      rig.dispose();
-      await expect(pending).rejects.toThrow();
+      rig.inject(INFO, infoWith([21, 0, 0, 0, 0, 0]));
+      expect(await pending).toEqual({ glyphId: 21, outcome: "applied" });
     } finally {
       rig.dispose();
     }

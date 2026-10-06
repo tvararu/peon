@@ -1,6 +1,5 @@
 import { describe, expect, jest, test } from "bun:test";
 import { elapse, withFakeTimers } from "@peon/core/test-support/fake-time";
-import { dungeonTool } from "#harness/areas/instances/tool";
 import {
   attempt,
   NOW,
@@ -8,7 +7,6 @@ import {
   world,
 } from "#harness/areas/instances/tool-lfg-fixture";
 import { setSelf } from "#test-support/ops-fixtures";
-import { expectSendKind } from "#test-support/tool-harness";
 
 describe("dungeon lfg verbs", () => {
   test("leave_queue calls leave once", async () => {
@@ -16,22 +14,27 @@ describe("dungeon lfg verbs", () => {
     const leave = jest
       .spyOn(t.handle.lfg.act, "leave")
       .mockResolvedValue({ status: "ok" });
-    const { settled, text } = await attempt(t, { do: "leave_queue" });
+    const { settled } = await attempt(t, { do: "leave_queue" });
     expect(leave).toHaveBeenCalledTimes(1);
     expect(settled).toMatchObject({ status: "DONE" });
-    expect(text.toLowerCase()).toContain("left");
   });
 
-  test("answer accepts a proposal", async () => {
-    const t = await world();
-    const answer = jest
-      .spyOn(t.handle.lfg.act, "answerProposal")
-      .mockResolvedValue({ state: 1, status: "ok" });
-    const { settled, text } = await attempt(t, { accept: true, do: "answer" });
-    expect(answer).toHaveBeenCalledWith(true);
-    expect(settled).toMatchObject({ status: "DONE" });
-    expect(text.toLowerCase()).toContain("accepted");
-  });
+  test.each([
+    { accept: true, label: "accepted" },
+    { accept: false, label: "declined" },
+  ])(
+    "answer with accept $accept answers the proposal",
+    async ({ accept, label }) => {
+      const t = await world();
+      const answer = jest
+        .spyOn(t.handle.lfg.act, "answerProposal")
+        .mockResolvedValue({ state: 1, status: "ok" });
+      const { settled, text } = await attempt(t, { accept, do: "answer" });
+      expect(answer).toHaveBeenCalledWith(accept);
+      expect(settled).toMatchObject({ status: "DONE" });
+      expect(text.toLowerCase()).toContain(label);
+    },
+  );
 
   test("answer without a proposal is a refusal", async () => {
     const t = await world();
@@ -83,25 +86,28 @@ describe("dungeon lfg verbs", () => {
     const t = await world();
     setSelf(t.handle, { life: "dead" });
     const teleport = jest.spyOn(t.handle.lfg.act, "teleport");
-    const { settled, text } = await attempt(t, { do: "teleport", to: "in" });
+    const { settled } = await attempt(t, { do: "teleport", to: "in" });
     expect(teleport).not.toHaveBeenCalled();
     expect(settled).toMatchObject({ reason: "dead", status: "REFUSED" });
-    expect(text.toLowerCase()).toContain("ghost");
   });
 
-  test("kick_vote calls voteKick once", async () => {
-    const t = await world();
-    const vote = jest
-      .spyOn(t.handle.lfg.act, "voteKick")
-      .mockResolvedValue({ status: "ok" });
-    const { settled, text } = await attempt(t, {
-      accept: true,
-      do: "kick_vote",
-    });
-    expect(vote).toHaveBeenCalledWith(true);
-    expect(settled).toMatchObject({ status: "DONE" });
-    expect(text.toLowerCase()).toContain("kick");
-  });
+  test.each([
+    { accept: true, label: "to kick" },
+    { accept: false, label: "against" },
+  ])(
+    "kick_vote with accept $accept calls voteKick once",
+    async ({ accept, label }) => {
+      const t = await world();
+      const vote = jest
+        .spyOn(t.handle.lfg.act, "voteKick")
+        .mockResolvedValue({ status: "ok" });
+      const { settled, text } = await attempt(t, { accept, do: "kick_vote" });
+      expect(vote).toHaveBeenCalledWith(accept);
+      expect(vote).toHaveBeenCalledTimes(1);
+      expect(settled).toMatchObject({ status: "DONE" });
+      expect(text.toLowerCase()).toContain(label);
+    },
+  );
 
   test("the tool answers neither a bind prompt nor a kick vote by itself", async () => {
     const t = await world({ lfg: queueAvailable() });
@@ -144,10 +150,5 @@ describe("dungeon lfg verbs", () => {
     });
     expect(join).toHaveBeenCalledTimes(1);
     expect(settled).toMatchObject({ reason: "not_leader", status: "REFUSED" });
-  });
-
-  test("the dungeon tool sends no packet for read-only verbs", async () => {
-    expect(dungeonTool.kind).toBe("action");
-    await expectSendKind(dungeonTool, { accept: false, do: "bind" });
   });
 });

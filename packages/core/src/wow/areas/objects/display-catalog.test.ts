@@ -27,6 +27,10 @@ describe("loadDisplayCatalog (src/server/shared/DataStores/DBCfmt.h:56)", () => 
       id: 3011,
       minX: expect.closeTo(-0.236, 4),
       maxX: expect.closeTo(0.236, 4),
+      maxY: expect.closeTo(0.4726, 4),
+      maxZ: expect.closeTo(0.083, 4),
+      minY: expect.closeTo(0.0004, 4),
+      minZ: expect.closeTo(0, 4),
     });
     expect(catalog.get(9)).toBeUndefined();
   });

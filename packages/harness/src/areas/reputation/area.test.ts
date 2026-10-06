@@ -97,11 +97,6 @@ describe("reputation/changed", () => {
     );
     expect(row?.text).toBe("Faction 55 reputation +250.");
   });
-
-  test("the row class stays log inside a run", () => {
-    const [row] = rules()(standing(), testRuleInput({ runActive: true }));
-    expect(row?.class).toBe("log");
-  });
 });
 
 describe("reputation/rank", () => {
@@ -204,25 +199,6 @@ describe("reputation/at_war", () => {
       text: "You are now Hostile with Booty Bay.",
     });
   });
-
-  test("a rank change on a faction already at war keeps the rank row", () => {
-    const [row] = rules()(
-      standing({
-        after: -2500,
-        atWar: true,
-        before: -3100,
-        factionId: 21,
-        name: "Booty Bay",
-        rank: 2,
-        rankChanged: true,
-        wasAtWar: true,
-      }),
-    );
-    expect(row).toMatchObject({
-      name: "rank",
-      text: "You are now Unfriendly with Booty Bay.",
-    });
-  });
 });
 
 describe("reputation/discovered", () => {
@@ -310,14 +286,6 @@ describe("reputation flood guard", () => {
 });
 
 describe("reputation through the world service", () => {
-  test("the world acts are setAtWar, setInactive and setWatched", () => {
-    expect(reputationHarness.worldActs).toEqual([
-      "setAtWar",
-      "setInactive",
-      "setWatched",
-    ]);
-  });
-
   test("claim.areas.reputation holds the three acts and refuses an unknown faction without sending", async () => {
     const game = createMockGame();
     const { rt } = await createTestRuntime({

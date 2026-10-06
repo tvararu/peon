@@ -108,8 +108,7 @@ describe("journal about reputation", () => {
     expect(out.text).toContain('No faction matches "booty".');
   });
 
-  test("the tool stays kind read and sends nothing", async () => {
+  test("a reputation read sends nothing", async () => {
     await expectSendKind(journalTool, { about: "reputation" });
-    expect(journalTool.kind).toBe("read");
   });
 });

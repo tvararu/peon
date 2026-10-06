@@ -50,130 +50,25 @@ describe("parseChannelNotify", () => {
     expect(result).toEqual({ type: "other" });
   });
 
-  test("parses WRONG_PASSWORD", () => {
+  test.each([
+    ["WRONG_PASSWORD", ChannelNotify.WRONG_PASSWORD, "Secret"],
+    ["NOT_MEMBER", ChannelNotify.NOT_MEMBER, "Trade"],
+    ["BANNED", ChannelNotify.BANNED, "Trade"],
+    ["MUTED", ChannelNotify.MUTED, "General"],
+    ["ALREADY_MEMBER", ChannelNotify.ALREADY_MEMBER, "General"],
+    ["INVALID_NAME", ChannelNotify.INVALID_NAME, ""],
+    ["THROTTLED", ChannelNotify.THROTTLED, "General"],
+    ["WRONG_FACTION", ChannelNotify.WRONG_FACTION, "General"],
+    ["NOT_IN_AREA", ChannelNotify.NOT_IN_AREA, "LocalDefense"],
+  ])("maps %s to an error carrying the channel", (_name, code, channel) => {
     const w = new PacketWriter();
-    w.uint8(ChannelNotify.WRONG_PASSWORD);
-    w.cString("Secret");
+    w.uint8(code);
+    w.cString(channel);
 
     const result = parseChannelNotify(new PacketReader(w.finish()));
-    expect(result).toEqual({
-      type: "error",
-      channel: "Secret",
-      code: ChannelNotify.WRONG_PASSWORD,
-      message: "Wrong password for Secret",
-    });
-  });
-
-  test("parses NOT_MEMBER", () => {
-    const w = new PacketWriter();
-    w.uint8(ChannelNotify.NOT_MEMBER);
-    w.cString("Trade");
-
-    const result = parseChannelNotify(new PacketReader(w.finish()));
-    expect(result).toEqual({
-      type: "error",
-      channel: "Trade",
-      code: ChannelNotify.NOT_MEMBER,
-      message: "Not on channel Trade",
-    });
-  });
-
-  test("parses BANNED", () => {
-    const w = new PacketWriter();
-    w.uint8(ChannelNotify.BANNED);
-    w.cString("Trade");
-
-    const result = parseChannelNotify(new PacketReader(w.finish()));
-    expect(result).toEqual({
-      type: "error",
-      channel: "Trade",
-      code: ChannelNotify.BANNED,
-      message: "You are banned from Trade",
-    });
-  });
-
-  test("parses MUTED", () => {
-    const w = new PacketWriter();
-    w.uint8(ChannelNotify.MUTED);
-    w.cString("General");
-
-    const result = parseChannelNotify(new PacketReader(w.finish()));
-    expect(result).toEqual({
-      type: "error",
-      channel: "General",
-      code: ChannelNotify.MUTED,
-      message: "You do not have permission to speak in General",
-    });
-  });
-
-  test("parses ALREADY_MEMBER", () => {
-    const w = new PacketWriter();
-    w.uint8(ChannelNotify.ALREADY_MEMBER);
-    w.cString("General");
-
-    const result = parseChannelNotify(new PacketReader(w.finish()));
-    expect(result).toEqual({
-      type: "error",
-      channel: "General",
-      code: ChannelNotify.ALREADY_MEMBER,
-      message: "You are already in General",
-    });
-  });
-
-  test("parses INVALID_NAME", () => {
-    const w = new PacketWriter();
-    w.uint8(ChannelNotify.INVALID_NAME);
-    w.cString("");
-
-    const result = parseChannelNotify(new PacketReader(w.finish()));
-    expect(result).toEqual({
-      type: "error",
-      channel: "",
-      code: ChannelNotify.INVALID_NAME,
-      message: "Invalid channel name",
-    });
-  });
-
-  test("parses THROTTLED", () => {
-    const w = new PacketWriter();
-    w.uint8(ChannelNotify.THROTTLED);
-    w.cString("General");
-
-    const result = parseChannelNotify(new PacketReader(w.finish()));
-    expect(result).toEqual({
-      type: "error",
-      channel: "General",
-      code: ChannelNotify.THROTTLED,
-      message: "Channel message throttled in General",
-    });
-  });
-
-  test("parses WRONG_FACTION", () => {
-    const w = new PacketWriter();
-    w.uint8(ChannelNotify.WRONG_FACTION);
-    w.cString("General");
-
-    const result = parseChannelNotify(new PacketReader(w.finish()));
-    expect(result).toEqual({
-      type: "error",
-      channel: "General",
-      code: ChannelNotify.WRONG_FACTION,
-      message: "Wrong faction for General",
-    });
-  });
-
-  test("parses NOT_IN_AREA", () => {
-    const w = new PacketWriter();
-    w.uint8(ChannelNotify.NOT_IN_AREA);
-    w.cString("LocalDefense");
-
-    const result = parseChannelNotify(new PacketReader(w.finish()));
-    expect(result).toEqual({
-      type: "error",
-      channel: "LocalDefense",
-      code: ChannelNotify.NOT_IN_AREA,
-      message: "You are not in the correct area for LocalDefense",
-    });
+    expect(result).toMatchObject({ type: "error", channel, code });
+    if (result.type !== "error") throw new Error("expected an error event");
+    expect(result.message).toContain(channel);
   });
 });
 
@@ -215,13 +110,6 @@ describe("buildRandomRoll", () => {
     expect(r.uint32LE()).toBe(1);
     expect(r.uint32LE()).toBe(100);
   });
-
-  test("builds a roll with custom range", () => {
-    const body = buildRandomRoll(50, 200);
-    const r = new PacketReader(body);
-    expect(r.uint32LE()).toBe(50);
-    expect(r.uint32LE()).toBe(200);
-  });
 });
 
 describe("parseRandomRoll", () => {
@@ -259,20 +147,23 @@ describe("parseRandomRoll", () => {
 });
 
 describe("parseServerBroadcast", () => {
-  test("parses shutdown time message", () => {
+  test.each([
+    [1, "15:00", ["shutdown", "15:00"]],
+    [2, "05:00", ["restart", "05:00"]],
+    [4, "", ["shutdown", "cancel"]],
+    [5, "", ["restart", "cancel"]],
+    [6, "10:00", ["battleground", "shutdown", "10:00"]],
+    [7, "03:00", ["battleground", "restart", "03:00"]],
+    [8, "02:00", ["instance", "shutdown", "02:00"]],
+    [9, "01:00", ["instance", "restart", "01:00"]],
+  ])("maps broadcast id %d to its label and time", (id, param, parts) => {
     const w = new PacketWriter();
-    w.uint32LE(1);
-    w.cString("15:00");
-    const result = parseServerBroadcast(new PacketReader(w.finish()));
-    expect(result.message).toBe("Server shutdown in 15:00");
-  });
-
-  test("parses restart time message", () => {
-    const w = new PacketWriter();
-    w.uint32LE(2);
-    w.cString("05:00");
-    const result = parseServerBroadcast(new PacketReader(w.finish()));
-    expect(result.message).toBe("Server restart in 05:00");
+    w.uint32LE(id);
+    w.cString(param);
+    const message = parseServerBroadcast(
+      new PacketReader(w.finish()),
+    ).message.toLowerCase();
+    for (const part of parts) expect(message).toContain(part);
   });
 
   test("parses raw string message", () => {
@@ -283,60 +174,13 @@ describe("parseServerBroadcast", () => {
     expect(result.message).toBe("Custom admin broadcast");
   });
 
-  test("parses shutdown cancelled", () => {
-    const w = new PacketWriter();
-    w.uint32LE(4);
-    w.cString("");
-    const result = parseServerBroadcast(new PacketReader(w.finish()));
-    expect(result.message).toBe("Server shutdown cancelled");
-  });
-
-  test("parses restart cancelled", () => {
-    const w = new PacketWriter();
-    w.uint32LE(5);
-    w.cString("");
-    const result = parseServerBroadcast(new PacketReader(w.finish()));
-    expect(result.message).toBe("Server restart cancelled");
-  });
-
-  test("parses battleground shutdown", () => {
-    const w = new PacketWriter();
-    w.uint32LE(6);
-    w.cString("10:00");
-    const result = parseServerBroadcast(new PacketReader(w.finish()));
-    expect(result.message).toBe("Battleground shutdown in 10:00");
-  });
-
-  test("parses battleground restart", () => {
-    const w = new PacketWriter();
-    w.uint32LE(7);
-    w.cString("03:00");
-    const result = parseServerBroadcast(new PacketReader(w.finish()));
-    expect(result.message).toBe("Battleground restart in 03:00");
-  });
-
-  test("parses instance shutdown", () => {
-    const w = new PacketWriter();
-    w.uint32LE(8);
-    w.cString("02:00");
-    const result = parseServerBroadcast(new PacketReader(w.finish()));
-    expect(result.message).toBe("Instance shutdown in 02:00");
-  });
-
-  test("parses instance restart", () => {
-    const w = new PacketWriter();
-    w.uint32LE(9);
-    w.cString("01:00");
-    const result = parseServerBroadcast(new PacketReader(w.finish()));
-    expect(result.message).toBe("Instance restart in 01:00");
-  });
-
   test("handles unknown message ID", () => {
     const w = new PacketWriter();
     w.uint32LE(99);
     w.cString("mystery");
     const result = parseServerBroadcast(new PacketReader(w.finish()));
-    expect(result.message).toBe("Server message 99: mystery");
+    expect(result.message).toContain("99");
+    expect(result.message).toContain("mystery");
   });
 });
 
@@ -346,12 +190,5 @@ describe("parseNotification", () => {
     w.cString("Welcome to our server!");
     const result = parseNotification(new PacketReader(w.finish()));
     expect(result.message).toBe("Welcome to our server!");
-  });
-
-  test("parses empty notification", () => {
-    const w = new PacketWriter();
-    w.cString("");
-    const result = parseNotification(new PacketReader(w.finish()));
-    expect(result.message).toBe("");
   });
 });

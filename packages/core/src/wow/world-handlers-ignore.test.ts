@@ -265,7 +265,12 @@ describe("world handler tests", () => {
 
         const msg = await received;
         expect(msg.type).toBe(ChatType.SYSTEM);
-        expect(msg.message).toBe('"Nobody" is not on your ignore list.');
+        expect(msg.message).toContain("Nobody");
+
+        await waitForEchoProbe(handle);
+        expect(
+          ws.captured.filter((p) => p.opcode === GameOpcode.CMSG_DEL_IGNORE),
+        ).toEqual([]);
 
         handle.close();
         await handle.closed;

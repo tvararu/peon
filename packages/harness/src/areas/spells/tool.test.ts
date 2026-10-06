@@ -32,8 +32,7 @@ describe("spell tool", () => {
     expect(accepts({})).toBe(false);
   });
 
-  test("a sending call is kind action", async () => {
-    expect(spellTool.kind).toBe("action");
+  test("a sending call passes the send-kind check", async () => {
     await expectSendKind(spellTool, { do: "bar", item: "6948", slot: 12 });
   });
 

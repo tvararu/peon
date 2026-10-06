@@ -200,6 +200,8 @@ describe("transport ride in control", () => {
     r.packedGuidBig();
     r.uint32LE();
     expect(parseMovementInfo(r).transport?.guid).toBe(TRANSPORT);
+    expect(runtime.snapshot().movementAllowed).toBe(false);
+    expect(() => runtime.move("forward", 10)).toThrow();
   });
   test("a same-transport teleport keeps the ride and adopts the offset (Transport.cpp:623-635)", () => {
     const { runtime, sent } = setup();
@@ -401,20 +403,6 @@ describe("transport ride in control", () => {
     expect(pose?.x).toBeCloseTo(1800, 2);
     expect(pose?.y).toBeCloseTo(300, 2);
     expect(pose?.stale).toBeUndefined();
-  });
-
-  test("a same-map world change keeps movement refused", () => {
-    const { runtime } = setup();
-    runtime.transportBoard(board());
-    runtime.newWorld({
-      mapId: 530,
-      orientation: 0,
-      x: 8709.46,
-      y: -6671.76,
-      z: 70.34,
-    });
-    expect(runtime.snapshot().movementAllowed).toBe(false);
-    expect(() => runtime.move("forward", 10)).toThrow();
   });
 
   test("a refused leave keeps the ride so a later leave succeeds", () => {

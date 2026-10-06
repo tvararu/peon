@@ -1,6 +1,5 @@
 import { describe, expect, test } from "bun:test";
 import type { AreaEvent } from "@peon/core";
-import { mailHarness } from "#harness/areas/mail/area";
 import { areaDrafts, areaRuleSet } from "#harness/areas/rules";
 import { testRuleInput } from "#test-support/rule-fixtures";
 
@@ -21,20 +20,6 @@ const SENDER = {
 };
 
 describe("mail harness rules", () => {
-  test("it exposes every mail act to the world", () => {
-    expect(mailHarness.worldActs).toEqual([
-      "listMail",
-      "markMailRead",
-      "queryNextMail",
-      "takeMailMoney",
-      "takeMailItem",
-      "returnMail",
-      "deleteMail",
-      "copyMailText",
-      "sendMail",
-    ]);
-  });
-
   test("a new mail event gives one passive mail/new row", () => {
     const rows = draftsOf({ type: "new_mail" });
     expect(rows).toHaveLength(1);

@@ -135,8 +135,13 @@ describe("channel notice packets", () => {
     }
   });
 
-  test("player_not_found and player_invited carry the player name", () => {
-    for (const type of ["player_not_found", "player_invited"] as const) {
+  test("name notices carry the player name", () => {
+    for (const type of [
+      "player_not_found",
+      "player_invited",
+      "player_not_banned",
+      "invite_banned",
+    ] as const) {
       const reader = new PacketReader(
         channelsNotifyNameBody({ channel: "peonab12cd", name: "Zed", type }),
       );
@@ -227,20 +232,6 @@ describe("channel notice packets", () => {
       you_joined: 0x02,
       you_left: 0x03,
     });
-  });
-
-  test("player_not_banned and invite_banned carry the player name", () => {
-    for (const type of ["player_not_banned", "invite_banned"] as const) {
-      const reader = new PacketReader(
-        channelsNotifyNameBody({ channel: "peonab12cd", name: "Zed", type }),
-      );
-      expect(parseChannelNotice(reader)).toEqual({
-        channel: "peonab12cd",
-        name: "Zed",
-        type,
-      });
-      expect(reader.remaining).toBe(0);
-    }
   });
 
   test("an unknown notice code throws", () => {

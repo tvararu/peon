@@ -1,6 +1,5 @@
 import { describe, expect, test } from "bun:test";
 import type { AreaEvent } from "@peon/core";
-import { buybackHarness } from "#harness/areas/buyback/area";
 import { areaDrafts, areaRuleSet } from "#harness/areas/rules";
 import { testLookup, testRuleInput } from "#test-support/rule-fixtures";
 
@@ -26,10 +25,6 @@ function input() {
 }
 
 describe("buyback harness rules", () => {
-  test("it exposes the buyback act to the world", () => {
-    expect(buybackHarness.worldActs).toEqual(["buyback"]);
-  });
-
   test("a bought back item writes one log row naming the item and price", () => {
     const rules = areaRuleSet();
     const rc = input();
@@ -46,8 +41,9 @@ describe("buyback harness rules", () => {
       class: "log",
       domain: "buyback",
       event: "buyback/bought_back",
-      text: "Bought back Linen Cloth for 35 copper.",
     });
+    expect(rows[0]?.text).toContain("Linen Cloth");
+    expect(rows[0]?.text).toContain("35 copper");
   });
 
   test("a bought back item with no remembered price names only the item", () => {
@@ -56,7 +52,8 @@ describe("buyback harness rules", () => {
       buyback({ entry: 2589, guid: 0x99n, slot: 74, type: "bought_back" }),
       input(),
     );
-    expect(row?.text).toBe("Bought back Linen Cloth.");
+    expect(row?.text).toContain("Linen Cloth");
+    expect(row?.text).not.toContain("copper");
   });
 
   test("a refused buyback writes one wake row with the reason", () => {
@@ -84,15 +81,6 @@ describe("buyback harness rules", () => {
       class: "wake",
       event: "buyback/unanswered",
     });
-  });
-
-  test("a list change writes no row", () => {
-    expect(
-      areaDrafts(
-        areaRuleSet(),
-        buyback({ list: [SOLD], type: "listed" }),
-        input(),
-      ),
-    ).toEqual([]);
+    expect(rows[0]?.text).toContain("went unanswered");
   });
 });

@@ -224,23 +224,11 @@ describe("threat area wiring", () => {
         unit: UNIT,
       });
       expect(areas).toEqual(["threat/target_broken", "threat/target_broken"]);
-    } finally {
-      rig.dispose();
-    }
-  });
-
-  test("the area events reach the world event bus", () => {
-    const { rig } = rigWithEvents();
-    const areas: string[] = [];
-    rig.events.area.subscribe(({ area, event }) =>
-      areas.push(`${area}/${event.type}`),
-    );
-    try {
-      rig.inject(
-        GameOpcode.SMSG_THREAT_CLEAR,
-        threatThreatClearBody({ unit: UNIT }),
-      );
-      expect(areas).toEqual(["threat/cleared"]);
+      expect(rig.handle.state()).toEqual({
+        petReaction: undefined,
+        reactions: [],
+        tables: [],
+      });
     } finally {
       rig.dispose();
     }

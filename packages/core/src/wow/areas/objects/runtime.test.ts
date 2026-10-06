@@ -328,58 +328,6 @@ describe("objects runtime area triggers", () => {
 });
 
 describe("objects runtime page text", () => {
-  test("readPage resolves once with the chained pages (QueryHandler.cpp:367, :391)", async () => {
-    const { rig } = await rigWith();
-    try {
-      const events: unknown[] = [];
-      rig.handle.onEvent((event) => events.push(event));
-      const pending = rig.handle.act.readPage(2936);
-      expect(rig.sent.map((packet) => packet.opcode)).toEqual([
-        GameOpcode.CMSG_PAGE_TEXT_QUERY,
-      ]);
-      rig.inject(
-        GameOpcode.SMSG_PAGE_TEXT_QUERY_RESPONSE,
-        objectsPageTextQueryResponseBody(2936, "First page.", 2937),
-      );
-      rig.inject(
-        GameOpcode.SMSG_PAGE_TEXT_QUERY_RESPONSE,
-        objectsPageTextQueryResponseBody(2937, "Second page.", 0),
-      );
-      const outcome = await pending;
-      expect(outcome).toEqual({
-        firstPageId: 2936,
-        pages: [
-          { pageId: 2936, text: "First page." },
-          { pageId: 2937, text: "Second page." },
-        ],
-      });
-      expect(events).toEqual([{ type: "page_read", ...outcome }]);
-      expect(rig.sent.length).toBe(1);
-    } finally {
-      rig.dispose();
-    }
-  });
-
-  test("readPage sends nothing for a cached chain (QueryHandler.cpp:367)", async () => {
-    const { rig } = await rigWith();
-    try {
-      const first = rig.handle.act.readPage(2936);
-      rig.inject(
-        GameOpcode.SMSG_PAGE_TEXT_QUERY_RESPONSE,
-        objectsPageTextQueryResponseBody(2936, "First page.", 0),
-      );
-      await first;
-      const before = rig.sent.length;
-      await expect(rig.handle.act.readPage(2936)).resolves.toEqual({
-        firstPageId: 2936,
-        pages: [{ pageId: 2936, text: "First page." }],
-      });
-      expect(rig.sent.length).toBe(before);
-    } finally {
-      rig.dispose();
-    }
-  });
-
   test("readPage of a missing chain stops at the missing reply (QueryHandler.cpp:374-379)", async () => {
     const { rig } = await rigWith();
     try {

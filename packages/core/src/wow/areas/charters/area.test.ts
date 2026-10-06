@@ -1,10 +1,8 @@
 import { describe, expect, test } from "bun:test";
 import {
-  ARENA_ENTRIES,
   CHARTERS_CHARTER,
   CHARTERS_GUILD_MASTER,
   CHARTERS_ME,
-  CHARTERS_ORGANIZER,
   CHARTERS_PETITION_ID,
   chartersBuyFailedBody,
   chartersCharter,
@@ -243,28 +241,6 @@ describe("charters acts", () => {
         rig.handle.state().petitions[`0x${CHARTERS_CHARTER.toString(16)}`]
           ?.name,
       ).toBe(renamed);
-    } finally {
-      rig.dispose();
-    }
-  });
-
-  test("an arena showlist stores the three entries", async () => {
-    const { rig } = chartersScene();
-    try {
-      const pending = rig.handle.act.showList(CHARTERS_ORGANIZER);
-      await Promise.resolve();
-      rig.inject(
-        GameOpcode.SMSG_PETITION_SHOWLIST,
-        chartersShowlistBody(CHARTERS_ORGANIZER, [...ARENA_ENTRIES]),
-      );
-      expect(await pending).toEqual({ status: "ok" });
-      expect(
-        rig.handle
-          .state()
-          .offers[`0x${CHARTERS_ORGANIZER.toString(16)}`]?.map(
-            (entry) => entry.required,
-          ),
-      ).toEqual([2, 3, 5]);
     } finally {
       rig.dispose();
     }

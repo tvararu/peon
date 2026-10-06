@@ -83,6 +83,10 @@ describe("trade settling after a request timeout", () => {
       expect(rig.handle.state().phase).toBe("settling");
       jest.advanceTimersByTime(2);
       expect(rig.handle.state().phase).toBe("idle");
+      const next = rig.handle.act.requestTrade(TRADE_PARTNER);
+      await advance(0);
+      status(rig, TRADE_STATUS.OPEN_WINDOW, { tradeId: 0 });
+      expect(await next).toEqual({ status: "ok" });
     } finally {
       rig.dispose();
       jest.useRealTimers();

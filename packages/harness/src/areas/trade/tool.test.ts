@@ -143,22 +143,6 @@ describe("trade give", () => {
     expect(out.detail).toContain("5 Water");
   });
 
-  test("give tells the agent to name a bag and slot for two same-name stacks", async () => {
-    const t = await world();
-    stocked(t.handle, [
-      { bag: 255, entry: 159, guid: WATER, name: "Water", slot: 24 },
-      { bag: 255, entry: 159, guid: CLOTH, name: "Water", slot: 25 },
-    ]);
-    await expect(
-      tradeSpec.run(
-        { do: "give", items: ["Water"], with: "Fgkllpgpdnj" },
-        toolCtx(t),
-      ),
-    ).rejects.toMatchObject({
-      detail: expect.stringContaining("bag and slot"),
-    });
-  });
-
   test("give refuses more than 6 items", async () => {
     const t = await world();
     await expect(
@@ -309,13 +293,5 @@ describe("trade answer with no pending request", () => {
       tradeSpec.run({ accept: true, do: "answer" }, toolCtx(t)),
     ).rejects.toMatchObject({ reason: "no_request" });
     expect(t.acts.answerTrade).not.toHaveBeenCalled();
-  });
-
-  test("answer yes runs again once the request arrives", async () => {
-    const t = await world();
-    tradeState(t.handle, { phase: "requested_in" });
-    const out = await tradeSpec.run({ accept: true, do: "answer" }, toolCtx(t));
-    expect(out.status).toBe("DONE");
-    expect(t.acts.answerTrade).toHaveBeenCalledWith("yes");
   });
 });

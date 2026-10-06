@@ -18,16 +18,6 @@ test("close resolves closed promise", async () => {
   await expect(handle.closed).resolves.toBeUndefined();
 });
 
-test("default who returns empty list", async () => {
-  const handle = createMockHandle();
-  await expect(handle.who({})).resolves.toEqual([]);
-});
-
-test("getLastChatMode defaults to say", () => {
-  const handle = createMockHandle();
-  expect(handle.getLastChatMode()).toEqual({ type: "say" });
-});
-
 test("setLastChatMode updates getLastChatMode", () => {
   const handle = createMockHandle();
   handle.setLastChatMode({ target: "Xiara", type: "whisper" });
@@ -55,16 +45,6 @@ test("triggerGroupEvent forwards to onGroupEvent callback", () => {
   });
   handle.triggerGroupEvent({ type: "group_destroyed" });
   expect(seen).toBe("group_destroyed");
-});
-
-test("default getNearbyEntities returns empty list", () => {
-  const handle = createMockHandle();
-  expect(handle.getNearbyEntities()).toEqual([]);
-});
-
-test("default getFriends returns empty list", () => {
-  const handle = createMockHandle();
-  expect(handle.getFriends()).toEqual([]);
 });
 
 test("triggerFriendEvent forwards to onFriendEvent callback", () => {
@@ -140,33 +120,6 @@ test("triggerGuildEvent forwards to onGuildEvent callback", () => {
   expect(seen).toBe("guild-roster");
 });
 
-test("default getIgnored returns empty list", () => {
-  const handle = createMockHandle();
-  expect(handle.getIgnored()).toEqual([]);
-});
-
-test("default requestGuildRoster returns undefined", async () => {
-  const handle = createMockHandle();
-  await expect(handle.requestGuildRoster()).resolves.toBeUndefined();
-});
-
-test("new surface stubs return neutral values", () => {
-  const handle = createMockHandle();
-  expect(handle.capabilities()).toEqual({
-    factions: false,
-    spells: false,
-  });
-  expect(handle.getPlaceState()).toEqual({
-    area: undefined,
-    areaId: undefined,
-    at: undefined,
-    mapId: undefined,
-    zone: undefined,
-    zoneId: undefined,
-  });
-  expect(handle.getCreatureInfo(1)).toBeUndefined();
-});
-
 test("notice and trainer triggers reach their hooks", () => {
   const handle = createMockHandle();
   const seen: string[] = [];
@@ -240,10 +193,6 @@ test("triggerAreaEvent reaches onAreaEvent until it unsubscribes", () => {
   expect(seen).toEqual([
     { area: "alpha", event: { type: "ticked" } } as unknown as AreaEvent,
   ]);
-});
-
-test("sent starts empty", () => {
-  expect(createMockHandle().sent).toEqual([]);
 });
 
 test("handle.time exposes state, onEvent and query", async () => {

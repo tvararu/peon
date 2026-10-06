@@ -17,39 +17,39 @@ function rules() {
 
 describe("vehicles/player_vehicle", () => {
   test("becoming a vehicle and ceasing to be one each write a log row", () => {
-    expect(
-      rules()({ guid: GUID, type: "player_vehicle", vehicleId: 315 }),
-    ).toEqual([
-      {
-        class: "log",
-        data: { guid: "0xf130003eea000abc", vehicleId: 315 },
-        name: "player_vehicle",
-        text: "The unit became vehicle 315.",
-      },
-    ]);
-    expect(
-      rules()({ guid: GUID, type: "player_vehicle", vehicleId: 0 }),
-    ).toEqual([
-      {
-        class: "log",
-        data: { guid: "0xf130003eea000abc", vehicleId: 0 },
-        name: "player_vehicle",
-        text: "The unit is no longer a vehicle.",
-      },
-    ]);
+    const [became, ...restBecame] = rules()({
+      guid: GUID,
+      type: "player_vehicle",
+      vehicleId: 315,
+    });
+    expect(restBecame).toEqual([]);
+    expect(became).toMatchObject({
+      class: "log",
+      data: { guid: "0xf130003eea000abc", vehicleId: 315 },
+      name: "player_vehicle",
+    });
+    expect(became?.text).toContain("became vehicle 315");
+    const [cleared, ...restCleared] = rules()({
+      guid: GUID,
+      type: "player_vehicle",
+      vehicleId: 0,
+    });
+    expect(restCleared).toEqual([]);
+    expect(cleared).toMatchObject({
+      class: "log",
+      data: { guid: "0xf130003eea000abc", vehicleId: 0 },
+      name: "player_vehicle",
+    });
+    expect(cleared?.text).toContain("no longer a vehicle");
   });
 });
 
 describe("vehicles/ride_aura_cancel", () => {
   test("the cancel writes one log row", () => {
-    expect(rules()({ type: "ride_aura_cancel" })).toEqual([
-      {
-        class: "log",
-        data: {},
-        name: "ride_aura_cancel",
-        text: "The server cancelled the expected ride aura.",
-      },
-    ]);
+    const [row, ...rest] = rules()({ type: "ride_aura_cancel" });
+    expect(rest).toEqual([]);
+    expect(row).toMatchObject({ class: "log", name: "ride_aura_cancel" });
+    expect(row?.text).toContain("ride aura");
   });
 });
 
@@ -104,6 +104,11 @@ describe("vehicles/entered", () => {
   test("an unknown vehicle entry still writes the wake row", () => {
     const [row] = rules()({ ...entered, entry: undefined } as VehiclesEvent);
     expect(row?.class).toBe("wake");
+    expect(row?.data).toEqual({
+      entry: undefined,
+      seat: 0,
+      vehicle: "0xf130003eea000abc",
+    });
     expect(row?.text).toContain("seat 0");
   });
 });
@@ -181,6 +186,6 @@ describe("vehicles/control", () => {
       data: { allow: false, mover: "0xf130003eea000abc" },
       name: "control",
     });
-    expect(lost?.text).not.toBe(gained?.text);
+    expect(lost?.text).toContain("control");
   });
 });

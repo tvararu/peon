@@ -1,6 +1,5 @@
 import { describe, expect, test } from "bun:test";
 import type { AreaEvent } from "@peon/core";
-import { bankHarness } from "#harness/areas/bank/area";
 import { areaDrafts, areaRuleSet } from "#harness/areas/rules";
 import { testLookup, testRuleInput } from "#test-support/rule-fixtures";
 
@@ -20,16 +19,7 @@ function input() {
 }
 
 describe("bank harness rules", () => {
-  test("it exposes the bank acts to the world", () => {
-    expect(bankHarness.worldActs).toEqual([
-      "openBank",
-      "deposit",
-      "withdraw",
-      "buyBankSlot",
-    ]);
-  });
-
-  test("an opened bank writes one log row naming the banker", () => {
+  test("an opened bank writes one log row saying the bank opened", () => {
     const rows = areaDrafts(
       areaRuleSet(),
       bank({ banker: BANKER, type: "opened" }),
@@ -41,7 +31,8 @@ describe("bank harness rules", () => {
       domain: "bank",
       event: "bank/opened",
     });
-    expect(rows[0]?.text).toContain("bank");
+    expect(rows[0]?.text).toContain("Opened the bank");
+    expect(rows[0]?.data?.["banker"]).toBe("f130000000000055");
   });
 
   test("a deposit writes one log row naming the item", () => {
@@ -143,6 +134,7 @@ describe("bank harness rules", () => {
       class: "wake",
       event: "bank/no_change",
     });
+    expect(rows[0]?.text).toContain("changed nothing");
   });
 
   test("an unanswered move writes one wake row", () => {
@@ -156,5 +148,6 @@ describe("bank harness rules", () => {
       class: "wake",
       event: "bank/unanswered",
     });
+    expect(rows[0]?.text).toContain("went unanswered");
   });
 });

@@ -1,15 +1,28 @@
 import { describe, expect, test } from "bun:test";
-import type { AreaEvent } from "@peon/core";
+import type { AreaEvent, AreaEventOf } from "@peon/core";
 import { areaDrafts, areaRuleSet } from "#harness/areas/rules";
 import { testLookup, testRuleInput } from "#test-support/rule-fixtures";
 
 const UNIT = 0xf1_30_00_3e_ea_00_0a_bcn;
 const OTHER = 0xf1_30_00_3e_ea_00_0a_bdn;
 
+type SpeedKind = Extract<AreaEventOf<"unitmotion">, { type: "speed" }>["kind"];
+
+const OTHER_SPEED_KINDS: readonly SpeedKind[] = [
+  "walk",
+  "run_back",
+  "swim",
+  "swim_back",
+  "flight",
+  "flight_back",
+  "turn",
+  "pitch",
+];
+
 function speed(
   value: number,
   previous: number | undefined,
-  over: { guid?: bigint; kind?: "run" | "swim"; self?: boolean } = {},
+  over: { guid?: bigint; kind?: SpeedKind; self?: boolean } = {},
 ): AreaEvent {
   return {
     area: "unitmotion",
@@ -68,6 +81,7 @@ describe("unitmotion harness rules", () => {
     expect(slowed[0]?.text).toContain("slowed to 50%");
     const sped = areaDrafts(rules, speed(7, 3.5), { ...rc, now: rc.now + 500 });
     expect(sped.map((row) => row.event)).toEqual(["unitmotion/sped"]);
+    expect(sped[0]?.text).toContain("sped up to 200%");
   });
 
   test("root on and off write rooted and freed rows", () => {
@@ -76,11 +90,13 @@ describe("unitmotion harness rules", () => {
     const rooted = areaDrafts(rules, flag("root", true), rc);
     expect(rooted.map((row) => row.event)).toEqual(["unitmotion/rooted"]);
     expect(rooted[0]?.text).toContain("Springpaw Stalker");
+    expect(rooted[0]?.text).toContain("rooted");
     const freed = areaDrafts(rules, flag("root", false), {
       ...rc,
       now: rc.now + 3000,
     });
     expect(freed.map((row) => row.event)).toEqual(["unitmotion/freed"]);
+    expect(freed[0]?.text).toContain("freed from root");
   });
 
   test("a unit that last attacked us counts as in the fight", () => {
@@ -114,12 +130,11 @@ describe("unitmotion harness rules", () => {
     );
   });
 
-  test("the other six speed kinds of a snare write no row", () => {
+  test("every speed kind other than run writes no row", () => {
     const rules = areaRuleSet();
     const rc = fighting();
-    expect(areaDrafts(rules, speed(2.4, 4.7, { kind: "swim" }), rc)).toEqual(
-      [],
-    );
+    for (const kind of OTHER_SPEED_KINDS)
+      expect(areaDrafts(rules, speed(2.4, 4.7, { kind }), rc)).toEqual([]);
   });
 
   test("a unit outside the fight, a self event, hover, gravity and removed write none", () => {

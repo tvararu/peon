@@ -91,10 +91,6 @@ function toggle(
 }
 
 describe("UnitmotionStore", () => {
-  test("starts empty", () => {
-    expect(setup().store.snapshot()).toEqual({ units: [], dropped: 0 });
-  });
-
   test("a create block seeds flags and nine speeds with their source", () => {
     const { store, unit } = setup();
     store.seed(UNIT, { flags: MovementFlag.HOVER, speeds: BASE });

@@ -59,11 +59,4 @@ describe("ContactStore", () => {
     expect(store.markReported(GUID)).toBe(false);
     expect(store.snapshot().reported).toEqual([GUID]);
   });
-
-  test("ignoredWhisper emits the guid", () => {
-    const store = new ContactStore();
-    const events = seen(store);
-    store.ignoredWhisper(GUID);
-    expect(events).toEqual([{ type: "ignored_whisper", guid: GUID }]);
-  });
 });

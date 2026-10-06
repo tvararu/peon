@@ -52,12 +52,6 @@ describe("MovementInfo round-trip", () => {
     expect(out.pitch).toBeUndefined();
   });
 
-  test("walking forward is 30 bytes", () => {
-    const w = new PacketWriter();
-    writeMovementInfo(w, { ...base, flags: MovementFlag.FORWARD });
-    expect(w.finish().byteLength).toBe(30);
-  });
-
   test("falling carries the fall block", () => {
     const out = reserialize({
       ...base,

@@ -6,7 +6,10 @@ import {
 } from "#test-support/areas/items";
 import { itemsRig, itemsWorld } from "#test-support/areas/items-world";
 import type { ItemsEvent } from "#wow/areas/items/events";
-import { buildEquipmentSetUse } from "#wow/areas/items/protocol-sets";
+import {
+  buildEquipmentSetSave,
+  buildEquipmentSetUse,
+} from "#wow/areas/items/protocol-sets";
 import type { SentPacket } from "#wow/areas/port";
 import { GameOpcode } from "#wow/protocol/opcodes";
 
@@ -17,7 +20,6 @@ const STRANGER = 0x40_00_00_00_00_00_00_09n;
 const CANT_DO_RIGHT_NOW = 39;
 const NO_CHANGE = 59;
 const NOT_WHILE_DISARMED = 61;
-const DISARMED = 0x40_00_00_00_00_00_00_07n;
 
 function setup() {
   const world = itemsWorld(ME);
@@ -26,7 +28,7 @@ function setup() {
   const rig = itemsRig(world);
   const events: ItemsEvent[] = [];
   rig.stores.areas.items.onEvent((event) => events.push(event));
-  return { events, rig };
+  return { events, rig, world };
 }
 
 const sends = (sent: readonly SentPacket[], opcode: number) =>
@@ -45,7 +47,15 @@ describe("items runtime: equipment sets", () => {
       const sent = sends(rig.sent, GameOpcode.CMSG_EQUIPMENT_SET_SAVE);
       expect(sent).toHaveLength(1);
       const body = sent[0]?.body ?? new Uint8Array();
-      expect(body.length).toBeGreaterThan(10);
+      expect(body).toEqual(
+        buildEquipmentSetSave({
+          icon: "INV",
+          index: 0,
+          items: [HELM, CHEST, ...new Array<bigint>(17).fill(0n)],
+          name: "Peon",
+          setGuid: 0n,
+        }),
+      );
       rig.inject(
         GameOpcode.SMSG_EQUIPMENT_SET_SAVED,
         itemsEquipmentSetSavedBody(0, 9n),
@@ -218,26 +228,42 @@ describe("items runtime: equipment sets", () => {
     }
   });
 
-  test("an unknown index, a second pending save and a dead character are refused before sending", async () => {
-    const { rig } = setup();
+  test("an unknown index, a second pending save and bad fields are refused before sending, a dead character too", async () => {
+    const { rig, world } = setup();
     try {
       const stuck = rig.handle.act.saveSet({ index: 0, name: "Peon" });
-      const refusals = [
+      await expect(
         rig.handle.act.saveSet({ index: 0, name: "Other" }),
-        rig.handle.act.useSet(3),
-        rig.handle.act.deleteSet(3),
-        rig.handle.act.saveSet({ index: 0, name: "x".repeat(17) }),
-        rig.handle.act.saveSet({ index: 10, name: "Peon" }),
-      ];
-      const settled = await Promise.allSettled(refusals);
-      expect(settled.map((s) => s.status)).toEqual(
-        new Array(5).fill("rejected"),
+      ).rejects.toThrow("a set save is already pending");
+      expect(sends(rig.sent, GameOpcode.CMSG_EQUIPMENT_SET_SAVE)).toHaveLength(
+        1,
       );
       rig.inject(
         GameOpcode.SMSG_EQUIPMENT_SET_SAVED,
         itemsEquipmentSetSavedBody(0, 9n),
       );
       await stuck;
+      const refusals: [() => Promise<unknown>, string][] = [
+        [() => rig.handle.act.useSet(3), "no set is stored at index 3"],
+        [() => rig.handle.act.deleteSet(3), "no set is stored at index 3"],
+        [
+          () => rig.handle.act.saveSet({ index: 0, name: "x".repeat(17) }),
+          "set name is over 16 bytes",
+        ],
+        [
+          () => rig.handle.act.saveSet({ index: 10, name: "Peon" }),
+          "set index 10 is not between 0 and 9",
+        ],
+      ];
+      for (const [refuse, reason] of refusals)
+        await expect((async () => refuse())()).rejects.toThrow(reason);
+      world.setHealth(0);
+      await expect(
+        rig.handle.act.saveSet({ index: 1, name: "Peon" }),
+      ).rejects.toThrow("dead");
+      expect(sends(rig.sent, GameOpcode.CMSG_EQUIPMENT_SET_SAVE)).toHaveLength(
+        1,
+      );
     } finally {
       rig.dispose();
     }
@@ -294,41 +320,6 @@ describe("items runtime: equipment sets", () => {
         itemsEquipmentSetSavedBody(0, 9n),
       );
       expect(await pending).toMatchObject({ status: "saved" });
-    } finally {
-      rig.dispose();
-    }
-  });
-
-  test("a failure naming the weapon a set replaces is owned by the use", async () => {
-    const world = itemsWorld(ME);
-    world.put(255, 15, { entry: 100, guid: HELM });
-    const rig = itemsRig(world);
-    try {
-      const created = rig.handle.act.saveSet({ index: 0, name: "Peon" });
-      rig.inject(
-        GameOpcode.SMSG_EQUIPMENT_SET_SAVED,
-        itemsEquipmentSetSavedBody(0, 9n),
-      );
-      await created;
-      world.clear(255, 15);
-      world.put(255, 15, { entry: 101, guid: DISARMED });
-      world.put(255, 23, { entry: 100, guid: HELM });
-      const pending = rig.handle.act.useSet(0);
-      rig.inject(
-        GameOpcode.SMSG_INVENTORY_CHANGE_FAILURE,
-        itemsInventoryChangeFailureBody({
-          item1: DISARMED,
-          result: NOT_WHILE_DISARMED,
-        }),
-      );
-      rig.inject(
-        GameOpcode.SMSG_EQUIPMENT_SET_USE_RESULT,
-        itemsEquipmentSetUseResultBody(0),
-      );
-      expect(await pending).toMatchObject({
-        failures: ["not_while_disarmed"],
-        status: "ok",
-      });
     } finally {
       rig.dispose();
     }

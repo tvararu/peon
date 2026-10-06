@@ -19,9 +19,10 @@ test("unknown learned mechanics are explicit and never offered as executable", (
   expect(frame.observation["unavailable"]).toEqual([
     { id: "spell:17:self", reason: "unknown_metadata" },
   ]);
-  expect(() => actions.execute("spell:17:self", context)).toThrow();
+  expect(() => actions.execute("spell:17:self", context)).toThrow(
+    "action_no_longer_legal",
+  );
   expect(frame.outcome).toBeUndefined();
-  expect(JSON.stringify(frame.observation)).toContain("unknown_metadata");
 });
 
 test("mana percentages use base mana and execution rechecks resources", () => {
@@ -189,7 +190,10 @@ test("a dead target ends the frame even while a channel runs", () => {
   expect(f.actions.observe(context).outcome).toBeUndefined();
   time += 20_000;
   const frame = f.actions.observe(context);
-  expect(frame.outcome).toBeDefined();
+  expect(frame.outcome).toMatchObject({
+    reason: "target_dead_without_server_credit",
+    status: "blocked",
+  });
   expect(() => f.actions.execute("wait", context)).toThrow(
     "action_no_longer_legal",
   );

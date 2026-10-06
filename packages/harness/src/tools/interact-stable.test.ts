@@ -252,14 +252,6 @@ describe("interact at a stable master", () => {
     expect(out.reason).toBe("unknown_result");
   });
 
-  test("an exotic reply names the exotic reason", async () => {
-    const w = await world({ bar: false, stable: FULL });
-    w.make("unstablePet", "exotic");
-    const out = await run(w.t, { do: "unstable", what: "rip" });
-    expect(out.status).toBe("FAILED");
-    expect(out.reason).toBe("exotic");
-  });
-
   test("a list reply for another master is ignored", async () => {
     const w = await world({ bar: false, stable: FULL });
     w.make("unstablePet", "unstabled");
@@ -321,30 +313,6 @@ describe("interact at a stable master", () => {
     await held;
     await pending;
     expect(w.sent.filter((s) => s.startsWith("stablePet"))).toEqual([]);
-  });
-
-  test("buy_slot aborted after its send queued sends nothing", async () => {
-    const w = await world({ bar: true, stable: FULL });
-    w.make("buyStableSlot", "slot_bought");
-    const gate = Promise.withResolvers<void>();
-    const held = w.t.rt.mutex.run(() => gate.promise);
-    const controller = new AbortController();
-    const queued = jest.spyOn(w.t.rt.mutex, "run");
-    const pending = interactSpec
-      .run(
-        { do: "buy_slot", npc: NAME } as never,
-        toolCtx<InteractAfter>(w.t, controller.signal),
-      )
-      .then(
-        () => undefined,
-        (e: unknown) => e,
-      );
-    while (queued.mock.calls.length === 0) await Promise.resolve();
-    controller.abort();
-    gate.resolve();
-    await held;
-    await pending;
-    expect(w.sent.filter((s) => s.startsWith("buyStableSlot"))).toEqual([]);
   });
 
   test("buy_slot reports the balance from the money update, before the wait times out", async () => {

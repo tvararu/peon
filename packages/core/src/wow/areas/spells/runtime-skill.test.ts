@@ -5,6 +5,7 @@ import type { SpellsEvent } from "#wow/areas/spells/store";
 import type { UnitEntity } from "#wow/entity-store";
 import { ObjectType } from "#wow/protocol/entity-fields";
 import { GameOpcode } from "#wow/protocol/opcodes";
+import { PacketReader } from "#wow/protocol/packet";
 
 const ME = 0x2an;
 const MINING = 186;
@@ -77,6 +78,9 @@ describe("act.unlearnSkill", () => {
       expect(rig.sent.map((p) => p.opcode)).toEqual([
         GameOpcode.CMSG_UNLEARN_SKILL,
       ]);
+      const body = rig.sent[0]?.body;
+      expect(body?.length).toBe(4);
+      expect(body && new PacketReader(body).uint32LE()).toBe(MINING);
     } finally {
       rig.dispose();
     }

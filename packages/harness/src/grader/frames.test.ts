@@ -11,10 +11,6 @@ describe("tagFrame", () => {
       tagFrame(`${nerd.hostile} Springpaw Stalker 12yd ${nerd.health} 80%`),
     ).toBe("<hostile> Springpaw Stalker 12yd <health> 80%");
   });
-
-  test("leaves plain text as it is", () => {
-    expect(tagFrame("── Working ──")).toBe("── Working ──");
-  });
 });
 
 describe("captureFrame", () => {

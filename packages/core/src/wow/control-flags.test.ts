@@ -247,8 +247,10 @@ describe("ControlRuntime.transferAborted (AC Handlers/MovementHandler.cpp:91-97)
     jest.useFakeTimers();
     try {
       const { runtime, sent, advance } = setup();
+      const idle = jest.getTimerCount();
       runtime.handleTransferPending();
       runtime.transferAborted({ arg: undefined, mapId: 36, reason: 4 });
+      expect(jest.getTimerCount()).toBe(idle + 1);
       runtime.newWorld({
         mapId: 36,
         orientation: 0,
@@ -256,6 +258,7 @@ describe("ControlRuntime.transferAborted (AC Handlers/MovementHandler.cpp:91-97)
         y: 0,
         z: 0,
       });
+      expect(jest.getTimerCount()).toBe(idle);
       advance(10_000);
       expect(
         sent.some((p) => p.opcode === GameOpcode.MSG_MOVE_WORLDPORT_ACK),
@@ -269,7 +272,9 @@ describe("ControlRuntime.transferAborted (AC Handlers/MovementHandler.cpp:91-97)
     jest.useFakeTimers();
     try {
       const { runtime, advance } = setup();
+      const idle = jest.getTimerCount();
       runtime.transferAborted({ arg: undefined, mapId: 36, reason: 4 });
+      expect(jest.getTimerCount()).toBe(idle);
       advance(10_000);
       expect(runtime.snapshot().blockedReason).toBeUndefined();
     } finally {
@@ -315,9 +320,14 @@ describe("ControlRuntime collision height, time skip and fall reset (self-state-
     const { runtime, sent } = setup();
     sent.length = 0;
     runtime.forceSpeed(spec, { guid: 0x0764n, counter: 9, speed: 3.14 });
-    expect(must(sent[0]).opcode).toBe(
-      GameOpcode.CMSG_FORCE_PITCH_RATE_CHANGE_ACK,
-    );
+    const { opcode, body } = must(sent[0]);
+    expect(opcode).toBe(GameOpcode.CMSG_FORCE_PITCH_RATE_CHANGE_ACK);
+    const r = new PacketReader(body);
+    expect(r.packedGuidBig()).toBe(0x0764n);
+    expect(r.uint32LE()).toBe(9);
+    parseMovementInfo(r);
+    expect(r.floatLE()).toBeCloseTo(3.14, 4);
+    expect(r.remaining).toBe(0);
   });
 
   test("timeSkipped sends the packed guid and the skipped u32 ms (AC Handlers/MovementHandler.cpp:894-901)", () => {

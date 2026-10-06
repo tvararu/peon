@@ -86,9 +86,8 @@ describe("pets names runtime", () => {
   });
 
   test("a cached name at the same timestamp asks nothing", () => {
-    const { r } = rig(0x01_00_00, 7);
+    const { fields, r } = rig(0x01_00_00, 7);
     try {
-      const before = r.sent.length;
       r.inject(
         GameOpcode.SMSG_PET_NAME_QUERY_RESPONSE,
         petsNameQueryResponseBody({
@@ -97,6 +96,12 @@ describe("pets names runtime", () => {
           timestamp: 7,
         }),
       );
+      const before = r.sent.length;
+      r.events.entity.emit({
+        changed: ["rawFields"],
+        entity: { guid: PET, rawFields: fields } as unknown as Entity,
+        type: "update",
+      });
       expect(r.sent).toHaveLength(before);
     } finally {
       r.dispose();

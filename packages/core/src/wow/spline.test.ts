@@ -133,8 +133,8 @@ describe("sampleSplinePosition", () => {
           interpolation: "linear",
         },
         10,
-      ).supported,
-    ).toBe(false);
+      ),
+    ).toEqual({ supported: false, reason: "parabolic" });
   });
 });
 

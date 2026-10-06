@@ -117,14 +117,6 @@ function flow(name: string) {
   return found;
 }
 
-describe("loadFlows", () => {
-  test("finds one flow per file in probe-flows", () => {
-    expect([...flows.keys()]).toEqual(
-      expect.arrayContaining(["login", "nearest", "talk"]),
-    );
-  });
-});
-
 describe("login flow", () => {
   test("reports where the character stands", async () => {
     const ctx = context();

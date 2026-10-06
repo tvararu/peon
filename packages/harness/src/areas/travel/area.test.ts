@@ -44,8 +44,8 @@ describe("travel harness rules", () => {
       domain: "travel",
       event: "travel/home_set",
       progress: true,
-      text: "Home is now Falconwing Square.",
     });
+    expect(row?.text).toContain("Falconwing Square");
   });
 
   test("a login bind point writes no row", () => {
@@ -75,7 +75,6 @@ describe("travel harness rules", () => {
       domain: "travel",
       event: "travel/node_learned",
     });
-    expect(row?.text).toContain("New flight path");
     expect(row?.text).toContain("Dragonhawk Master");
   });
 
@@ -86,6 +85,7 @@ describe("travel harness rules", () => {
       testRuleInput(),
     );
     expect(row).toMatchObject({ event: "travel/node_learned" });
+    expect(row?.text).toContain("a new stop");
   });
 
   test("a started flight writes a flight_started row with the route, fare and duration", () => {
@@ -104,8 +104,9 @@ describe("travel harness rules", () => {
       event: "travel/flight_started",
       progress: true,
     });
-    expect(row?.text).toContain("105 copper fare");
-    expect(row?.text).toContain("95 s flight");
+    expect(row?.text).toContain("105");
+    expect(row?.text).toContain("95 s");
+    expect(row?.text).toContain("2 stops");
   });
 
   test("a learned flight path carries the node id in the row data", () => {
@@ -174,7 +175,8 @@ describe("travel harness rules", () => {
       }),
       testRuleInput(),
     );
-    expect(row?.text).toContain("83");
+    expect(row).toMatchObject({ event: "travel/node_learned" });
+    expect(row?.text).toContain("node 83");
   });
 
   test("an ok taxi reply writes no refusal row", () => {

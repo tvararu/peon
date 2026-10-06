@@ -216,10 +216,17 @@ describe("Play", () => {
   });
 
   test("F9 is left to the stop shortcut and drops the held keys", async () => {
-    const { play } = await setup();
+    const { handle, play } = await setup();
     play.input(F1);
     play.input("w");
+    await flush();
+    expect(handle.drive).toHaveBeenLastCalledWith(
+      { move: "forward" },
+      expect.any(Number),
+    );
     expect(play.input("\x1b[20~")).toBeUndefined();
+    await flush();
+    expect(handle.drive).toHaveBeenLastCalledWith({}, 1);
     expect(play.input("\x03")).toBeUndefined();
     expect(play.holding()).toBe(true);
   });

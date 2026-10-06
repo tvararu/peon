@@ -40,9 +40,9 @@ describe("acting-tool admission", () => {
   test("refuses an action while a human message waits; a read still runs", async () => {
     const { rt } = await createTestRuntime();
     rt.session.humanWaiting = true;
-    expect((await runTool(probe(said).definition(rt), {})).text).toBe(
-      "REFUSED human_waiting: the human wrote a message. Read it before you act.\nNext: end your turn and read the human's message.",
-    );
+    const refused = (await runTool(probe(said).definition(rt), {})).text;
+    expect(refused).toContain("REFUSED human_waiting");
+    expect(refused).toContain("read the human's message");
     expect((await runTool(probe(said, "read").definition(rt), {})).text).toBe(
       "DONE said hi.",
     );

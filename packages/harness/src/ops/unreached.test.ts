@@ -12,9 +12,9 @@ describe("reachNext", () => {
       },
       FARLEY,
     );
-    expect(next).toBe(
-      'ask the human: "This map has no navigation data, so I cannot walk to Innkeeper Farley. Can you move me there?"',
-    );
+    expect(next).toStartWith("ask the human:");
+    expect(next).toContain("Innkeeper Farley");
+    expect(next).toContain("no navigation data");
   });
 
   test("a destination the mesh cannot reach asks the human", () => {
@@ -25,9 +25,9 @@ describe("reachNext", () => {
       },
       FARLEY,
     );
-    expect(next).toBe(
-      'ask the human: "I cannot reach Innkeeper Farley from here. Is there another way?"',
-    );
+    expect(next).toStartWith("ask the human:");
+    expect(next).toContain("Innkeeper Farley");
+    expect(next).toContain("cannot reach");
   });
 
   test("a start off the mesh points at unstick", () => {

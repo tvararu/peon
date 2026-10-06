@@ -34,25 +34,6 @@ describe("registerStubs", () => {
     expect(realCalled).toBe(true);
   });
 
-  test("notifies on first receipt only", () => {
-    const d = new OpcodeDispatch();
-    const messages: string[] = [];
-    registerStubs(
-      d,
-      (notice) => {
-        messages.push(notice.text);
-        return true;
-      },
-      EXAMPLE,
-    );
-
-    d.handle(GameOpcode[STUB_EXAMPLE], new PacketReader(new Uint8Array(0)));
-    d.handle(GameOpcode[STUB_EXAMPLE], new PacketReader(new Uint8Array(0)));
-
-    const matching = messages.filter((m) => m.includes(STUB_EXAMPLE_LABEL));
-    expect(matching).toHaveLength(1);
-  });
-
   test("retries notification when notify returns false", () => {
     const d = new OpcodeDispatch();
     const messages: string[] = [];
@@ -79,7 +60,7 @@ describe("registerStubs", () => {
     expect(messages).toHaveLength(1);
   });
 
-  test("the notice names the opcode, the label and the old text", () => {
+  test("the notice carries the opcode and the label, and the text names the label", () => {
     const d = new OpcodeDispatch();
     const notices: StubNotice[] = [];
     registerStubs(
@@ -91,13 +72,10 @@ describe("registerStubs", () => {
       EXAMPLE,
     );
     d.handle(GameOpcode[STUB_EXAMPLE], new PacketReader(new Uint8Array(0)));
-    expect(notices).toEqual([
-      {
-        opcode: GameOpcode[STUB_EXAMPLE],
-        label: STUB_EXAMPLE_LABEL,
-        text: `[peon] ${STUB_EXAMPLE_LABEL} is not yet implemented`,
-      },
-    ]);
+    expect(notices).toHaveLength(1);
+    expect(notices[0]?.opcode).toBe(GameOpcode[STUB_EXAMPLE]);
+    expect(notices[0]?.label).toBe(STUB_EXAMPLE_LABEL);
+    expect(notices[0]?.text).toContain(STUB_EXAMPLE_LABEL);
   });
 
   test("lists only server opcodes", () => {

@@ -65,9 +65,11 @@ describe("deathDrafts", () => {
   test("an untapped death says only that no credit is coming", () => {
     const rc = input("none");
     watchUnit(0x11n, rc);
-    expect(deathDrafts(hp(0x11n, 0), rc)[0]?.text).toBe(
-      "Springpaw Stalker u17 died (no credit to you).",
-    );
+    const draft = deathDrafts(hp(0x11n, 0), rc)[0];
+    expect(draft?.text).toContain("no credit to you");
+    expect(draft?.text).not.toContain("killed by another player");
+    expect(draft?.data).toMatchObject({ by: "none" });
+    expect(draft?.event).toBe("combat/target_died");
   });
 
   test("our own tap, an unwatched unit or no health change gives no row", () => {

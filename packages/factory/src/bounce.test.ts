@@ -104,10 +104,12 @@ describe("bounce", () => {
     }
   });
 
-  test("a third moved head goes to Blocked and says what to do", () => {
+  test("a third moved head goes to Blocked and names the count, head and PR", () => {
     const action = bounce(moved, [mark(a, 60), mark(b, 30)]);
     expect(action?.status).toBe("blocked");
-    expect(action?.comment).toContain("move the card to In review");
+    expect(action?.comment).toContain("Bounce 3 of at most 2");
+    expect(action?.comment).toContain(c.slice(0, 7));
+    expect(action?.comment).toContain("#7");
     expect(action?.comment).not.toContain("@");
   });
 

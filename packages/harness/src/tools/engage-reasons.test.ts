@@ -114,15 +114,15 @@ describe("stopText", () => {
   });
 
   test("an empty queue with nothing skipped says none are left in view", () => {
-    expect(
-      stopText({
-        kills: 2,
-        name: "Springpaw Stalker",
-        targets: [],
-        wanted: 3,
-        why: "queue_exhausted",
-      }),
-    ).toBe("no more Springpaw Stalker in view; 1 kill still needed");
+    const text = stopText({
+      kills: 2,
+      name: "Springpaw Stalker",
+      targets: [],
+      wanted: 3,
+      why: "queue_exhausted",
+    });
+    expect(text).toContain("no more Springpaw Stalker in view");
+    expect(text).toContain("1 kill still needed");
   });
 });
 

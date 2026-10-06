@@ -46,18 +46,6 @@ describe("quests npc text queries", () => {
     }
   });
 
-  test("a second dialog with the same id in flight sends nothing", () => {
-    const { dialog, rig, texts } = dialogRig();
-    try {
-      dialog();
-      dialog();
-      expect(texts()).toHaveLength(1);
-    } finally {
-      rig.dispose();
-      jest.useRealTimers();
-    }
-  });
-
   test("no reply in 5 s gives no_reply", () => {
     const { dialog, rig, texts, tick } = dialogRig();
     try {

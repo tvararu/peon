@@ -134,21 +134,10 @@ describe("coverageRows", () => {
     expect(row(rows, "SMSG_PLAY_TIME_WARNING").status).toBe("missing");
   });
 
-  test("marks an owned opcode missing when nothing claims it", () => {
-    const rows = fixtureRows();
-    expect(row(rows, "SMSG_PLAY_TIME_WARNING").status).toBe("missing");
-  });
-
   test("marks unseen opcodes not seen live", () => {
     const rows = fixtureRows();
     expect(row(rows, "SMSG_LEARNED_DANCE_MOVES").live).toBe("not seen live");
     expect(row(rows, "SMSG_DESTRUCTIBLE_BUILDING_DAMAGE").live).toBe("");
-  });
-
-  test("files each row under its owner", () => {
-    const rows = fixtureRows();
-    expect(row(rows, "SMSG_PLAY_TIME_WARNING").area).toBe("alpha");
-    expect(row(rows, "SMSG_UPDATE_OBJECT").area).toBe("core");
   });
 
   test("reads the direction through the TC9 prefix", () => {

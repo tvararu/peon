@@ -8,7 +8,6 @@ import {
   base,
   buildCreateUnitPacket,
   fakeAuth,
-  waitForEchoProbe,
   waitForEntityEvents,
   writeHasPositionMovementBlock,
   writeLivingMovementBlock,
@@ -132,7 +131,7 @@ describe("world handler tests", () => {
       }
     });
 
-    test("gameobject values update", async () => {
+    test("gameobject values update reports flags, then out-of-range removes it", async () => {
       const ws = await startMockWorldServer();
       try {
         const handle = await worldSession(
@@ -158,8 +157,11 @@ describe("world handler tests", () => {
         writePackedGuid(valW, 500n);
         writeUpdateMask(valW, new Map([[GAMEOBJECT_FIELDS.FLAGS.offset, 42]]));
         ws.inject(GameOpcode.SMSG_UPDATE_OBJECT, valW.finish());
-        const [evt] = await update;
-        expect(must(evt).type).toBe("update");
+        const updateEvt = must((await update)[0]);
+        expect(updateEvt.type).toBe("update");
+        if (updateEvt.type === "update") {
+          expect(updateEvt.changed).toContain("flags");
+        }
 
         const nearW = new PacketWriter();
         nearW.uint32LE(1);
@@ -167,7 +169,29 @@ describe("world handler tests", () => {
         nearW.uint32LE(1);
         writePackedGuid(nearW, 500n);
         ws.inject(GameOpcode.SMSG_UPDATE_OBJECT, nearW.finish());
-        await waitForEchoProbe(handle);
+        const later = waitForEntityEvents(handle, 1);
+        const laterW = new PacketWriter();
+        laterW.uint32LE(1);
+        laterW.uint8(0);
+        writePackedGuid(laterW, 500n);
+        writeUpdateMask(
+          laterW,
+          new Map([[GAMEOBJECT_FIELDS.FLAGS.offset, 43]]),
+        );
+        ws.inject(GameOpcode.SMSG_UPDATE_OBJECT, laterW.finish());
+        expect(must((await later)[0]).type).toBe("update");
+        expect(handle.getNearbyEntities()).toHaveLength(1);
+
+        const gone = waitForEntityEvents(handle, 1);
+        const outW = new PacketWriter();
+        outW.uint32LE(1);
+        outW.uint8(4);
+        outW.uint32LE(1);
+        writePackedGuid(outW, 500n);
+        ws.inject(GameOpcode.SMSG_UPDATE_OBJECT, outW.finish());
+        const [goneEvt] = await gone;
+        expect(must(goneEvt).type).toBe("disappear");
+        expect(handle.getNearbyEntities()).toEqual([]);
 
         handle.close();
         await handle.closed;

@@ -3,7 +3,6 @@ import {
   combatlogAttackerStateBody,
   combatlogComboPointsBody,
   combatlogPartyKillBody,
-  combatlogPowerUpdateBody,
   combatlogSpellDamageBody,
 } from "#test-support/areas/combatlog";
 import {
@@ -299,16 +298,6 @@ describe("parsePartyKill (Unit.cpp:13583-13585)", () => {
     });
   });
 
-  test("reads the body of the combatlog-fight kill proof", () => {
-    const body = Uint8Array.from(
-      Buffer.from("060e000000000000084801283d0030f1", "hex"),
-    );
-    expect(parsePartyKill(read(body))).toEqual({
-      killer: 0xe06n,
-      victim: 0xf1_30_00_3d_28_01_48_08n,
-    });
-  });
-
   test("a short body throws", () => {
     const body = combatlogPartyKillBody({ killer: ME, victim: BOAR });
     expect(() => parsePartyKill(read(body.slice(0, 12)))).toThrow();
@@ -342,17 +331,6 @@ describe("parsePowerUpdate (Unit.cpp:12015-12019)", () => {
         read(new Uint8Array([0x01, 0x2a, 0x01, 0x64, 0x00, 0x00, 0x00])),
       ),
     ).toEqual({ guid: ME, power: 1, value: 100 });
-  });
-
-  test("the builder writes the same layout", () => {
-    expect(
-      parsePowerUpdate(
-        read(combatlogPowerUpdateBody({ guid: BOAR, power: 0, value: 312 })),
-      ),
-    ).toEqual({ guid: BOAR, power: 0, value: 312 });
-    expect(
-      combatlogPowerUpdateBody({ guid: ME, power: 1, value: 100 }),
-    ).toEqual(new Uint8Array([0x01, 0x2a, 0x01, 0x64, 0x00, 0x00, 0x00]));
   });
 
   test("parses the bodies the server sent in a live mage run", () => {

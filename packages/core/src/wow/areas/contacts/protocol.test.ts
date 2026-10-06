@@ -13,11 +13,10 @@ const GUID = 0x99n;
 
 describe("contacts packets", () => {
   test("CMSG_CONTACT_LIST writes the flags (Socialhandler.cpp:30-35)", () => {
+    expect([...buildContactListRequest(1)]).toEqual([1, 0, 0, 0]);
     expect(
       parseContactListRequest(new PacketReader(buildContactListRequest(1))),
-    ).toEqual({
-      flags: 1,
-    });
+    ).toEqual({ flags: 1 });
   });
 
   test("CMSG_SET_CONTACT_NOTES writes the guid before the note (Socialhandler.cpp:148-154)", () => {

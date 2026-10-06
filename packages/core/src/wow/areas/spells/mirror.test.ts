@@ -72,13 +72,6 @@ describe("MirrorImages replies", () => {
     ]);
   });
 
-  test("a reply for a unit that left view is dropped silently", () => {
-    const { events, images } = setup(new Set());
-    images.accept(packet(A));
-    expect(images.snapshot()).toEqual([]);
-    expect(events).toEqual([]);
-  });
-
   test("a second reply for the same guid replaces the first", () => {
     const { images } = setup(new Set([A]));
     images.accept(packet(A, 100));

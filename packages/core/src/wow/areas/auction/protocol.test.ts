@@ -93,13 +93,6 @@ describe("parseAuctionList", () => {
     });
   });
 
-  test("keeps duplicate ids in the bidder list", () => {
-    const list = parseAuctionList(
-      new PacketReader(auctionListBody({ rows: [{ id: 55 }, { id: 55 }] })),
-    );
-    expect(list.rows.map((row) => row.id)).toEqual([55, 55]);
-  });
-
   test("an empty reply reads zero rows and zero total", () => {
     const list = parseAuctionList(new PacketReader(auctionListBody({})));
     expect(list.rows).toEqual([]);

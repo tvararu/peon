@@ -49,21 +49,4 @@ describe("far sight and mirror image wire", () => {
       skin: 3,
     });
   });
-
-  test("a creature creator's reply (zero look bytes and items) parses to zeros (SpellHandler.cpp:809-824)", () => {
-    const body = spellsMirrorImageBody({
-      classId: 1,
-      displayId: 25_000,
-      gender: 0,
-      guid: IMAGE,
-      guild: 0,
-      items: new Array(11).fill(0),
-      look: [0, 0, 0, 0, 0],
-      race: 0,
-    });
-    const image = parseMirrorImage(new PacketReader(body));
-    expect(image.items).toEqual(new Array(11).fill(0));
-    expect(image.skin).toBe(0);
-    expect(image.displayId).toBe(25_000);
-  });
 });

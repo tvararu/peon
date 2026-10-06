@@ -126,26 +126,6 @@ describe("passenger seat in control", () => {
     expect(block?.z).toBe(0);
   });
 
-  test("the pose becomes the vehicle position plus the turned offset", () => {
-    const { runtime } = setup();
-    runtime.vehicleSeat(
-      seat({
-        offset: { x: 2, y: 0, z: 1 },
-        vehiclePose: {
-          mapId: 530,
-          orientation: Math.PI / 2,
-          x: 100,
-          y: 200,
-          z: 50,
-        },
-      }),
-    );
-    const pose = must(runtime.snapshot().pose);
-    expect(pose.x).toBeCloseTo(100, 4);
-    expect(pose.y).toBeCloseTo(202, 4);
-    expect(pose.z).toBeCloseTo(51, 4);
-  });
-
   test("CMSG_MOVE_SPLINE_DONE is sent once after the duration with the spline id (TaxiHandler.cpp:204-214)", () => {
     const { runtime, sent, advance } = setup();
     runtime.vehicleSeat(seat({ duration: 800, splineId: 4242 }));

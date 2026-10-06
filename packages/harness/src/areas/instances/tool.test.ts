@@ -260,20 +260,23 @@ describe("dungeon tool verbs", () => {
     },
   );
 
-  test("a changed difficulty names the new setting", async () => {
+  test.each([
+    ["dungeon", "normal", "normal"],
+    ["dungeon", "heroic", "heroic"],
+    ["raid", "10", "10-normal"],
+    ["raid", "25", "25-normal"],
+    ["raid", "10-heroic", "10-heroic"],
+    ["raid", "25-heroic", "25-heroic"],
+  ] as const)("names %s %s as %s", async (kind, value, name) => {
     const t = await world();
     jest
       .spyOn(t.handle.instances.act, "setDifficulty")
       .mockResolvedValue({ result: "changed", status: "ok" });
-    const { text } = await attempt(t, {
-      do: "difficulty",
-      for: "dungeon",
-      value: "heroic",
-    });
-    expect(text).toContain("heroic");
+    const { text } = await attempt(t, { do: "difficulty", for: kind, value });
+    expect(text).toContain(name);
   });
 
-  test("a solo change is UNCONFIRMED and says it shows on the next entry", async () => {
+  test("a solo change is UNCONFIRMED and names the new setting", async () => {
     const t = await world();
     jest
       .spyOn(t.handle.instances.act, "setDifficulty")
@@ -288,7 +291,6 @@ describe("dungeon tool verbs", () => {
       status: "UNCONFIRMED",
     });
     expect(text).toContain("heroic");
-    expect(text).toContain("next dungeon entry");
   });
 
   test.each([

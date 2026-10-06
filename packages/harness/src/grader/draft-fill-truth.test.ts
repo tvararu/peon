@@ -402,9 +402,19 @@ describe("observedChecks on truth", () => {
   test("a check that selects no truth field gets the whole summary", async () => {
     const dir = await runDir(files({ money: 50_030 }));
     const [check] = await observedChecks(dir, [tr("state")]);
+    const base = {
+      alive: true,
+      deathState: "alive",
+      items: { "159": 25, "2092": 1 },
+      level: 10,
+      position: { map: 530, o: 0, x: 8735, y: -6685, z: 70.5, zone: 3430 },
+      quests: [{ quest: 8325, status: 3 }],
+      rewardedQuests: [],
+      xp: 40,
+    };
     expect(check?.observed).toEqual({
-      baseline: truthSummary(truth()),
-      final: truthSummary(truth({ money: 50_030 })),
+      baseline: { ...base, money: 50_000 },
+      final: { ...base, money: 50_030 },
     });
   });
 });

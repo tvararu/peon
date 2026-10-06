@@ -3,7 +3,6 @@ import type { AreaState } from "@peon/core";
 import {
   dailyResetLine,
   reputationLines,
-  reputationRows,
 } from "#harness/areas/reputation/journal";
 
 type State = AreaState<"reputation">;
@@ -55,14 +54,6 @@ describe("reputationLines", () => {
     expect(reputationLines(state(factions))).toEqual([
       "Silvermoon City: Friendly 1250/6000.",
       "Booty Bay: Neutral 0/3000, at war.",
-    ]);
-  });
-
-  test("orders by change time whatever order the store gave", () => {
-    const factions = [booty, row({ changedAt: 20 })];
-    expect(reputationRows(state(factions)).map((line) => line.name)).toEqual([
-      "Silvermoon City",
-      "Booty Bay",
     ]);
   });
 

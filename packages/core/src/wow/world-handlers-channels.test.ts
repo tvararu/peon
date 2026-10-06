@@ -21,6 +21,8 @@ describe("world handler tests", () => {
 
       await waitForEchoProbe(handle);
       expect(handle.getChannel(1)).toBe("General");
+      expect(handle.getChannel(2)).toBe("Trade");
+      expect(handle.getChannel(3)).toBeUndefined();
 
       const w = new PacketWriter();
       w.uint8(ChannelNotify.YOU_LEFT);
@@ -31,6 +33,7 @@ describe("world handler tests", () => {
 
       await waitForEchoProbe(handle);
       expect(handle.getChannel(1)).toBe("Trade");
+      expect(handle.getChannel(2)).toBeUndefined();
 
       handle.close();
       await handle.closed;
@@ -100,9 +103,9 @@ describe("world handler tests", () => {
 
       handle.sendSay("probe");
       await probeReceived;
-      expect(
-        messages.some((m) => m.message === "Wrong password for Secret"),
-      ).toBe(true);
+      const error = messages.find((m) => m.message.includes("Secret"));
+      expect(error?.type).toBe(ChatType.SYSTEM);
+      expect(error?.message).toMatch(/wrong password/i);
 
       handle.close();
       await handle.closed;

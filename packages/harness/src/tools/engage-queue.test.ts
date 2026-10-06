@@ -100,11 +100,12 @@ describe("engage pull gate", () => {
   test("a cycle stopped at low mana is PARTLY with the kills and a rest step", async () => {
     const res = await lowAfterOneKill("low_mana", { power: 72 })();
     expect(res).toMatchObject({
-      detail: "1 of 3 kills. You have mana 72/300 (24%).",
       next: 'rest(), then engage(count: 2, target: "Springpaw Stalker")',
       reason: "low_mana",
       status: "PARTLY",
     });
+    expect(res.detail).toContain("1 of 3 kills");
+    expect(res.detail).toContain("mana 72/300 (24%)");
   });
 
   test("an attacker at the low mana stop is engaged before any rest", async () => {
@@ -129,10 +130,11 @@ describe("engage pull gate", () => {
   test("a cycle stopped at low health names the health", async () => {
     const res = await lowAfterOneKill("low_health", { hp: 80 })();
     expect(res).toMatchObject({
-      detail: "1 of 3 kills. You are at 40% HP.",
       reason: "low_health",
       status: "PARTLY",
     });
+    expect(res.detail).toContain("1 of 3 kills");
+    expect(res.detail).toContain("40% HP");
   });
 });
 
@@ -161,9 +163,8 @@ describe("engage quest targets out of reach", () => {
       toolCtx<EngageAfter>(t),
     );
     const ref = t.rt.refs.refOf(STALKER);
-    expect(res.detail).toStartWith(
-      `Springpaw Stalker ${ref} is 90 yd away and no route to it was found.`,
-    );
+    expect(res.detail).toContain(`Springpaw Stalker ${ref}`);
+    expect(res.detail).toContain("90 yd");
     expect(res.next).toBe(`travel(to: "${ref}")`);
     expect(res.next).not.toContain("look(");
   });

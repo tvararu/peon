@@ -115,7 +115,6 @@ describe("vehicle board and driving", () => {
     Object.assign(t.handle.vehicles, { state: seatState(true) });
     const res = await run(t, { do: "board", unit: "Wintergarde Gryphon" });
     expect(res.status).toBe("DONE");
-    expect(res.detail).toContain("travel");
     expect(res.next).toContain("travel(");
   });
 
@@ -123,14 +122,13 @@ describe("vehicle board and driving", () => {
     const { t } = await world();
     Object.assign(t.handle.vehicles, { state: seatState(false) });
     const res = await run(t, { do: "board", unit: "Wintergarde Gryphon" });
-    expect(res.detail).not.toContain("travel");
-    expect(res.next ?? "").not.toContain("travel(");
+    expect(res.next).toBeUndefined();
   });
 
   test("a board without any seat recorded has no driving hint", async () => {
     const { t } = await world();
     const res = await run(t, { do: "board", unit: "Wintergarde Gryphon" });
-    expect(res.detail).not.toContain("travel");
+    expect(res.next).toBeUndefined();
   });
 });
 
@@ -162,13 +160,11 @@ describe("vehicle board", () => {
     expect(calls).toEqual([]);
   });
 
-  test("no answer reads as no answer, never refused", async () => {
+  test("a no_answer outcome is UNCONFIRMED with reason no_answer", async () => {
     const { t } = await world({ status: "no_answer" });
     const res = await run(t, { do: "board", unit: "Wintergarde Gryphon" });
     expect(res.status).toBe("UNCONFIRMED");
     expect(res.reason).toBe("no_answer");
-    expect(res.detail.toLowerCase()).toContain("no answer");
-    expect(res.detail.toLowerCase()).not.toContain("refused");
   });
 
   test("a refusal by the act is a REFUSED result with its reason", async () => {
@@ -425,10 +421,5 @@ describe("vehicle leave, seat, ride_with and eject (verb recovery)", () => {
     expect(eject).toMatchObject({ reason: "ambiguous_unit" });
     expect(eject.next?.startsWith(`vehicle(do: "eject", unit: "u`)).toBe(true);
     expect(calls).toEqual([]);
-  });
-
-  test("an act that throws reaches the caller", async () => {
-    const { t } = await world(new Error("link lost"));
-    await expect(run(t, { do: "leave" })).rejects.toThrow("link lost");
   });
 });

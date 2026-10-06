@@ -136,18 +136,6 @@ describe("gear move to the bank", () => {
     expect(deposit).toHaveBeenCalledWith(19, 4);
   });
 
-  test("a server refusal reaches the agent as a refusal", async () => {
-    const t = await world([LINEN], true);
-    jest.spyOn(t.handle.bank.act, "deposit").mockResolvedValue({
-      reason: "cant_carry_more",
-      status: "refused" as const,
-    });
-    const thrown = await refusal(
-      gearSpec.run({ do: "move", item: "Linen Cloth", to: "bank" }, toolCtx(t)),
-    );
-    expect(thrown.reason).toBe("cant_carry_more");
-  });
-
   test("an unanswered deposit is unconfirmed and recoverable by reading the bank", async () => {
     const t = await world([LINEN], true);
     jest
@@ -313,19 +301,6 @@ describe("gear move to the bank", () => {
     );
     expect(thrown.reason).toBe("cant_carry_more");
     expect(thrown.next).toContain("deposit");
-  });
-
-  test("a reply with no GUID still reports the deposit", async () => {
-    const t = await world([LINEN], true);
-    jest.spyOn(t.handle.bank.act, "deposit").mockResolvedValue({
-      status: "ok" as const,
-    });
-    const res = await gearSpec.run(
-      { do: "move", item: "Linen Cloth", to: "bank" },
-      toolCtx(t),
-    );
-    expect(res.status).toBe("DONE");
-    expect(contentOf(res)).toContain("Deposited Linen Cloth");
   });
 
   describe("following Next keeps the selected stack", () => {

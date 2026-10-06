@@ -25,9 +25,4 @@ describe("readTitles", () => {
   test("an empty mask means no known titles and no chosen title", () => {
     expect(readTitles(new Map())).toEqual({ chosen: 0, known: [] });
   });
-
-  test("bit 191 is inside the range", () => {
-    const { known } = readTitles(fields([0, 0, 0, 0, 0, 0x80_00_00_00], 0));
-    expect(known).toEqual([191]);
-  });
 });

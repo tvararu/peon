@@ -217,7 +217,8 @@ describe("t4-spells-stop-channel drafts", () => {
 
   test("a missing channel_end row is not drafted as met", async () => {
     const find = await t4Draft([steerRow(1, stop[0] ?? "", 0)]);
-    expect(find("channel-cancelled")?.met).not.toBe(true);
+    expect(find("channel-cancelled")?.met).toBe(false);
+    expect(find("channel-cancelled")?.observed).toMatchObject({ count: 0 });
   });
 
   test("the interrupted Evocation alone drafts no-recast as met", async () => {

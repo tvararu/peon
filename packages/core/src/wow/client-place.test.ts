@@ -157,13 +157,6 @@ describe("place state", () => {
 });
 
 describe("areaName", () => {
-  test("reads the generated table", () => {
-    expect(areaName(3430)).toBe("Eversong Woods");
-    expect(areaName(3433)).toBe("Ghostlands");
-    expect(areaName(12)).toBe("Elwynn Forest");
-    expect(areaName(0)).toBeUndefined();
-  });
-
   test("reports an explored area with its name and XP", async () => {
     const { server, handle } = await session();
     try {
