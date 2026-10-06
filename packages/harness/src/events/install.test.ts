@@ -235,12 +235,11 @@ describe("nowText and nowMessage", () => {
     );
   });
 
-  test("builds the hidden message and the visible V6 fallback", () => {
+  test("builds the hidden message", () => {
     expect(nowMessage("[now 19:13:31] x")).toEqual({
       content: "[now 19:13:31] x",
       customType: "wow-now",
       display: NOW_DISPLAY,
     });
-    expect(nowMessage("[now 19:13:31] x", true).display).toBe(true);
   });
 });

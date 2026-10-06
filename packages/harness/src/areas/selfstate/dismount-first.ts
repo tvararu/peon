@@ -3,7 +3,7 @@ import type { ToolCtx } from "#harness/contract/services";
 import { Refusal } from "#harness/ops/refusal";
 import { nextCall } from "#harness/tools/next-call";
 
-export const DISMOUNTED_FIRST = "Dismounted first.";
+const DISMOUNTED_FIRST = "Dismounted first.";
 
 export type DismountRide = "not_mounted" | "dismounted";
 

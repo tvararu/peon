@@ -62,7 +62,7 @@ export const STAND_STATES = {
 } as const;
 export type StandStateName = keyof typeof STAND_STATES;
 
-export const MIRROR_TIMERS = ["fatigue", "breath", "fire"] as const;
+const MIRROR_TIMERS = ["fatigue", "breath", "fire"] as const;
 export type MirrorTimerName = (typeof MIRROR_TIMERS)[number];
 
 export type MirrorTimerStart = {

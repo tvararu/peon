@@ -1,23 +1,5 @@
 export type FramingVariant = "none" | "minimal" | "mechanics";
 
-const FRAMING_VARIANTS: readonly FramingVariant[] = [
-  "none",
-  "minimal",
-  "mechanics",
-];
-
-function isFramingVariant(value: string): value is FramingVariant {
-  return FRAMING_VARIANTS.some((variant) => variant === value);
-}
-
-export function parseFramingVariant(value: string | undefined): FramingVariant {
-  if (value === undefined || value === "") return "none";
-  if (isFramingVariant(value)) return value;
-  throw new Error(
-    `Unknown framing variant: "${value}". Must be one of: ${FRAMING_VARIANTS.join(", ")}`,
-  );
-}
-
 export function buildFraming(
   variant: FramingVariant,
   observation: Readonly<Record<string, unknown>>,
