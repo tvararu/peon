@@ -403,6 +403,8 @@ describe("createEventRouter", () => {
     });
     expect(died?.text).toContain("Springpaw Stalker");
     expect(died?.text).toContain("u17");
+    expect(died?.text).toContain("no credit to you");
+    expect(died?.text).not.toContain("killed by another player");
     expect(sink.wake).toHaveBeenCalledWith([died]);
   });
 

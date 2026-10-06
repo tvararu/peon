@@ -303,6 +303,14 @@ describe("goTo a creature over several floors", () => {
     expect(() => f.handle.goTo({ guid: 0x99n, kind: "guid" })).toThrow(
       "stop: path corner disagrees with connected ground",
     );
+    expect(f.runtime.navigationState()).toMatchObject({
+      active: false,
+      blockedReason: expect.stringContaining(
+        "path corner disagrees with connected ground",
+      ),
+      refusal: "stop",
+      target: 0x99n,
+    });
     expect(plan).toHaveBeenCalledWith(
       530,
       expect.anything(),

@@ -100,7 +100,7 @@ describe("TacticsLoop provider failures", () => {
     expect(loop.snapshot().lastStopReason).toBe("halt");
   });
 
-  test("a refused key ends the run at once as jev_unavailable with one halt", async () => {
+  test("a refused key ends the run at once as jev_unavailable with one defense", async () => {
     const refused = () => new JevUnavailableError("HTTP 402 payment_required");
     const { loop, events, defends } = providerLoop(
       failing(refused),

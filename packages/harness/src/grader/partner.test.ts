@@ -31,7 +31,6 @@ type Steered = {
   dir: string;
   index: number;
   rows: Record<string, unknown>[];
-  timeouts: (number | undefined)[];
 };
 async function stepWith(
   exec: Exec,
@@ -39,19 +38,14 @@ async function stepWith(
   track?: PartnerTrack,
   now: number | { at: number } = NOW,
 ): Promise<Steered> {
-  const timeouts: (number | undefined)[] = [];
   const time = typeof now === "number" ? { at: now } : now;
-  const seen: Exec = async (argv, opts) => {
-    timeouts.push(opts?.timeoutMs);
-    return exec(argv, opts);
-  };
   const active = track ?? newPartnerTrack(NOW - 100_000);
   const runDir = scratchDir("partner-call");
   await stepPartner({
     actions,
     agent: AGENT,
     clock: { now: () => time.at },
-    exec: seen,
+    exec,
     partners: [PARTNER],
     runDir,
     track: active,
@@ -66,7 +60,7 @@ async function stepWith(
           string,
           unknown
         >[]);
-  return { dir: runDir, index: active.cursor.index, rows, timeouts };
+  return { dir: runDir, index: active.cursor.index, rows };
 }
 
 type Puppet = { after: number; reply: ExecResult };

@@ -128,7 +128,7 @@ describe("unitRefusal", () => {
     if (resolved.kind !== "ambiguous") throw new Error("expected ambiguous");
     const refusal = unitRefusal({ param: "target", resolved, tool: "engage" });
     expect(refusal.reason).toBe("ambiguous_unit");
-    expect(refusal.detail).toContain("2");
+    expect(refusal.detail).toContain("matches 2 units");
     expect(refusal.detail).toContain("Springpaw Cub");
     expect(refusal.detail).toContain("Springpaw Stalker");
     expect(refusal.body).toEqual([

@@ -66,19 +66,19 @@ describe("nextStepFor", () => {
     ).toContain("do not retry this one");
   });
 
-  test("a corridor that changes surface names a different route", () => {
+  test("a corridor that changes surface names another surface", () => {
     expect(nextStepFor("ground corridor changes surface")).toContain(
       "another surface",
     );
   });
 
-  test("a path corner that disagrees with the ground names a nearer waypoint", () => {
+  test("a path corner that disagrees with the ground names the mesh-and-ground disagreement", () => {
     expect(
       nextStepFor("path corner disagrees with connected ground"),
     ).toContain("mesh and the ground");
   });
 
-  test("a corridor collision names open ground, not a retry", () => {
+  test("a corridor collision names the object or wall", () => {
     expect(nextStepFor("ground corridor collision")).toContain(
       "object or a wall",
     );
