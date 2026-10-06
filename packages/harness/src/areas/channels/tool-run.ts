@@ -10,6 +10,7 @@ import type {
 } from "#harness/areas/channels/tool-types";
 import type { ToolResult } from "#harness/contract/result";
 import { Refusal } from "#harness/ops/refusal";
+import { knownUnits } from "#harness/ops/views";
 import { result } from "#harness/tools/define";
 import { nextCall } from "#harness/tools/next-call";
 
@@ -132,6 +133,17 @@ async function runAdmin(
   return settleAdmin(verb, channel, player, outcome);
 }
 
+function memberName(
+  players: readonly { guid: string; name: string }[],
+  guid: bigint,
+): string {
+  const hex = guid.toString(16);
+  return (
+    players.find((player) => player.guid.toLowerCase() === hex)?.name ??
+    `player ${guid.toString(10)}`
+  );
+}
+
 async function runList(
   args: ChannelArgs,
   ctx: ChannelCtx,
@@ -148,11 +160,16 @@ async function runList(
       next: nextCall("channel", { channel, do: "join" }),
       reason: "not_member",
     });
-  const names = outcome.members.length;
+  const count = outcome.members.length;
+  const players = knownUnits(ctx).filter((unit) => unit.kind === "player");
+  const names = outcome.members.map((member) =>
+    memberName(players, member.guid),
+  );
+  const line = `${channel} holds ${count} member${count === 1 ? "" : "s"}: ${names.join(", ")}.`;
   return result("DONE", {
     after: { channel, do: "list", player: undefined },
-    body: [`${channel} holds ${names} member${names === 1 ? "" : "s"}.`],
-    detail: `${channel} holds ${names} member${names === 1 ? "" : "s"}.`,
+    body: [line],
+    detail: line,
   });
 }
 

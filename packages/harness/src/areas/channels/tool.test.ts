@@ -4,7 +4,7 @@ import { channelParams, channelSpec } from "#harness/areas/channels/tool";
 import { channelRun } from "#harness/areas/channels/tool-run";
 import type { ChannelCtx } from "#harness/areas/channels/tool-types";
 import type { Refusal } from "#harness/ops/refusal";
-import { toolCtx } from "#test-support/ops-fixtures";
+import { setUnits, toolCtx, unitRow } from "#test-support/ops-fixtures";
 import { createTestRuntime } from "#test-support/runtime-fixture";
 
 function ctxOf(channelAdmin: unknown, extra: Record<string, unknown> = {}) {
@@ -96,4 +96,30 @@ describe("channel list", () => {
     expect(out.status).toBe("DONE");
     expect(out.detail).toContain("1 member");
   });
+  test("list names members the agent has seen, and numbers the rest", async () => {
+    const t = await world(
+      ctxOf(undefined, {
+        listChannel: jest.fn(async () => ({
+          flags: 3,
+          members: [
+            { flags: 3, guid: 0xde1n },
+            { flags: 0, guid: 0xbeefn },
+          ],
+          ok: true,
+        })),
+      }),
+    );
+    setUnits(
+      t.handle,
+      [unitRow({ guid: 0xde1n, name: "Fgkabcdefg", player: true })],
+    );
+    const out = await channelRun(
+      { channel: "peonab12cd", do: "list" },
+      toolCtx(t) as ChannelCtx,
+    );
+    expect(out.status).toBe("DONE");
+    expect(out.detail).toContain("Fgkabcdefg");
+    expect(out.detail).toContain(`player ${(0xbeefn).toString(10)}`);
+  });
 });
+
