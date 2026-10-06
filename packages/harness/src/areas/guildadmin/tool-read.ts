@@ -1,3 +1,4 @@
+import type { GuildRoster } from "@peon/core";
 import { afterOf, refuse, silent } from "#harness/areas/guildadmin/tool-run";
 import type {
   GuildAfter,
@@ -13,21 +14,28 @@ export async function runStatus(
   if ("status" in info)
     throw refuse("no_guild", "You are not in a guild.", "look");
   const roster = await ctx.rt.mutex.run(() => ctx.handle.requestGuildRoster());
-  const body: string[] = [];
-  if (roster) {
-    for (const [index, name] of roster.rankNames.entries())
-      if (name !== "") body.push(`rank ${index}: ${name}`);
-    for (const member of roster.members)
-      body.push(
-        `member ${member.name} rank ${member.rankIndex}${member.publicNote ? ` note "${member.publicNote}"` : ""}${member.officerNote ? ` officer note "${member.officerNote}"` : ""}`,
-      );
-    if (roster.guildInfo !== "") body.push(`info text: ${roster.guildInfo}`);
-  }
+  const body = rosterBody(roster);
   return result("DONE", {
     after: afterOf("status", info.name),
     body,
     detail: `Guild ${info.name}: ${info.members} members.`,
   });
+}
+
+function rosterBody(roster: GuildRoster | undefined): string[] {
+  const body: string[] = [];
+  if (!roster) return body;
+  for (const [index, name] of roster.rankNames.entries())
+    if (name !== "") body.push(`rank ${index}: ${name}`);
+  for (const member of roster.members) body.push(rosterLine(member));
+  if (roster.guildInfo !== "") body.push(`info text: ${roster.guildInfo}`);
+  return body;
+}
+
+function rosterLine(member: GuildRoster["members"][number]): string {
+  const note = member.publicNote ? ` note "${member.publicNote}"` : "";
+  const officer = member.officerNote ? ` officer note "${member.officerNote}"` : "";
+  return `member ${member.name} rank ${member.rankIndex}${note}${officer}`;
 }
 
 export async function runPermissions(

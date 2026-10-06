@@ -1,7 +1,6 @@
 import type {
   GuildAfter,
   GuildArgs,
-  GuildCtx,
   GuildDo,
 } from "#harness/areas/guildadmin/tool-types";
 import type { ToolResult } from "#harness/contract/result";
@@ -40,5 +39,3 @@ export function needText(args: GuildArgs, field: "name" | "text"): string {
     throw refuse("missing_arg", `Give ${field} for this call.`);
   return value;
 }
-
-export type { GuildCtx };
