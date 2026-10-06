@@ -312,15 +312,4 @@ describe("executeEntries", () => {
       },
     ]);
   });
-
-  test("an effect with no record yields nothing", () => {
-    expect(
-      executeEntries({
-        caster: ME,
-        effects: [{ effect: 999, records: [] }],
-        spellId: 1,
-        truncated: true,
-      }),
-    ).toEqual([]);
-  });
 });

@@ -10,9 +10,6 @@ import {
   loginTutorialFlagsBody,
 } from "#test-support/areas/login";
 import {
-  buildKeepAlive,
-  buildLogoutCancel,
-  buildPlayerLogout,
   parseAccountDataTimes,
   parseAddonInfo,
   parseCharacterLoginFailed,
@@ -41,15 +38,6 @@ describe("SMSG_ADDON_INFO (WorldSession.cpp:1352-1414)", () => {
     expect(info.addons.every((a) => a.state === 2)).toBe(true);
     expect(info.banned).toEqual([]);
     expect(r.remaining).toBe(0);
-  });
-
-  test("an unkeyed entry is 8 bytes and a keyed entry 264 (WorldSession.cpp:1380-1396)", () => {
-    expect(loginAddonInfoBody({ banned: [], entries: plain(1) })).toHaveLength(
-      12,
-    );
-    expect(loginAddonInfoBody({ banned: [], entries: keyed(1) })).toHaveLength(
-      268,
-    );
   });
 
   test("a 4-byte body holds no addon", () => {
@@ -103,19 +91,6 @@ describe("SMSG_ACCOUNT_DATA_TIMES (WorldSession.cpp:1057-1066)", () => {
       ],
     });
   });
-
-  test("mask 0x15 gives three times", () => {
-    const body = loginAccountDataTimesBody({
-      mask: 0x15,
-      serverTime: 5,
-      times: [0, 2, 4],
-    });
-    expect(parseAccountDataTimes(new PacketReader(body)).times).toEqual([
-      [0, 0],
-      [2, 2],
-      [4, 4],
-    ]);
-  });
 });
 
 describe("the fixed login bodies", () => {
@@ -167,10 +142,6 @@ describe("link packets", () => {
   test("a short SMSG_PONG throws", () => {
     expect(() => parsePong(new PacketReader(new Uint8Array(3)))).toThrow();
   });
-
-  test("CMSG_KEEP_ALIVE is empty (WorldSocket.cpp:452-462)", () => {
-    expect(buildKeepAlive()).toEqual(new Uint8Array(0));
-  });
 });
 
 describe("login failure and logout packets", () => {
@@ -200,10 +171,5 @@ describe("login failure and logout packets", () => {
       code: 12,
       reason: "unknown",
     });
-  });
-
-  test("CMSG_PLAYER_LOGOUT and CMSG_LOGOUT_CANCEL are empty (MiscHandler.cpp:476-497)", () => {
-    expect(buildPlayerLogout()).toEqual(new Uint8Array(0));
-    expect(buildLogoutCancel()).toEqual(new Uint8Array(0));
   });
 });

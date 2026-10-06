@@ -89,8 +89,8 @@ describe("installUi", () => {
 
   test("sets the tab title and the working message on mount", async () => {
     const { ui } = await mounted();
-    expect(ui.named("setTitle")).toHaveLength(1);
-    expect(ui.named("setWorkingMessage")).toHaveLength(1);
+    expect(ui.named("setTitle")).toEqual([["Testchar L0 0%"]]);
+    expect(ui.named("setWorkingMessage")).toEqual([["Work, work…"]]);
   });
 
   test("log appends repaint at most once per 100 ms", async () => {

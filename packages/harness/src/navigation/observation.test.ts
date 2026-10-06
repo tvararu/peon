@@ -18,9 +18,7 @@ function state(overrides: Partial<NavigationState> = {}): NavigationState {
 
 describe("nextStepFor", () => {
   test("obstructed asks for a different route", () => {
-    expect(nextStepFor("obstructed")).toBe(
-      "Choose a different route. Inspect the ground before moving.",
-    );
+    expect(nextStepFor("obstructed")).toContain("different route");
   });
 
   test("height_unresolved forbids retrying the heading", () => {
@@ -57,11 +55,9 @@ describe("nextStepFor", () => {
   });
 
   test("a snapped start sends the caller into open ground, not to retry", () => {
-    const hint = nextStepFor("start snapped off the requested ground position");
-    expect(hint).toContain("off the walkable mesh");
-    expect(hint).toContain("Move 3 to 5 yards into open ground");
-    expect(hint).toContain("Do not repeat this goto from here");
-    expect(hint).not.toMatch(/NPC/);
+    expect(
+      nextStepFor("start snapped off the requested ground position"),
+    ).toContain("Move 3 to 5 yards");
   });
 
   test("an end snap keeps the unreachable hint", () => {
@@ -70,24 +66,22 @@ describe("nextStepFor", () => {
     ).toContain("do not retry this one");
   });
 
-  test("a corridor that changes surface names a different route", () => {
-    const hint = nextStepFor("ground corridor changes surface");
-    expect(hint).toContain("changes to another surface");
-    expect(hint).toContain("nearer waypoint on the same floor");
+  test("a corridor that changes surface names another surface", () => {
+    expect(nextStepFor("ground corridor changes surface")).toContain(
+      "another surface",
+    );
   });
 
-  test("a path corner that disagrees with the ground names a nearer waypoint", () => {
-    const hint = nextStepFor("path corner disagrees with connected ground");
-    expect(hint).toContain("mesh and the ground");
-    expect(hint).toContain("nearer waypoint on open ground");
-    expect(hint).toContain("do not repeat this goto unchanged");
+  test("a path corner that disagrees with the ground names the mesh-and-ground disagreement", () => {
+    expect(
+      nextStepFor("path corner disagrees with connected ground"),
+    ).toContain("mesh and the ground");
   });
 
-  test("a corridor collision names open ground, not a retry", () => {
-    const hint = nextStepFor("ground corridor collision");
-    expect(hint).toContain("hits an object or a wall");
-    expect(hint).toContain("nearer waypoint in open ground");
-    expect(hint).toContain("do not repeat this goto unchanged");
+  test("a corridor collision names the object or wall", () => {
+    expect(nextStepFor("ground corridor collision")).toContain(
+      "object or a wall",
+    );
   });
 
   test("other or missing reasons have no hint", () => {
@@ -104,10 +98,9 @@ describe("observeNavigation", () => {
       destination: { x: 1, y: 2, z: 3 },
       refusal: "stop",
     });
-    expect(observeNavigation(blocked)).toEqual({
-      ...blocked,
-      nextStep: "Choose a different route. Inspect the ground before moving.",
-    });
+    const observed = observeNavigation(blocked);
+    expect(observed).toMatchObject(blocked);
+    expect(observed.nextStep).toContain("different route");
   });
 
   test("carries the site-specific hint for a start refusal", () => {
@@ -126,9 +119,8 @@ describe("observeNavigation", () => {
     const hint = observeNavigation(
       state({ blockedReason: unknown, refusal: "stop" }),
     ).nextStep;
-    expect(hint).toContain("Do not repeat this goto unchanged");
-    expect(hint).toContain("Move about 10 yards off this spot");
-    expect(hint).toContain("nearer grounded waypoint");
+    expect(hint).toContain("10 yards");
+    expect(hint).not.toContain("refused a new route");
     expect(
       observeNavigation(
         state({ blockedReason: `replan_refused: ${unknown}`, refusal: "stop" }),

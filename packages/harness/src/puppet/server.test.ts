@@ -256,10 +256,14 @@ describe("puppet call", () => {
     expect(handle.invite).toHaveBeenCalledWith("Fabc");
   });
 
-  test("passes a guid argument to the handle as a bigint", async () => {
+  test("passes a loot roll's guid, slot and vote to the handle", async () => {
     const { handle, paths } = await mockSetup();
-    await ask(paths, { args: ["42"], cmd: "call", method: "selectTarget" });
-    expect(handle.selectTarget).toHaveBeenCalledWith(42n);
+    await ask(paths, {
+      args: ["42", 3, "need"],
+      cmd: "call",
+      method: "rollLoot",
+    });
+    expect(handle.rollLoot).toHaveBeenCalledWith(42n, 3, "need");
   });
 
   test("refuses a method outside the allow-list without calling anything", async () => {

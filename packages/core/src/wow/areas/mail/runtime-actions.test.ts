@@ -388,6 +388,10 @@ describe("mail actions", () => {
         await flushMicrotasks();
         await elapse(MAIL_ANSWER_MS);
         expect(await first).toEqual({ status: "unanswered" });
+        expect(rig.handle.state().pending).toEqual({
+          action: "deleted",
+          id: 101,
+        });
         await expect(rig.handle.act.deleteMail(102)).rejects.toThrow(
           "mail_busy",
         );
@@ -460,7 +464,7 @@ describe("mail actions", () => {
     });
   });
 
-  test("a refresh interrupted by a new list ends unanswered instead", async () => {
+  test("a list refresh with no reply ends unanswered", async () => {
     await withFakeTimers(async () => {
       const rig = mailRig();
       try {

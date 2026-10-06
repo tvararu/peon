@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
+import { inflateSync } from "node:zlib";
 import {
   accountRequestAccountDataBody,
-  accountUpdateAccountDataBody,
   accountUpdateAccountDataBodyWire,
   accountUpdateAccountDataCompleteBody,
 } from "#test-support/areas/account";
@@ -63,19 +63,11 @@ describe("CMSG_UPDATE_ACCOUNT_DATA (Handlers/MiscHandler.cpp:810-861)", () => {
       time: 1_790_000_100,
       type: 7,
     });
-    expect(body).toEqual(
-      accountUpdateAccountDataBody({
-        text: "peon",
-        time: 1_790_000_100,
-        type: 7,
-      }),
-    );
     const r = new PacketReader(body);
     expect(r.uint32LE()).toBe(7);
     expect(r.uint32LE()).toBe(1_790_000_100);
-    const size = r.uint32LE();
-    expect(size).toBe(4);
-    expect(r.bytes(r.remaining)).toHaveLength(body.byteLength - 12);
+    expect(r.uint32LE()).toBe(4);
+    expect(inflateSync(r.bytes(r.remaining)).toString("utf8")).toBe("peon");
   });
 
   test("empty text writes size 0 and no bytes", () => {

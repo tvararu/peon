@@ -40,14 +40,16 @@ function heal(over: Partial<CombatlogEvent> = {}): CombatlogEvent {
 describe("combatlog heal_in rule", () => {
   test("the first heal from a healer writes one passive combatlog/heal_in row", () => {
     const rows = session();
-    expect(rows(heal())).toEqual([
-      expect.objectContaining({
-        class: "passive",
-        domain: "combatlog",
-        event: "combatlog/heal_in",
-        text: "Mate heals you for 540.",
-      }),
-    ]);
+    const [row, ...rest] = rows(heal());
+    expect(rest).toEqual([]);
+    expect(row).toMatchObject({
+      class: "passive",
+      data: { amount: 540 },
+      domain: "combatlog",
+      event: "combatlog/heal_in",
+    });
+    expect(row?.text).toContain("Mate");
+    expect(row?.text).toContain("heals you");
   });
 
   test("later heals from the same healer within 10 s write nothing, then one row after", () => {
@@ -106,6 +108,6 @@ describe("combatlog heal_in rule", () => {
   test("an unnamed healer still gets a row", () => {
     const rows = session();
     const [row] = rows(heal({ source: 0x99n } as Partial<CombatlogEvent>));
-    expect(row?.text).toContain("heals you for 540");
+    expect(row?.text).toContain("A unit");
   });
 });

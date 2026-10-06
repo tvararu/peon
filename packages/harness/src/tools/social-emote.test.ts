@@ -370,8 +370,4 @@ describe("social do:emote", () => {
     expect(out.text).toContain("stopped");
     expect(act).not.toHaveBeenCalled();
   });
-
-  test("the tool is an action", () => {
-    expect(socialTool.kind).toBe("action");
-  });
 });

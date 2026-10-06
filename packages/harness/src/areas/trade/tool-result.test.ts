@@ -73,7 +73,7 @@ describe("a completed trade", () => {
       phase: "open",
     });
     const out = await tradeSpec.run({ do: "accept" }, toolCtx(t));
-    expect(text(out)).toContain("nothing");
+    expect(text(out)).toContain("gave nothing");
   });
 });
 
@@ -122,20 +122,6 @@ describe("a completed trade whose item names are still loading", () => {
       const said = text(await fakeAwait(running, ITEM_NAME_WAIT_MS));
       expect(said).toContain("20 Tough Jerky");
       expect(said).toContain("Linen Cloth");
-      expect(said).not.toContain("item 117");
-    });
-  });
-
-  test("give waits for the names instead of printing item ids", async () => {
-    await withFakeTimers(async () => {
-      const t = await lateNamedWorld(300);
-      tradeState(t.handle, { lastOutcome: COMPLETED, phase: "open" });
-      const running = tradeSpec.run(
-        { do: "give", items: [CLOTH_ARG], with: "Fgkllpgpdnj" },
-        toolCtx(t),
-      );
-      const said = text(await fakeAwait(running, ITEM_NAME_WAIT_MS));
-      expect(said).toContain("20 Tough Jerky");
       expect(said).not.toContain("item 117");
     });
   });
@@ -204,7 +190,7 @@ describe("the non-traded service slot", () => {
 });
 
 describe("trade show without an open trade", () => {
-  test("says no trade is open and does not print the last offer as current", async () => {
+  test("show does not print the last offer as current", async () => {
     const t = await namedWorld();
     tradeState(t.handle, {
       lastOutcome: COMPLETED,
@@ -213,16 +199,15 @@ describe("trade show without an open trade", () => {
       with: PARTNER,
     });
     const out = await tradeSpec.run({ do: "show" }, toolCtx(t));
-    expect(out.detail).toContain("No trade is open");
     expect(out.body.join("\n")).not.toContain("their offer");
     expect(out.body.join("\n")).not.toContain("version");
   });
 
-  test("reports the last completed trade as past", async () => {
+  test("show labels the last completed trade as past", async () => {
     const t = await namedWorld();
     tradeState(t.handle, { lastOutcome: COMPLETED, phase: "closed" });
     const out = await tradeSpec.run({ do: "show" }, toolCtx(t));
+    expect(text(out)).toContain("Last completed trade");
     expect(text(out)).toContain("20 Tough Jerky");
-    expect(text(out)).toContain("completed");
   });
 });

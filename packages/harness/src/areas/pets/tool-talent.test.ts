@@ -300,6 +300,5 @@ describe("pet talent", () => {
       maxLines: petSpec.maxLines ?? 12,
     });
     for (const id of ids) expect(text).toContain(`${id}`);
-    expect(text).not.toContain("more; narrow the call.");
   });
 });

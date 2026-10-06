@@ -157,10 +157,7 @@ describe("CalendarStore", () => {
     expect(seen).toHaveLength(2);
     const last = seen[1];
     if (last?.type !== "calendar") throw new Error("no calendar event");
-    if (!Array.isArray(last.state.invites)) throw new Error("no invites");
-    expect([...last.state.invites, 1]).toHaveLength(
-      last.state.invites.length + 1,
-    );
+    Array.prototype.push.call(last.state.invites, 1);
     expect(store.snapshot().invites).toEqual([]);
   });
 
@@ -197,10 +194,7 @@ describe("CalendarStore", () => {
     });
     const last = seen[1];
     if (last?.type !== "command_result") throw new Error("no result event");
-    if (!Array.isArray(last.state.events)) throw new Error("no events");
-    expect([...last.state.events, 1]).toHaveLength(
-      last.state.events.length + 1,
-    );
+    Array.prototype.push.call(last.state.events, 1);
     expect(store.snapshot().events).toEqual([]);
   });
 

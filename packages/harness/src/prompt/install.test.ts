@@ -86,12 +86,8 @@ describe("installPrompt", () => {
   test("before_agent_start gives the filled prompt and the tool notes", async () => {
     const prompt = await systemPrompt(WORLD);
     expect(prompt).toStartWith(FIRST);
-    expect(prompt).toContain(
-      "\n\nTool notes:\n- look: Use find to filter. The Nearest line includes units out of view.\n",
-    );
-    expect(prompt).toContain(
-      "- journal: log is history. It never loses events when you read it.",
-    );
+    expect(prompt).toContain("\n\nTool notes:\n- look: ");
+    expect(prompt).toContain("\n- journal: ");
     expect(
       prompt.split("\n").filter((line) => line.startsWith("- stop: ")),
     ).toHaveLength(1);

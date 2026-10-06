@@ -49,6 +49,17 @@ describe("charters store", () => {
         rig.handle.state().offers[`0x${CHARTERS_GUILD_MASTER.toString(16)}`],
       ).toEqual([GUILD_ENTRY]);
       expect(seen.map((event) => event.type)).toContain("showlist");
+      rig.inject(
+        GameOpcode.SMSG_PETITION_SHOWLIST,
+        showlist(CHARTERS_ORGANIZER, [...ARENA_ENTRIES]),
+      );
+      expect(
+        rig.handle
+          .state()
+          .offers[`0x${CHARTERS_ORGANIZER.toString(16)}`]?.map(
+            (entry) => entry.required,
+          ),
+      ).toEqual([2, 3, 5]);
     } finally {
       rig.dispose();
     }
@@ -122,11 +133,21 @@ describe("charters store", () => {
     }
   });
 
-  test("signatures update the signers of a known charter", async () => {
+  test("signatures store the signers of a known charter", async () => {
     const { rig } = chartersScene((seeded) => {
       chartersCharter(seeded, 24, CHARTERS_CHARTER, CHARTERS_PETITION_ID);
     });
     try {
+      rig.inject(
+        GameOpcode.SMSG_PETITION_QUERY_RESPONSE,
+        chartersQueryResponseBody({
+          id: CHARTERS_PETITION_ID,
+          name: NAME,
+          needed: 9,
+          owner: CHARTERS_ME,
+          type: 0,
+        }),
+      );
       const pending = rig.handle.act.showSignatures(CHARTERS_CHARTER);
       await Promise.resolve();
       rig.inject(
@@ -135,10 +156,14 @@ describe("charters store", () => {
           item: CHARTERS_CHARTER,
           petition: CHARTERS_PETITION_ID,
           requester: CHARTERS_ME,
-          signers: [],
+          signers: [CHARTERS_SIGNER],
         }),
       );
       expect(await pending.then((outcome) => outcome.status)).toBe("ok");
+      expect(
+        rig.handle.state().petitions[`0x${CHARTERS_CHARTER.toString(16)}`]
+          ?.signers,
+      ).toEqual([CHARTERS_SIGNER]);
       expect(rig.handle.state().pendingOffer).toBeUndefined();
     } finally {
       rig.dispose();

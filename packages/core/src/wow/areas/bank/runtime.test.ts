@@ -6,7 +6,6 @@ import {
   bankBuyBankSlotResultBody,
   bankClear,
   bankScene,
-  bankSetRoot,
   bankShowBankBody,
 } from "#test-support/areas/bank";
 import { itemsInventoryChangeFailureBody } from "#test-support/areas/items";
@@ -33,7 +32,7 @@ function breakBankSend(rig: { sent: readonly unknown[] }): () => void {
 }
 
 describe("bank store", () => {
-  test("SMSG_SHOW_BANK sets the banker and emits opened; the legacy quest store still sees it", () => {
+  test("SMSG_SHOW_BANK sets the banker and emits opened", () => {
     const { rig } = bankScene();
     const seen: BankEvent[] = [];
     rig.handle.onEvent((event) => seen.push(event));
@@ -41,7 +40,6 @@ describe("bank store", () => {
       rig.inject(GameOpcode.SMSG_SHOW_BANK, bankShowBankBody(BANK_BANKER));
       expect(rig.handle.state().banker).toBe(BANK_BANKER);
       expect(seen.map((event) => event.type)).toContain("opened");
-      expect(rig.stores.quests.snapshot().lastError).toBeUndefined();
     } finally {
       rig.dispose();
     }
@@ -321,36 +319,26 @@ describe("bank acts", () => {
 
   test("run abort rejects a pending deposit", async () => {
     const { rig } = bankScene();
-    try {
-      rig.inject(GameOpcode.SMSG_SHOW_BANK, bankShowBankBody(BANK_BANKER));
-      const pending = rig.handle.act.deposit(255, 25);
-      await flush();
-      rig.dispose();
-      await expect(pending).rejects.toThrow();
-    } finally {
-      void bankSetRoot;
-      void bankClear;
-    }
+    rig.inject(GameOpcode.SMSG_SHOW_BANK, bankShowBankBody(BANK_BANKER));
+    const pending = rig.handle.act.deposit(255, 25);
+    await flush();
+    rig.dispose();
+    await expect(pending).rejects.toThrow();
   });
 
   test("a second act while one is pending is refused locally", async () => {
     const { rig } = bankScene();
-    try {
-      rig.inject(GameOpcode.SMSG_SHOW_BANK, bankShowBankBody(BANK_BANKER));
-      const pending = rig.handle.act.deposit(255, 25);
-      await flush();
-      await expect(rig.handle.act.buyBankSlot()).rejects.toThrow(
-        "already pending",
-      );
-      expect(rig.sent.map((packet) => packet.opcode)).toEqual([
-        GameOpcode.CMSG_AUTOBANK_ITEM,
-      ]);
-      rig.dispose();
-      await expect(pending).rejects.toThrow();
-    } finally {
-      void bankSetRoot;
-      void bankClear;
-    }
+    rig.inject(GameOpcode.SMSG_SHOW_BANK, bankShowBankBody(BANK_BANKER));
+    const pending = rig.handle.act.deposit(255, 25);
+    await flush();
+    await expect(rig.handle.act.buyBankSlot()).rejects.toThrow(
+      "already pending",
+    );
+    expect(rig.sent.map((packet) => packet.opcode)).toEqual([
+      GameOpcode.CMSG_AUTOBANK_ITEM,
+    ]);
+    rig.dispose();
+    await expect(pending).rejects.toThrow();
   });
 
   test("depositing a bag does not settle on an identical bag already in a bank-bag slot", async () => {
@@ -360,18 +348,13 @@ describe("bank acts", () => {
       seeded.put(255, 19, { bagSlots: 4, entry: 4500, guid: spare });
       seeded.put(255, 67, { bagSlots: 4, entry: 4500, guid: equipped });
     });
-    try {
-      rig.inject(GameOpcode.SMSG_SHOW_BANK, bankShowBankBody(BANK_BANKER));
-      const pending = rig.handle.act.deposit(255, 19);
-      await flush();
-      rig.touch();
-      expect(rig.handle.state().pending?.kind).toBe("deposit");
-      rig.dispose();
-      await expect(pending).rejects.toThrow();
-    } finally {
-      void bankSetRoot;
-      void bankClear;
-    }
+    rig.inject(GameOpcode.SMSG_SHOW_BANK, bankShowBankBody(BANK_BANKER));
+    const pending = rig.handle.act.deposit(255, 19);
+    await flush();
+    rig.touch();
+    expect(rig.handle.state().pending?.kind).toBe("deposit");
+    rig.dispose();
+    await expect(pending).rejects.toThrow();
   });
 
   test("withdrawing a bag does not settle on an identical bag already equipped", async () => {
@@ -381,18 +364,13 @@ describe("bank acts", () => {
       seeded.put(255, 19, { bagSlots: 4, entry: 4500, guid: equipped });
       seeded.put(255, 67, { bagSlots: 4, entry: 4500, guid: stored });
     });
-    try {
-      rig.inject(GameOpcode.SMSG_SHOW_BANK, bankShowBankBody(BANK_BANKER));
-      const pending = rig.handle.act.withdraw(255, 67);
-      await flush();
-      rig.touch();
-      expect(rig.handle.state().pending?.kind).toBe("withdraw");
-      rig.dispose();
-      await expect(pending).rejects.toThrow();
-    } finally {
-      void bankSetRoot;
-      void bankClear;
-    }
+    rig.inject(GameOpcode.SMSG_SHOW_BANK, bankShowBankBody(BANK_BANKER));
+    const pending = rig.handle.act.withdraw(255, 67);
+    await flush();
+    rig.touch();
+    expect(rig.handle.state().pending?.kind).toBe("withdraw");
+    rig.dispose();
+    await expect(pending).rejects.toThrow();
   });
 
   test("a delayed reply from banker A does not settle the retry on banker B", async () => {

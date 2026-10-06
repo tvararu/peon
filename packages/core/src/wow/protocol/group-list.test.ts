@@ -104,11 +104,11 @@ describe("parseGroupList", () => {
 });
 
 describe("parseGroupInvite", () => {
-  test("reads the blocked status as a field", () => {
+  test("reads the invite status as a field", () => {
     const invite = parseGroupInvite(
-      new PacketReader(raidGroupInviteBody({ name: "Tom", status: 0 })),
+      new PacketReader(raidGroupInviteBody({ name: "Tom", status: 1 })),
     );
-    expect(invite.status).toBe(0);
+    expect(invite.status).toBe(1);
     expect(invite.name).toBe("Tom");
   });
 });

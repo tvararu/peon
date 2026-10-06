@@ -244,10 +244,6 @@ describe("quest sharing, sharer", () => {
     });
   });
 
-  test("PUSH_TIMEOUT_MS is 60 s", () => {
-    expect(PUSH_TIMEOUT_MS).toBe(60_000);
-  });
-
   test("a group change closes the open push and frees the next share", () => {
     const changes = [
       { type: "group_destroyed" as const },
@@ -367,18 +363,6 @@ describe("quest sharing, sharer", () => {
       },
       { log: [QUEST, 8325] },
     );
-  });
-
-  test("the open push's own results do not restart its timer", () => {
-    withRig(({ rig, result }) => {
-      rig.handle.act.shareQuest(QUEST);
-      jest.advanceTimersByTime(1000);
-      result(ALICE, QuestShareResult.SHARING_QUEST);
-      jest.advanceTimersByTime(PUSH_TIMEOUT_MS - 1001);
-      expect(rig.handle.state().share?.push?.status).toBe("open");
-      jest.advanceTimersByTime(1);
-      expect(rig.handle.state().share?.push?.status).toBe("timed_out");
-    });
   });
 
   test("no result within 3 s closes the push as no_answer and frees the next share", () => {

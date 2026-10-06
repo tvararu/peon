@@ -79,7 +79,7 @@ describe("battlegrounds packets (Entities/Player/Player.cpp:6385-6392)", () => {
     }
   });
 
-  test("SMSG_QUESTUPDATE_ADD_PVP_KILL emits pvp_kill_quest", () => {
+  test("SMSG_QUESTUPDATE_ADD_PVP_KILL emits pvp_kill_quest with quest, count and required", () => {
     const { rig } = battlegroundsScene();
     const seen: BattlegroundsEvent[] = [];
     rig.handle.onEvent((event) => seen.push(event));
@@ -92,8 +92,12 @@ describe("battlegrounds packets (Entities/Player/Player.cpp:6385-6392)", () => {
           required: 15,
         }),
       );
-      expect(rig.handle.state().self.lifetimeKills).toBeUndefined();
-      expect(seen.map((event) => event.type)).toContain("pvp_kill_quest");
+      expect(seen).toContainEqual({
+        count: 2,
+        quest: 13_233,
+        required: 15,
+        type: "pvp_kill_quest",
+      });
     } finally {
       rig.dispose();
     }

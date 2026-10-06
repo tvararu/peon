@@ -1,9 +1,6 @@
 import { describe, expect, jest, test } from "bun:test";
 import { fakeAwait, withFakeTimers } from "@peon/core/test-support/fake-time";
-import {
-  DISMOUNTED_FIRST,
-  dismountFirst,
-} from "#harness/areas/selfstate/dismount-first";
+import { dismountFirst } from "#harness/areas/selfstate/dismount-first";
 import { Refusal } from "#harness/ops/refusal";
 import { toolCtx } from "#test-support/ops-fixtures";
 import { createTestRuntime } from "#test-support/runtime-fixture";
@@ -36,7 +33,7 @@ describe("dismountFirst", () => {
     expect(spy).toHaveBeenCalledTimes(0);
   });
 
-  test("racing a late dismounted event keeps the store state as source", async () =>
+  test("a dismount answered ok returns dismounted", async () =>
     withFakeTimers(async () => {
       const t = await createTestRuntime();
       mountState(t.handle);
@@ -46,7 +43,6 @@ describe("dismountFirst", () => {
       const settled = fakeAwait(pending, 1000);
       resolve({ status: "ok" });
       expect(await settled).toBe("dismounted");
-      expect(DISMOUNTED_FIRST).toBe("Dismounted first.");
     }));
 
   test("a taxi mount stops the tool with in_flight", async () => {

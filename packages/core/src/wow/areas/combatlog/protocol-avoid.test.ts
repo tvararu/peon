@@ -138,17 +138,6 @@ describe("parseEnvironmentalDamage (CombatLogPackets.cpp:22-28)", () => {
       ),
     ).toEqual({ absorbed: 7, amount: 120, resisted: 3, type: 2, victim: ME });
   });
-
-  test("keeps the wire type for every documented value 0-5", () => {
-    for (const type of [0, 1, 2, 3, 4, 5])
-      expect(
-        parseEnvironmentalDamage(
-          read(
-            combatlogEnvironmentalDamageBody({ amount: 1, type, victim: ME }),
-          ),
-        ).type,
-      ).toBe(type);
-  });
 });
 
 describe("parseInstakill (SpellEffects.cpp:294-298)", () => {
@@ -158,12 +147,5 @@ describe("parseInstakill (SpellEffects.cpp:294-298)", () => {
         read(combatlogInstakillBody({ caster: MATE, spellId: 5, target: ME })),
       ),
     ).toEqual({ caster: MATE, spellId: 5, target: ME });
-  });
-
-  test("a self-cast keeps caster equal to target", () => {
-    const kill = parseInstakill(
-      read(combatlogInstakillBody({ caster: ME, spellId: 5, target: ME })),
-    );
-    expect(kill.caster).toBe(kill.target);
   });
 });

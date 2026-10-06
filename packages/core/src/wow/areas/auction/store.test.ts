@@ -128,6 +128,7 @@ describe("auction store", () => {
         auctionCommandResultBody({ action: 0, auctionId: 42 }),
       );
       expect(rig.stores.areas.auction.snapshot().lastOutcome).toMatchObject({
+        auctionId: 42,
         status: "ok",
       });
       expect(seen).toEqual(["command_result"]);

@@ -123,7 +123,7 @@ describe("reactive partner actions", () => {
     expect(t.track.cursor.index).toBe(0);
   });
 
-  test("a partner's answer does not depend on the order the wakes arrive in", async () => {
+  test("a partner's answer does not depend on the order of the action list", async () => {
     const t = rig([answer(3, 8), answer(1, 2)]);
     await t.step(START + 5000, [wake(START + 1000)]);
     expect(answered(t.calls)).toEqual([

@@ -30,27 +30,4 @@ describe("items harness rules: gift wrap", () => {
       },
     ]);
   });
-
-  test("a refused wrap wakes the agent with the server's reason", () => {
-    expect(
-      areaDrafts(
-        areaRuleSet(),
-        event("move_refused", {
-          reason: "equipped_cant_be_wrapped",
-          result: 44,
-        }),
-        testRuleInput(),
-      ),
-    ).toEqual([
-      {
-        class: "wake",
-        data: { entry: 25, reason: "equipped_cant_be_wrapped" },
-        domain: "items",
-        event: "items/refused",
-        guid: HEX,
-        ref: HEX,
-        text: "Move refused: equipped_cant_be_wrapped.",
-      },
-    ]);
-  });
 });

@@ -28,16 +28,6 @@ describe("extractObjectFields", () => {
     expect(result._changed).toContain("scale");
   });
 
-  test("extracts guid as bigint from two fields", () => {
-    const raw = new Map([
-      [OBJECT_FIELDS.GUID.offset, 42],
-      [OBJECT_FIELDS.GUID.offset + 1, 0],
-    ]);
-    const result = extractObjectFields(raw);
-    expect(result.guid).toBe(42n);
-    expect(result._changed).toContain("guid");
-  });
-
   test("extracts guid with high bits", () => {
     const raw = new Map([
       [OBJECT_FIELDS.GUID.offset, 1],
@@ -45,6 +35,7 @@ describe("extractObjectFields", () => {
     ]);
     const result = extractObjectFields(raw);
     expect(result.guid).toBe((3n << 32n) | 1n);
+    expect(result._changed).toContain("guid");
   });
 
   test("empty map returns empty changed", () => {
@@ -90,16 +81,6 @@ describe("extractUnitFields", () => {
     );
   });
 
-  test("extracts target as bigint from two fields", () => {
-    const raw = new Map([
-      [UNIT_FIELDS.TARGET.offset, 42],
-      [UNIT_FIELDS.TARGET.offset + 1, 0],
-    ]);
-    const result = extractUnitFields(raw);
-    expect(result.target).toBe(42n);
-    expect(result._changed).toContain("target");
-  });
-
   test("extracts target with high bits", () => {
     const raw = new Map([
       [UNIT_FIELDS.TARGET.offset, 1],
@@ -107,6 +88,7 @@ describe("extractUnitFields", () => {
     ]);
     const result = extractUnitFields(raw);
     expect(result.target).toBe((2n << 32n) | 1n);
+    expect(result._changed).toContain("target");
   });
 
   test("extracts power array entries", () => {

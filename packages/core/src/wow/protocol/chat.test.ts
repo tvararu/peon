@@ -30,24 +30,7 @@ describe("parseChatMessage", () => {
     expect(msg.senderGuidLow).toBe(0x42);
     expect(msg.message).toBe("hello");
     expect(msg.channel).toBeUndefined();
-  });
-
-  test("parses a WHISPER message", () => {
-    const w = new PacketWriter();
-    w.uint8(ChatType.WHISPER);
-    w.uint32LE(0);
-    w.uint32LE(0x10);
-    w.uint32LE(0x00);
-    w.uint32LE(0);
-    w.uint32LE(0x10);
-    w.uint32LE(0x00);
-    w.uint32LE(3);
-    w.rawBytes(new TextEncoder().encode("hey"));
-    w.uint8(0);
-
-    const msg = parseChatMessage(new PacketReader(w.finish()));
-    expect(msg.type).toBe(ChatType.WHISPER);
-    expect(msg.message).toBe("hey");
+    expect(msg.senderName).toBeUndefined();
   });
 
   test("parses a CHANNEL message with channel name", () => {
@@ -68,24 +51,6 @@ describe("parseChatMessage", () => {
     expect(msg.type).toBe(ChatType.CHANNEL);
     expect(msg.channel).toBe("General");
     expect(msg.message).toBe("hi");
-  });
-
-  test("parses a SYSTEM message", () => {
-    const w = new PacketWriter();
-    w.uint8(ChatType.SYSTEM);
-    w.uint32LE(0);
-    w.uint32LE(0x00);
-    w.uint32LE(0x00);
-    w.uint32LE(0);
-    w.uint32LE(0x00);
-    w.uint32LE(0x00);
-    w.uint32LE(7);
-    w.rawBytes(new TextEncoder().encode("Welcome"));
-    w.uint8(0);
-
-    const msg = parseChatMessage(new PacketReader(w.finish()));
-    expect(msg.type).toBe(ChatType.SYSTEM);
-    expect(msg.message).toBe("Welcome");
   });
 
   test("parses a GM message with embedded sender name", () => {
@@ -190,27 +155,6 @@ describe("parseChatMessage", () => {
     expect(r.remaining).toBe(0);
   });
 
-  test("raid warning carries no sender name", () => {
-    const w = new PacketWriter();
-    w.uint8(ChatType.RAID_WARNING);
-    w.uint32LE(0);
-    w.uint32LE(0x42);
-    w.uint32LE(0x00);
-    w.uint32LE(0);
-    w.uint32LE(0x00);
-    w.uint32LE(0x00);
-    const msgBytes = new TextEncoder().encode("Boss incoming");
-    w.uint32LE(msgBytes.byteLength + 1);
-    w.rawBytes(msgBytes);
-    w.uint8(0);
-    w.uint8(0);
-
-    const msg = parseChatMessage(new PacketReader(w.finish()));
-    expect(msg.type).toBe(ChatType.RAID_WARNING);
-    expect(msg.senderName).toBeUndefined();
-    expect(msg.message).toBe("Boss incoming");
-  });
-
   const chatBody = (
     type: number,
     message: string,
@@ -282,6 +226,7 @@ describe("buildChatMessage", () => {
     expect(r.uint32LE()).toBe(ChatType.SAY);
     expect(r.uint32LE()).toBe(Language.COMMON);
     expect(r.cString()).toBe("hello");
+    expect(r.remaining).toBe(0);
   });
 
   test("builds a WHISPER message with target name", () => {
@@ -310,34 +255,6 @@ describe("buildChatMessage", () => {
     expect(r.uint32LE()).toBe(Language.COMMON);
     expect(r.cString()).toBe("General");
     expect(r.cString()).toBe("hi");
-  });
-
-  test("builds a GUILD message (no target)", () => {
-    const body = buildChatMessage(
-      ChatType.GUILD,
-      Language.COMMON,
-      "hello guild",
-    );
-    const r = new PacketReader(body);
-    expect(r.uint32LE()).toBe(ChatType.GUILD);
-    expect(r.uint32LE()).toBe(Language.COMMON);
-    expect(r.cString()).toBe("hello guild");
-  });
-
-  test("builds a DND message", () => {
-    const body = buildChatMessage(ChatType.DND, Language.COMMON, "busy");
-    const r = new PacketReader(body);
-    expect(r.uint32LE()).toBe(ChatType.DND);
-    expect(r.uint32LE()).toBe(Language.COMMON);
-    expect(r.cString()).toBe("busy");
-  });
-
-  test("builds an AFK message", () => {
-    const body = buildChatMessage(ChatType.AFK, Language.COMMON, "brb");
-    const r = new PacketReader(body);
-    expect(r.uint32LE()).toBe(ChatType.AFK);
-    expect(r.uint32LE()).toBe(Language.COMMON);
-    expect(r.cString()).toBe("brb");
   });
 });
 

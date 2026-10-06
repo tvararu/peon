@@ -320,10 +320,8 @@ describe("use do:fish", () => {
         phase: "open" as const,
       },
     })) as typeof t.handle.getRewardsState;
-    const release = t.handle.releaseLoot;
     await runFish({ do: "fish" }, toolCtx(t));
     expect(t.order.slice(0, 3)).toEqual(["cast", "release", "use:true"]);
-    expect(release).toBeDefined();
   });
 
   test("fish_not_hooked ends FAILED and never uses the bobber", async () => {
@@ -398,14 +396,20 @@ describe("use do:fish", () => {
     });
   });
 
-  test("a bite after the wait ended is ignored by the next fish call", async () => {
+  test("a bite after the wait ended does not satisfy the next fish call", async () => {
     await withFakeTimers(async () => {
       const t = await world();
       castThen(t, () => undefined);
-      await fakeAwait(useSpec.run({ do: "fish" }, toolCtx(t)), HOOK_WAIT_MS);
       lootWindow(t, []);
+      await fakeAwait(useSpec.run({ do: "fish" }, toolCtx(t)), HOOK_WAIT_MS);
       objectsEvent(t, { bobber: BOBBER, type: "fish_hooked" });
-      expect(t.order).toEqual(["cast"]);
+      const out = await fakeAwait(
+        useSpec.run({ do: "fish" }, toolCtx(t)),
+        HOOK_WAIT_MS,
+      );
+      expect(out.status).toBe("UNCONFIRMED");
+      expect(out.reason).toBe("no_bite");
+      expect(t.order).toEqual(["cast", "cast"]);
     });
   });
 

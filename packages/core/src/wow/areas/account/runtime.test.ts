@@ -1,11 +1,13 @@
 import { describe, expect, test } from "bun:test";
 import { areaRig } from "#test-support/area-rig";
 import {
+  accountRequestAccountDataBody,
   accountUpdateAccountDataBodyWire,
   accountUpdateAccountDataCompleteBody,
 } from "#test-support/areas/account";
 import { loginAccountDataTimesBody } from "#test-support/areas/login";
 import { elapse, withFakeTimers } from "#test-support/fake-time";
+import { buildUpdateAccountData } from "#wow/areas/account/protocol";
 import { GameOpcode } from "#wow/protocol/opcodes";
 
 describe("account runtime", () => {
@@ -90,7 +92,10 @@ describe("account runtime", () => {
       );
       expect(await pending).toBe("peon");
       const last = rig.sent.at(-1);
-      expect(last?.opcode).toBe(GameOpcode.CMSG_REQUEST_ACCOUNT_DATA);
+      expect(last).toEqual({
+        opcode: GameOpcode.CMSG_REQUEST_ACCOUNT_DATA,
+        body: accountRequestAccountDataBody(7),
+      });
     } finally {
       rig.dispose();
     }
@@ -135,7 +140,10 @@ describe("account runtime", () => {
       const saved = rig.sent.filter(
         (packet) => packet.opcode === GameOpcode.CMSG_UPDATE_ACCOUNT_DATA,
       );
-      expect(saved).toHaveLength(2);
+      expect(saved.map((packet) => packet.body)).toEqual([
+        buildUpdateAccountData({ text: "peon", time: 100, type: 7 }),
+        buildUpdateAccountData({ text: "", time: 0, type: 7 }),
+      ]);
     } finally {
       rig.dispose();
     }

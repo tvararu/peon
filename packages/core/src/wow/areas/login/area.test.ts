@@ -90,23 +90,6 @@ describe("login area wiring", () => {
     }
   });
 
-  test("an empty addon list parses to zero addons", () => {
-    const rig = areaRig("login");
-    try {
-      rig.inject(
-        GameOpcode.SMSG_ADDON_INFO,
-        loginAddonInfoBody({ banned: [], entries: [] }),
-      );
-      expect(rig.handle.state().addons).toEqual({
-        banned: 0,
-        count: 0,
-        keyed: 0,
-      });
-    } finally {
-      rig.dispose();
-    }
-  });
-
   test("SMSG_PONG answers the pending ping and emits pong", () => {
     const rig = areaRig("login", { now: () => 1030 });
     try {

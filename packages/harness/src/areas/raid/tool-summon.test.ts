@@ -80,16 +80,16 @@ describe("group tool summon", () => {
   });
 
   test("refuses dead, ghost and tracked combat, which the server drops", async () => {
-    for (const setup of [
-      { life: "dead" as const },
-      { life: "ghost" as const },
-      { attackers: [7n] },
-    ]) {
+    for (const [setup, reason] of [
+      [{ life: "dead" as const }, "dead"],
+      [{ life: "ghost" as const }, "dead"],
+      [{ attackers: [7n] }, "in_combat"],
+    ] as const) {
       const t = await world(setup);
       const accept = await runTool(t.tool, { do: "summon", what: "accept" });
-      expect(accept.text).toContain("REFUSED");
+      expect(accept.text).toContain(`REFUSED ${reason}`);
       const decline = await runTool(t.tool, { do: "summon", what: "decline" });
-      expect(decline.text).toContain("REFUSED");
+      expect(decline.text).toContain(`REFUSED ${reason}`);
       expect(t.answer).not.toHaveBeenCalled();
     }
   });
@@ -143,14 +143,13 @@ describe("group tool summon", () => {
     expect(out.text).toContain("UNCONFIRMED");
   });
 
-  test("a jump after the wait ends is not counted", async () => {
+  test("an accept with no correction is UNCONFIRMED no_answer", async () => {
     const t = await world();
     t.answer.mockImplementation(() => elapse(5000));
     const out = await withFakeTimers(() =>
       runTool(t.tool, { do: "summon", what: "accept" }),
     );
-    expect(out.text).toContain("UNCONFIRMED");
-    expect(() => t.jump("teleport")).not.toThrow();
+    expect(out.text).toContain("UNCONFIRMED no_answer");
   });
 
   test("fails when the send throws", async () => {
@@ -184,7 +183,7 @@ describe("group tool summon", () => {
     expect(t.answer).not.toHaveBeenCalled();
   });
 
-  test("a pre-aborted decline sends nothing and keeps the offer", async () => {
+  test("a pre-aborted decline rejects before sending", async () => {
     const t = await world();
     const abort = new AbortController();
     abort.abort(new Error("cancelled"));
@@ -195,7 +194,6 @@ describe("group tool summon", () => {
       ),
     ).rejects.toThrow("cancelled");
     expect(t.answer).not.toHaveBeenCalled();
-    expect(t.handle.raid.state().summon).toBeDefined();
   });
 
   test("a decline aborted while queued sends nothing", async () => {
@@ -241,7 +239,6 @@ describe("group tool summon", () => {
     await held;
     expect(await done).toBe("cancelled");
     expect(t.answer).not.toHaveBeenCalled();
-    expect(t.handle.raid.state().summon).toBeDefined();
   });
 
   test("an accept aborted after the send rejects and frees the wait", async () => {

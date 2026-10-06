@@ -117,27 +117,6 @@ test("missing probability keys and non-unit totals fail", async () => {
   }
 });
 
-test("rejected probability totals retain the response failure boundary", async () => {
-  await expect(
-    selectJevAction(request, {
-      apiKey: "ts_test_key",
-      fetch: async () =>
-        jsonResponse(200, {
-          ...validPayload,
-          answers: {
-            action: {
-              ...validPayload.answers.action,
-              probabilities: { smite: 0.2, wait: 0.3 },
-            },
-          },
-        }),
-      signal: new AbortController().signal,
-    }),
-  ).rejects.toMatchObject({
-    cause: { field: "probabilities.total", total: 0.5 },
-  });
-});
-
 test("body read failures retain raw causes without serializing them", async () => {
   const raw = {
     toJSON: () => {

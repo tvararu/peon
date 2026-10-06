@@ -54,15 +54,14 @@ describe("selfstate harness rules", () => {
       type: "mirror_timer",
       value: BREATH,
     });
-    expect<unknown[]>(rows).toEqual([
-      {
-        class: "wake",
-        data: { remainingS: 60, timer: "breath" },
-        domain: "selfstate",
-        event: "selfstate/under_water",
-        text: "You are under water: breath 60 s.",
-      },
-    ]);
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({
+      class: "wake",
+      data: { remainingS: 60, timer: "breath" },
+      domain: "selfstate",
+      event: "selfstate/under_water",
+    });
+    expect(rows[0]?.text).toContain("60 s");
   });
 
   test("a stopped breath timer logs that the agent can breathe", () => {
@@ -72,23 +71,20 @@ describe("selfstate harness rules", () => {
       type: "mirror_timer",
     });
     expect(rows).toHaveLength(1);
-    expect(rows[0]).toMatchObject({
-      class: "log",
-      text: "You can breathe again.",
-    });
+    expect(rows[0]).toMatchObject({ class: "log" });
+    expect(rows[0]?.text).toContain("breathe again");
   });
 
   test("breath_low wakes the agent to surface", () => {
     const rows = drafts({ remainingMs: 9600, type: "breath_low" });
-    expect<unknown[]>(rows).toEqual([
-      {
-        class: "wake",
-        data: { remainingS: 10 },
-        domain: "selfstate",
-        event: "selfstate/breath_low",
-        text: "Breath 10 s left. Surface now.",
-      },
-    ]);
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({
+      class: "wake",
+      data: { remainingS: 10 },
+      domain: "selfstate",
+      event: "selfstate/breath_low",
+    });
+    expect(rows[0]?.text).toContain("10 s");
   });
 
   test("a refused transfer wakes the agent with the map and the reason", () => {
@@ -104,8 +100,9 @@ describe("selfstate harness rules", () => {
       class: "wake",
       data: { mapId: 36, reason: 2 },
       event: "selfstate/transfer_aborted",
-      text: "Could not enter map 36: the instance is full.",
     });
+    expect(rows[0]?.text).toContain("map 36");
+    expect(rows[0]?.text).toContain("instance is full");
   });
 
   test("an unknown abort reason still names the map and the reason number", () => {
@@ -116,7 +113,8 @@ describe("selfstate harness rules", () => {
       reason: 99,
       type: "transfer_aborted",
     });
-    expect(row?.text).toBe("Could not enter map 229: reason 99.");
+    expect(row?.text).toContain("229");
+    expect(row?.text).toContain("reason 99");
   });
 
   test("an available self-resurrection spell logs the way back with its name", () => {
@@ -125,15 +123,15 @@ describe("selfstate harness rules", () => {
       spellId: 21_169,
       type: "self_res_available",
     });
-    expect<unknown[]>(rows).toEqual([
-      {
-        class: "log",
-        data: { name: "Reincarnation", spellId: 21_169 },
-        domain: "selfstate",
-        event: "selfstate/self_res_available",
-        text: "You can come back where you died (Reincarnation).",
-      },
-    ]);
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({
+      class: "log",
+      data: { name: "Reincarnation", spellId: 21_169 },
+      domain: "selfstate",
+      event: "selfstate/self_res_available",
+    });
+    expect(rows[0]?.text).toContain("come back where you died");
+    expect(rows[0]?.text).toContain("(Reincarnation)");
   });
 
   test("a mount and a dismount log their rows", () => {
@@ -191,7 +189,7 @@ describe("selfstate harness rules", () => {
       spellId: 20_707,
       type: "self_res_available",
     });
-    expect(row?.text).toBe("You can come back where you died (spell 20707).");
+    expect(row?.text).toContain("spell 20707");
   });
 
   test("stand changes and a pending ghost write no row", () => {

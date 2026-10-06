@@ -198,19 +198,3 @@ describe("LoginStore", () => {
     expect(seen.at(-1)).toEqual({ rttMs: 99, seq: 2, type: "pong" });
   });
 });
-
-describe("LoginStore login failure and logout cancel", () => {
-  test("a character login failure emits login_failed with the named reason", () => {
-    const { seen, store } = withEvents();
-    store.receiveCharacterLoginFailed({ code: 1, reason: "no_world" });
-    expect(seen).toEqual([
-      { code: 1, reason: "no_world", type: "login_failed" },
-    ]);
-  });
-
-  test("a logout cancel ack emits logout_cancelled", () => {
-    const { seen, store } = withEvents();
-    store.receiveLogoutCancelAck();
-    expect(seen).toEqual([{ type: "logout_cancelled" }]);
-  });
-});

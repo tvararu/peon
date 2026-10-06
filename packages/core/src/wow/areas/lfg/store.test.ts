@@ -10,7 +10,6 @@ import {
   lfgUpdatePlayerBody,
   lfgUpdateSearchBody,
 } from "#test-support/areas/lfg";
-import { areaStubs } from "#wow/areas/compose";
 
 import type { LfgEvent } from "#wow/areas/lfg/store";
 import { GameOpcode } from "#wow/protocol/opcodes";
@@ -115,17 +114,17 @@ describe("LfgStore", () => {
     try {
       rig.inject(
         GameOpcode.SMSG_LFG_UPDATE_PLAYER,
-        lfgUpdatePlayerBody({ updateType: 9 }),
-      );
-      expect(rig.handle.state().status).toBe("none");
-      rig.inject(
-        GameOpcode.SMSG_LFG_UPDATE_PLAYER,
         lfgUpdatePlayerBody({
           updateType: 12,
           data: { queued: true, dungeons: [1] },
         }),
       );
       expect(rig.handle.state().status).toBe("queued");
+      rig.inject(
+        GameOpcode.SMSG_LFG_UPDATE_PLAYER,
+        lfgUpdatePlayerBody({ updateType: 9 }),
+      );
+      expect(rig.handle.state().status).toBe("none");
     } finally {
       rig.dispose();
     }
@@ -337,7 +336,7 @@ describe("LfgStore", () => {
     }
   });
 
-  test("a role chosen with no role leaves the member pending and emits role_chosen", () => {
+  test("a role chosen moves the member to ready and emits role_chosen", () => {
     const { rig, seen } = setup();
     try {
       rig.inject(
@@ -362,28 +361,6 @@ describe("LfgStore", () => {
         roles: 2,
         ready: true,
       });
-    } finally {
-      rig.dispose();
-    }
-  });
-
-  test("the SMSG_LFG_QUEUE_STATUS stub pair is gone from areaStubs", () => {
-    const { rig } = setup();
-    try {
-      expect(areaStubs().some(([, label]) => label === "LFG queue")).toBe(
-        false,
-      );
-    } finally {
-      rig.dispose();
-    }
-  });
-
-  test("the SMSG_LFG_UPDATE_PLAYER stub pair is gone from areaStubs", () => {
-    const { rig } = setup();
-    try {
-      expect(areaStubs().some(([, label]) => label === "LFG status")).toBe(
-        false,
-      );
     } finally {
       rig.dispose();
     }

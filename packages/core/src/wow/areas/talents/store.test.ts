@@ -255,13 +255,15 @@ describe("TalentsStore snapshot slots", () => {
   });
 
   test("with no entity and no packet every slot value is undefined", () => {
-    const [first] = storeWith(undefined).snapshot().slots;
-    expect(first).toEqual({
-      glyphId: undefined,
-      index: 0,
-      typeId: undefined,
-      unlocked: undefined,
-    });
+    const { slots } = storeWith(undefined).snapshot();
+    expect(slots).toEqual(
+      [0, 1, 2, 3, 4, 5].map((index) => ({
+        glyphId: undefined,
+        index,
+        typeId: undefined,
+        unlocked: undefined,
+      })),
+    );
   });
 
   test("a packet with no spec leaves the glyphs undefined", () => {
@@ -283,8 +285,12 @@ describe("noteRefused", () => {
   test("emits a refused event with a copy of the entries", () => {
     const { rig, seen } = rigWithEvents();
     try {
-      const entries = [{ rank: 0, reason: "no_points" as const, talentId: 1 }];
+      const entry = { rank: 0, reason: "no_points" as const, talentId: 1 };
+      const entries = [entry];
       rig.stores.areas.talents.noteRefused(entries);
+      entry.rank = 9;
+      entry.talentId = 99;
+      entries.push({ rank: 1, reason: "no_points", talentId: 2 });
       expect(seen).toEqual([
         {
           entries: [{ rank: 0, reason: "no_points", talentId: 1 }],
@@ -292,7 +298,6 @@ describe("noteRefused", () => {
           type: "refused",
         },
       ]);
-      expect(entries).toEqual([{ rank: 0, reason: "no_points", talentId: 1 }]);
     } finally {
       rig.dispose();
     }

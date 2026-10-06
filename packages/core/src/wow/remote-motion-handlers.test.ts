@@ -13,6 +13,7 @@ import { MovementFlag } from "#wow/protocol/entity-fields";
 import { writeMovementInfo } from "#wow/protocol/movement";
 import { GameOpcode } from "#wow/protocol/opcodes";
 import { PacketWriter } from "#wow/protocol/packet";
+import { REMOTE_MOVEMENT_OPCODES } from "#wow/protocol/remote-movement";
 import { OpcodeDispatch } from "#wow/protocol/world";
 import { registerRemoteMotionHandlers } from "#wow/remote-motion-handlers";
 import type { WorldConn } from "#wow/world-conn";
@@ -155,10 +156,15 @@ describe("remote motion handlers read compressed spline toggles", () => {
 });
 
 describe("registerRemoteMotionHandlers on partial connections", () => {
-  test("registers on a connection that holds only a dispatch", () => {
-    const conn = { dispatch: new OpcodeDispatch() } as unknown as WorldConn;
-    expect(() =>
-      registerRemoteMotionHandlers(conn, testStores()),
-    ).not.toThrow();
+  test("registers the movement and compressed-move opcodes on a connection that holds only a dispatch", () => {
+    const dispatch = new OpcodeDispatch();
+    const conn = { dispatch } as unknown as WorldConn;
+    registerRemoteMotionHandlers(conn, testStores());
+    for (const opcode of REMOTE_MOVEMENT_OPCODES) {
+      expect(dispatch.has(opcode)).toBe(
+        opcode !== GameOpcode.MSG_MOVE_TELEPORT,
+      );
+    }
+    expect(dispatch.has(GameOpcode.SMSG_COMPRESSED_MOVES)).toBe(true);
   });
 });

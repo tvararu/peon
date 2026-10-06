@@ -239,14 +239,6 @@ describe("quest escort confirm, receiver", () => {
     });
   });
 
-  test("accepting an ordinary shared quest sends no decline", () => {
-    offered((r) => {
-      r.details(SHARER);
-      r.rig.handle.act.answerShare("accept");
-      expect(declined(r)).toEqual([]);
-    });
-  });
-
   const pushResult = (r: ReturnType<typeof setup>) => {
     const [packet] = declined(r);
     if (packet === undefined) return;

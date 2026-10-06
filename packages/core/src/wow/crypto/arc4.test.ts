@@ -1,34 +1,33 @@
 import { expect, test } from "bun:test";
-import { createDecipheriv, createHmac } from "node:crypto";
+import { createCipheriv, createDecipheriv, createHmac } from "node:crypto";
 import { Arc4 } from "#wow/crypto/arc4";
 
-test("Arc4 encrypts header bytes", () => {
+function sequentialKey(): Uint8Array {
   const sessionKey = new Uint8Array(40);
   for (let i = 0; i < 40; i++) sessionKey[i] = i;
+  return sessionKey;
+}
 
-  const arc4 = new Arc4(sessionKey);
-  const header = new Uint8Array([0x00, 0x04, 0x95, 0x00]);
-  const encrypted = arc4.encrypt(header);
-
-  expect(encrypted).not.toEqual(header);
-  expect(encrypted.byteLength).toBe(4);
-});
-
-test("Arc4 uses separate keys for encrypt and decrypt", () => {
-  const sessionKey = new Uint8Array(40);
-  for (let i = 0; i < 40; i++) sessionKey[i] = i;
-
-  const arc4 = new Arc4(sessionKey);
+test("Arc4 decrypt reads the server's encrypt stream", () => {
+  const sessionKey = sequentialKey();
+  const serverEncKey = createHmac(
+    "sha1",
+    Buffer.from("CC98AE04E897EACA12DDC09342915357", "hex"),
+  )
+    .update(sessionKey)
+    .digest();
+  const serverCipher = createCipheriv("rc4", serverEncKey, "");
+  serverCipher.update(new Uint8Array(1024));
   const data = new Uint8Array([0x00, 0x08, 0xdc, 0x01, 0x00, 0x00]);
-  const encrypted = arc4.encrypt(new Uint8Array(data));
-  const decrypted = arc4.decrypt(encrypted);
+  const fromServer = new Uint8Array(serverCipher.update(data));
 
-  expect(decrypted).not.toEqual(data);
+  const arc4 = new Arc4(sessionKey);
+
+  expect(arc4.decrypt(fromServer)).toEqual(data);
 });
 
 test("Arc4 encrypt matches server-side decrypt with correct key", () => {
-  const sessionKey = new Uint8Array(40);
-  for (let i = 0; i < 40; i++) sessionKey[i] = i;
+  const sessionKey = sequentialKey();
 
   const arc4 = new Arc4(sessionKey);
   const original = new Uint8Array([0x00, 0x08, 0xdc, 0x01, 0x00, 0x00]);
@@ -47,30 +46,22 @@ test("Arc4 encrypt matches server-side decrypt with correct key", () => {
   expect(decrypted).toEqual(original);
 });
 
-test("Arc4 maintains cipher state across multiple calls", () => {
+test("Arc4 continues one encrypt stream across calls", () => {
   const sessionKey = new Uint8Array(40).fill(0xab);
-
   const arc4 = new Arc4(sessionKey);
+  const header = new Uint8Array([0x00, 0x04, 0x96, 0x00]);
 
-  const h1 = new Uint8Array([0x00, 0x04, 0x96, 0x00]);
-  const h2 = new Uint8Array([0x00, 0x04, 0x96, 0x00]);
+  const e1 = arc4.encrypt(new Uint8Array(header));
+  const e2 = arc4.encrypt(new Uint8Array(header));
 
-  const e1 = arc4.encrypt(new Uint8Array(h1));
-  const e2 = arc4.encrypt(new Uint8Array(h2));
-
-  expect(e1).not.toEqual(e2);
-});
-
-test("Arc4 uses HMAC-SHA1 key derivation", () => {
-  const k1 = new Uint8Array(40).fill(0x00);
-  const k2 = new Uint8Array(40).fill(0x01);
-
-  const arc4a = new Arc4(k1);
-  const arc4b = new Arc4(k2);
-
-  const header = new Uint8Array([0x00, 0x04, 0x95, 0x00]);
-  const e1 = arc4a.encrypt(new Uint8Array(header));
-  const e2 = arc4b.encrypt(new Uint8Array(header));
-
-  expect(e1).not.toEqual(e2);
+  const serverDecKey = createHmac(
+    "sha1",
+    Buffer.from("C2B3723CC6AED9B5343C53EE2F4367CE", "hex"),
+  )
+    .update(sessionKey)
+    .digest();
+  const serverCipher = createDecipheriv("rc4", serverDecKey, "");
+  serverCipher.update(new Uint8Array(1024));
+  expect(new Uint8Array(serverCipher.update(e1))).toEqual(header);
+  expect(new Uint8Array(serverCipher.update(e2))).toEqual(header);
 });

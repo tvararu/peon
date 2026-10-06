@@ -89,16 +89,6 @@ describe("parseTradeStatus", () => {
     expect(parsed).toMatchObject({ slot: 4, status: 22 });
   });
 
-  test("a bare status leaves no bytes", () => {
-    const parsed = parseTradeStatus(
-      new PacketReader(tradeStatusBody(TRADE_STATUS.NO_TARGET)),
-    );
-    expect(parsed).toMatchObject({
-      status: 6,
-      statusName: "no_target",
-    });
-  });
-
   test("each branch leaves 0 bytes", () => {
     const bodies = [
       tradeStatusBody(TRADE_STATUS.BEGIN_TRADE, { trader: TRADE_PARTNER }),

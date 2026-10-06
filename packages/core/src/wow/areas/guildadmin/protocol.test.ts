@@ -8,7 +8,7 @@ import {
   parseGuildInfo,
 } from "#wow/areas/guildadmin/protocol";
 import { parsePackedTime } from "#wow/protocol/packed-time";
-import { PacketReader, PacketWriter } from "#wow/protocol/packet";
+import { PacketReader } from "#wow/protocol/packet";
 
 describe("guildadmin protocol (Server/Packets/GuildPackets.cpp:45-58)", () => {
   test("parseGuildInfo reads the name, packed creation time and counts", () => {
@@ -30,12 +30,6 @@ describe("guildadmin protocol (Server/Packets/GuildPackets.cpp:45-58)", () => {
   });
 
   test("buildGuildCreate writes the guild name as a CString (GuildPackets.cpp:45-48)", () => {
-    const w = new PacketWriter();
-    w.cString("Fac");
-    expect([...buildGuildCreate("Fac")]).toEqual([...w.finish()]);
-  });
-
-  test("CMSG_GUILD_INFO and CMSG_GUILD_DISBAND have empty bodies (GuildHandler.cpp:89-95, :133-139)", () => {
-    expect(new PacketWriter().finish().length).toBe(0);
+    expect([...buildGuildCreate("Fac")]).toEqual([0x46, 0x61, 0x63, 0x00]);
   });
 });

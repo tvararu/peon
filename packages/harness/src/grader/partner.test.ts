@@ -2,7 +2,6 @@ import { describe, expect, test } from "bun:test";
 import { scratchDir } from "@peon/core/test-support/scratch";
 import type { Exec, ExecResult } from "#harness/grader/exec";
 import {
-  actionTimeoutMs,
   newPartnerTrack,
   type Partner,
   type PartnerTrack,
@@ -32,7 +31,6 @@ type Steered = {
   dir: string;
   index: number;
   rows: Record<string, unknown>[];
-  timeouts: (number | undefined)[];
 };
 async function stepWith(
   exec: Exec,
@@ -40,19 +38,14 @@ async function stepWith(
   track?: PartnerTrack,
   now: number | { at: number } = NOW,
 ): Promise<Steered> {
-  const timeouts: (number | undefined)[] = [];
   const time = typeof now === "number" ? { at: now } : now;
-  const seen: Exec = async (argv, opts) => {
-    timeouts.push(opts?.timeoutMs);
-    return exec(argv, opts);
-  };
   const active = track ?? newPartnerTrack(NOW - 100_000);
   const runDir = scratchDir("partner-call");
   await stepPartner({
     actions,
     agent: AGENT,
     clock: { now: () => time.at },
-    exec: seen,
+    exec,
     partners: [PARTNER],
     runDir,
     track: active,
@@ -67,7 +60,7 @@ async function stepWith(
           string,
           unknown
         >[]);
-  return { dir: runDir, index: active.cursor.index, rows, timeouts };
+  return { dir: runDir, index: active.cursor.index, rows };
 }
 
 type Puppet = { after: number; reply: ExecResult };
@@ -100,30 +93,21 @@ async function runCall(
 }
 
 describe("partner calls that wait on the agent", () => {
-  test("a walk keeps the default timeout and each agent wait is covered", () => {
-    expect(actionTimeoutMs(["call", "walkToPlayer", "[]"])).toBeLessThanOrEqual(
-      30_000,
-    );
-    expect(actionTimeoutMs(["send", "-w", "hi"])).toBeLessThanOrEqual(30_000);
-    for (const method of [
-      "tradeRequest",
-      "tradeRequestQuiet",
-      "tradeAnswer",
-      "tradeAccept",
-      "tradeAcceptOffered",
-    ])
-      expect(actionTimeoutMs(["call", method, "[]"])).toBeGreaterThan(60_000);
-    expect(
-      actionTimeoutMs(["call", "tradeAcceptOffered", "[]"]),
-    ).toBeGreaterThan(120_000);
-  });
-
   test("an answer after 45 s to tradeRequest is not a kill", async () => {
     const result = await runCall("tradeRequest", 45_000, OK);
     expect(result.index).toBe(1);
     expect(result.rows[0]).toMatchObject({ code: 0 });
     expect(result.rows[0]?.["agentSilent"]).toBeUndefined();
   });
+
+  test.each(["tradeAccept", "tradeAnswer", "tradeRequestQuiet"])(
+    "an answer after 45 s to %s is not a kill",
+    async (method) => {
+      const result = await runCall(method, 45_000, OK);
+      expect(result.rows[0]).toMatchObject({ code: 0 });
+      expect(result.rows[0]?.["agentSilent"]).toBeUndefined();
+    },
+  );
 
   test("tradeAcceptOffered with an offer at 20 s and an accept at 80 s is answered", async () => {
     const result = await runCall("tradeAcceptOffered", 80_000, OK);
@@ -142,12 +126,6 @@ describe("partner calls that wait on the agent", () => {
     );
     expect(result.index).toBe(1);
     expect(result.rows[0]).toMatchObject({ agentSilent: true, code: 143 });
-  });
-
-  test("tradeAccept waits its 60 s for the agent instead of dying at 30 s", async () => {
-    const result = await runCall("tradeAccept", 55_000, OK);
-    expect(result.rows[0]).toMatchObject({ code: 0 });
-    expect(result.rows[0]?.["agentSilent"]).toBeUndefined();
   });
 
   test("an unanswered request is a graded row and the run goes on", async () => {

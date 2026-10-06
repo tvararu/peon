@@ -9,7 +9,6 @@ import {
   channelsYouJoinedBody,
 } from "#test-support/areas/channels";
 import { elapse, withFakeTimers } from "#test-support/fake-time";
-import { CHANNEL_ADMIN_OPCODES } from "#wow/areas/channels/protocol";
 import { GameOpcode } from "#wow/protocol/opcodes";
 
 const ME = 0xde1n;
@@ -42,9 +41,13 @@ describe("channels runtime", () => {
         }),
       );
       const result = await pending;
-      expect(rig.sent.slice(before).map((packet) => packet.opcode)).toEqual([
-        CHANNEL_ADMIN_OPCODES.password,
+      const sent = rig.sent.slice(before);
+      expect(sent.map((packet) => packet.opcode)).toEqual([
+        GameOpcode.CMSG_CHANNEL_PASSWORD,
       ]);
+      expect(sent[0]?.body).toEqual(
+        new TextEncoder().encode("peonab12cd\0abc\0"),
+      );
       expect(result).toEqual({
         notice: { channel: "peonab12cd", guid: ME, type: "password_changed" },
         ok: true,
@@ -54,7 +57,7 @@ describe("channels runtime", () => {
     }
   });
 
-  test("a 32-character password sends nothing", async () => {
+  test("a 32-character password sends nothing, a 31-character one is sent", async () => {
     const { before, rig } = joined();
     try {
       const result = await rig.handle.act.channelAdmin(
@@ -64,6 +67,23 @@ describe("channels runtime", () => {
       );
       expect(result).toEqual({ ok: false, reason: "too_long" });
       expect(rig.sent.slice(before)).toHaveLength(0);
+      const pending = rig.handle.act.channelAdmin(
+        "peonab12cd",
+        "password",
+        "x".repeat(31),
+      );
+      rig.inject(
+        GameOpcode.SMSG_CHANNEL_NOTIFY,
+        channelsNotifyGuidBody({
+          channel: "peonab12cd",
+          guid: ME,
+          type: "password_changed",
+        }),
+      );
+      expect((await pending).ok).toBe(true);
+      expect(rig.sent.slice(before).map((packet) => packet.opcode)).toEqual([
+        GameOpcode.CMSG_CHANNEL_PASSWORD,
+      ]);
     } finally {
       rig.dispose();
     }
@@ -95,7 +115,7 @@ describe("channels runtime", () => {
     }
   });
 
-  test("every admin action sends its ChannelHandler opcode", async () => {
+  test("moderator sends its ChannelHandler opcode", async () => {
     const { before, rig } = joined();
     try {
       const pending = rig.handle.act.channelAdmin(
@@ -228,9 +248,9 @@ describe("channels runtime", () => {
         signal: cancel.signal,
       });
       cancel.abort();
-      expect(await pending.catch((error: unknown) => error)).toBeInstanceOf(
-        Error,
-      );
+      expect(await pending.catch((error: unknown) => error)).toMatchObject({
+        name: "AbortError",
+      });
     } finally {
       rig.dispose();
     }

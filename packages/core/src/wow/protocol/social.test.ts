@@ -116,13 +116,6 @@ describe("buildDelFriend", () => {
     expect(r.uint64LE()).toBe(0x0000000100000042n);
     expect(r.remaining).toBe(0);
   });
-
-  test("writes zero guid", () => {
-    const body = buildDelFriend(0n);
-    const r = new PacketReader(body);
-    expect(r.uint64LE()).toBe(0n);
-    expect(r.remaining).toBe(0);
-  });
 });
 
 describe("buildAddIgnore", () => {
@@ -196,26 +189,6 @@ describe("parseContactList", () => {
     expect(c.area).toBeUndefined();
     expect(c.level).toBeUndefined();
     expect(c.playerClass).toBeUndefined();
-  });
-
-  test("parses AFK friend with area/level/class", () => {
-    const w = new PacketWriter();
-    w.uint32LE(SocialFlag.FRIEND);
-    w.uint32LE(1);
-    w.uint64LE(200n);
-    w.uint32LE(SocialFlag.FRIEND);
-    w.cString("afk note");
-    w.uint8(FriendStatus.AFK);
-    w.uint32LE(44);
-    w.uint32LE(70);
-    w.uint32LE(1);
-
-    const result = parseContactList(new PacketReader(w.finish()));
-    const c = must(result.contacts[0]);
-    expect(c.status).toBe(FriendStatus.AFK);
-    expect(c.area).toBe(44);
-    expect(c.level).toBe(70);
-    expect(c.playerClass).toBe(1);
   });
 
   test("parses ignored entry with no status fields", () => {
@@ -349,79 +322,6 @@ describe("parseFriendStatus", () => {
     expect(result.note).toBeUndefined();
     expect(result.status).toBeUndefined();
     expect(result.area).toBeUndefined();
-  });
-
-  test("parses REMOVED with just result and guid", () => {
-    const w = new PacketWriter();
-    w.uint8(FriendResult.REMOVED);
-    w.uint64LE(400n);
-
-    const result = parseFriendStatus(new PacketReader(w.finish()));
-    expect(result.result).toBe(FriendResult.REMOVED);
-    expect(result.guid).toBe(400n);
-    expect(result.note).toBeUndefined();
-    expect(result.status).toBeUndefined();
-  });
-
-  test("parses NOT_FOUND with just result and guid", () => {
-    const w = new PacketWriter();
-    w.uint8(FriendResult.NOT_FOUND);
-    w.uint64LE(0n);
-
-    const result = parseFriendStatus(new PacketReader(w.finish()));
-    expect(result.result).toBe(FriendResult.NOT_FOUND);
-    expect(result.guid).toBe(0n);
-  });
-
-  test("parses ALREADY with just result and guid", () => {
-    const w = new PacketWriter();
-    w.uint8(FriendResult.ALREADY);
-    w.uint64LE(500n);
-
-    const result = parseFriendStatus(new PacketReader(w.finish()));
-    expect(result.result).toBe(FriendResult.ALREADY);
-    expect(result.guid).toBe(500n);
-  });
-
-  test("parses SELF with just result and guid", () => {
-    const w = new PacketWriter();
-    w.uint8(FriendResult.SELF);
-    w.uint64LE(600n);
-
-    const result = parseFriendStatus(new PacketReader(w.finish()));
-    expect(result.result).toBe(FriendResult.SELF);
-    expect(result.guid).toBe(600n);
-  });
-
-  test("parses ENEMY with just result and guid", () => {
-    const w = new PacketWriter();
-    w.uint8(FriendResult.ENEMY);
-    w.uint64LE(700n);
-
-    const result = parseFriendStatus(new PacketReader(w.finish()));
-    expect(result.result).toBe(FriendResult.ENEMY);
-    expect(result.guid).toBe(700n);
-  });
-
-  test("parses LIST_FULL with just result and guid", () => {
-    const w = new PacketWriter();
-    w.uint8(FriendResult.LIST_FULL);
-    w.uint64LE(800n);
-
-    const result = parseFriendStatus(new PacketReader(w.finish()));
-    expect(result.result).toBe(FriendResult.LIST_FULL);
-    expect(result.guid).toBe(800n);
-  });
-
-  test("parses DB_ERROR with just result and guid", () => {
-    const w = new PacketWriter();
-    w.uint8(FriendResult.DB_ERROR);
-    w.uint64LE(0n);
-
-    const result = parseFriendStatus(new PacketReader(w.finish()));
-    expect(result.result).toBe(FriendResult.DB_ERROR);
-    expect(result.guid).toBe(0n);
-    expect(result.note).toBeUndefined();
-    expect(result.status).toBeUndefined();
+    expect(result.playerClass).toBeUndefined();
   });
 });

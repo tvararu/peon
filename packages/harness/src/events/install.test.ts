@@ -5,12 +5,7 @@ import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { scratchDir } from "@peon/core/test-support/scratch";
 import type { HarnessFlags } from "#harness/contract/config";
 import type { DeliverySink } from "#harness/contract/services";
-import {
-  installEvents,
-  NOW_DISPLAY,
-  nowMessage,
-  nowText,
-} from "#harness/events/install";
+import { installEvents, NOW_DISPLAY, nowText } from "#harness/events/install";
 import { createGameLog } from "#harness/log/store";
 import { createTestRuntime, testPaths } from "#test-support/runtime-fixture";
 
@@ -219,7 +214,7 @@ describe("installEvents", () => {
   });
 });
 
-describe("nowText and nowMessage", () => {
+describe("nowText", () => {
   test("says offline or loading when there is no snapshot", async () => {
     const clock = { now: () => Date.UTC(2026, 8, 26, 19, 13, 31) };
     const offline = await createTestRuntime({
@@ -233,14 +228,5 @@ describe("nowText and nowMessage", () => {
     expect(nowText(loading.rt)).toBe(
       "[now 19:13:31] the world is still loading.",
     );
-  });
-
-  test("builds the hidden message and the visible V6 fallback", () => {
-    expect(nowMessage("[now 19:13:31] x")).toEqual({
-      content: "[now 19:13:31] x",
-      customType: "wow-now",
-      display: NOW_DISPLAY,
-    });
-    expect(nowMessage("[now 19:13:31] x", true).display).toBe(true);
   });
 });

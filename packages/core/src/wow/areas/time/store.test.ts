@@ -21,18 +21,6 @@ function clock(start: number) {
 }
 
 describe("TimeStore", () => {
-  test("starts empty", () => {
-    expect(new TimeStore(() => 0).snapshot()).toEqual({
-      gameTime: undefined,
-      speed: undefined,
-      serverTime: undefined,
-      dailyResetInSec: undefined,
-      receivedAt: undefined,
-      uiTime: undefined,
-      uiTimeAt: undefined,
-    });
-  });
-
   test("receiveUiTime stores the game time and emits ui_time with a detached state", () => {
     const time = clock(1000);
     const store = new TimeStore(time.now);
@@ -95,16 +83,6 @@ describe("TimeStore", () => {
     });
     expect(seen.map((e) => e.type)).toEqual(["set_speed", "query_reply"]);
     expect(seen[1]?.state.dailyResetInSec).toBe(60);
-  });
-
-  test("snapshot is a copy", () => {
-    const store = new TimeStore(() => 0);
-    store.receiveSetSpeed({ gameTime: NOON, speed: SPEED });
-    const copy = store.snapshot();
-    if (!copy.gameTime) throw new Error("no game time");
-    copy.gameTime.minute = 30;
-    copy.speed = 1;
-    expect(store.snapshot()).toMatchObject({ gameTime: NOON, speed: SPEED });
   });
 
   test("dispose clears listeners", () => {

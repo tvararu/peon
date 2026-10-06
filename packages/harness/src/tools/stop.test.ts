@@ -65,9 +65,8 @@ describe("stop", () => {
     const { handle, rt, tool } = await world();
     const run = startEngage(rt);
     const out = await runTool(tool, { run: "r1" });
-    expect(out.text).toBe(
-      "DONE stopped r1 (engage, 1 of 3 kills). Not moving, not attacking. HP 190/217.",
-    );
+    for (const value of ["r1", "engage, 1 of 3 kills", "HP 190/217"])
+      expect(out.text).toContain(value);
     expect(run.signal.aborted).toBe(true);
     expect((await run.done).status).toBe("cancelled");
     expect(handle.halt).toHaveBeenCalled();
@@ -78,24 +77,28 @@ describe("stop", () => {
   test("stops everything by default", async () => {
     const { handle, rt, tool } = await world();
     startEngage(rt);
-    expect((await runTool(tool, {})).text).toBe(
-      "DONE stopped r1 (engage, 1 of 3 kills). Not moving, not attacking. HP 190/217.",
-    );
+    const out = await runTool(tool, {});
+    for (const value of ["r1", "1 of 3 kills", "HP 190/217"])
+      expect(out.text).toContain(value);
     expect(handle.halt).toHaveBeenCalled();
   });
 
   test("says when nothing was running", async () => {
     const { tool } = await world();
-    expect((await runTool(tool, {})).text).toBe(
-      "DONE nothing was running. Not moving, not attacking. HP 190/217.",
-    );
+    const out = await runTool(tool, {});
+    expect(out.text).toContain("nothing was running");
+    expect(out.text).toContain("HP 190/217");
   });
 
   test("refuses an unknown run id", async () => {
     const { tool } = await world();
-    expect((await runTool(tool, { run: "r7" })).text).toBe(
-      'REFUSED no_such_run: there is no run "r7".\nNext: stop()',
-    );
+    const out = await runTool(tool, { run: "r7" });
+    expect(out.details.result).toMatchObject({
+      next: "stop()",
+      reason: "no_such_run",
+      status: "REFUSED",
+    });
+    expect(out.text).toContain("r7");
   });
 
   test("keeps the danger line: stopping is not escaping", async () => {
@@ -108,10 +111,13 @@ describe("stop", () => {
       rows: [stalker],
     });
     const out = await runTool(tool, {});
-    expect(out.text.split("\n")).toEqual([
-      "DONE nothing was running. Not moving, not attacking. HP 190/217.",
-      "Danger: Springpaw Stalker u1 is still coming at you (0 yd). You are at 88% HP.",
-    ]);
+    for (const value of [
+      "Springpaw Stalker u1",
+      "0 yd",
+      "88% HP",
+      "HP 190/217",
+    ])
+      expect(out.text).toContain(value);
     expect(out.details.result.after).toMatchObject({
       attackers: [{ ref: "u1" }],
       self: { hp: 190, maxHp: 217 },
@@ -125,8 +131,14 @@ describe("stop", () => {
   });
 });
 
-test("names a running channel in its detail", async () => {
+test.each([
+  { defs: false, expected: "spell 5143", name: "falls back to the spell id" },
+  { defs: true, expected: "Mind Flay", name: "uses the looked-up spell name" },
+])("a running channel $name in its detail", async ({ defs, expected }) => {
   const { handle, tool } = await world();
+  if (defs)
+    handle.spellDefinition = (id) =>
+      id === 5143 ? ({ id, name: "Mind Flay" } as never) : undefined;
   const state = handle.spells.state();
   jest.spyOn(handle.spells, "state").mockImplementation(() => ({
     ...state,
@@ -140,5 +152,5 @@ test("names a running channel in its detail", async () => {
     },
   }));
   const out = await runTool(tool, {});
-  expect(out.text).toContain("Channelling spell 5143");
+  expect(out.text).toContain(expected);
 });

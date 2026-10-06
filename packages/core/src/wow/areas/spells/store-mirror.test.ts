@@ -99,6 +99,7 @@ describe("SpellsStore mirror images", () => {
   test("a disappear drops the stored image so a new sighting requests again", () => {
     const rig = setup([IMAGE]);
     try {
+      expect(rig.handle.act.requestMirrorImage(IMAGE)).toEqual({ ok: true });
       rig.inject(GameOpcode.SMSG_MIRRORIMAGE_DATA, body(IMAGE));
       rig.events.entity.emit({ guid: IMAGE, type: "disappear" });
       expect(rig.handle.state().mirrorImages).toEqual([]);

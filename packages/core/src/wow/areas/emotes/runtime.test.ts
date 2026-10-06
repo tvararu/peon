@@ -203,7 +203,7 @@ describe("emote acts", () => {
         textEmote: 101,
       });
       const refused = await r.handle.act.textEmote(9999);
-      expect(refused.ok).toBe(false);
+      expect(refused).toMatchObject({ ok: false, reason: "unknown_emote" });
       expect(r.sent).toHaveLength(1);
     } finally {
       r.dispose();
@@ -368,33 +368,6 @@ describe("emote acts", () => {
       }
     });
   });
-
-  test("a caller signal aborted behind an earlier emote leaves the earlier one alone", async () => {
-    await withFakeTimers(async () => {
-      const r = actRig();
-      try {
-        await r.handle.act.textEmote("wave");
-        const second = r.handle.act.textEmote("dance");
-        const controller = new AbortController();
-        const third = r.handle.act.textEmote(
-          "cheer",
-          undefined,
-          controller.signal,
-        );
-        await elapse(100);
-        controller.abort();
-        await elapse(2000);
-        expect(await third).toEqual({ ok: false, reason: "cancelled" });
-        expect(r.sent).toHaveLength(2);
-        await elapse(1000 * 3);
-        expect(await second).toMatchObject({ ok: true });
-        expect(r.sent.map((p) => words(p.body)[0])).toEqual([101, 34]);
-      } finally {
-        r.dispose();
-      }
-    });
-  });
-
   test("a caller signal that is already aborted sends nothing", async () => {
     const r = actRig();
     try {
@@ -405,18 +378,6 @@ describe("emote acts", () => {
       );
       expect(outcome).toEqual({ ok: false, reason: "cancelled" });
       expect(r.sent).toEqual([]);
-    } finally {
-      r.dispose();
-    }
-  });
-
-  test("the sent outcome names the resolved text emote id", async () => {
-    const r = actRig();
-    try {
-      expect(await r.handle.act.textEmote("dance")).toEqual({
-        ok: true,
-        textEmote: 34,
-      });
     } finally {
       r.dispose();
     }

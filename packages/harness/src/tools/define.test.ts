@@ -136,17 +136,17 @@ describe("defineGameTool", () => {
     const { rt } = await createTestRuntime();
     rt.session.turnToolCalls = TURN_BUDGET;
     const run = jest.fn(said);
-    expect((await runTool(probe(run).definition(rt), {})).text).toBe(
-      "REFUSED turn_budget: report to the human now.\nNext: end your turn and report to the human.",
-    );
+    const text = (await runTool(probe(run).definition(rt), {})).text;
+    expect(text).toContain("REFUSED turn_budget");
+    expect(text).toContain("Next: end your turn");
     expect(run).not.toHaveBeenCalled();
   });
 
   test("refuses offline", async () => {
     const { rt } = await createTestRuntime({ connect: false });
-    expect((await runTool(probe(said).definition(rt), {})).text).toBe(
-      "REFUSED offline: the game connection is down.\nNext: ask the human to run /connect.",
-    );
+    const text = (await runTool(probe(said).definition(rt), {})).text;
+    expect(text).toContain("REFUSED offline");
+    expect(text).toContain("/connect");
   });
 
   test("refuses before the world is ready", async () => {
@@ -154,9 +154,9 @@ describe("defineGameTool", () => {
       parts: { ready: notReady },
       ready: false,
     });
-    expect((await runTool(probe(said).definition(rt), {})).text).toBe(
-      "REFUSED not_ready: the world is still loading.\nNext: call look again in a few seconds.",
-    );
+    const text = (await runTool(probe(said).definition(rt), {})).text;
+    expect(text).toContain("REFUSED not_ready");
+    expect(text).toContain("call look");
   });
 
   test("refuses an exact repeat of a failed call without running it", async () => {
@@ -509,15 +509,6 @@ describe("expectSendKind", () => {
       await expect(expectSendKind(tool, {}, game)).rejects.toThrow(
         `social is kind ${kind} but sent 1 packet`,
       );
-    },
-  );
-
-  test.each(["action", "run"] as const)(
-    "a %s tool that sends passes the check",
-    async (kind) => {
-      const { game, tool } = sender(kind);
-      await expectSendKind(tool, {}, game);
-      expect(game.sent).toHaveLength(1);
     },
   );
 

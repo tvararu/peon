@@ -63,21 +63,6 @@ describe("achievement packets", () => {
     }
   });
 
-  test("SMSG_SERVER_FIRST_ACHIEVEMENT reads a u32 link in the guild form", () => {
-    const body = achievementsServerFirstAchievementBody({
-      guid: OTHER,
-      id: 1400,
-      link: 0,
-      name: "Fac Guild",
-    });
-    expect(parseServerFirst(reader(body))).toEqual({
-      guid: OTHER,
-      id: 1400,
-      link: 0,
-      name: "Fac Guild",
-    });
-  });
-
   test("SMSG_SERVER_FIRST_ACHIEVEMENT reads a u32 link in the player form", () => {
     const body = achievementsServerFirstAchievementBody({
       guid: OTHER,

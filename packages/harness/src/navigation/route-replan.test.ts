@@ -89,7 +89,7 @@ describe("bounded replanning", () => {
     expect(stops(s.events)).toEqual([UNKNOWN, "arrived"]);
   });
 
-  test("a mid-walk ground refusal awaiting its replan gives no manual advice", () => {
+  test("a mid-walk ground refusal awaiting its replan reports replan pending", () => {
     const s = scene();
     s.runtime.navigate(s.route(s.origin), s.destination, (from) => {
       s.ground.failing = false;
@@ -108,7 +108,6 @@ describe("bounded replanning", () => {
       blockedReason: UNKNOWN,
       replan: { pending: true },
     });
-    expect(navigation.nextStep).not.toBeNull();
     s.advance(REPLAN_LIMITS.delayMs);
     expect(s.runtime.navigationState().active).toBe(true);
   });

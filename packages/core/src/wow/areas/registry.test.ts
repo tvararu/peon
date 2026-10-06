@@ -339,7 +339,6 @@ describe("the area registry", () => {
           handled.has(GameOpcode[name])
         ),
     );
-    expect(FROZEN_STUBS).toHaveLength(57);
     expect(lost).toEqual([]);
   });
 

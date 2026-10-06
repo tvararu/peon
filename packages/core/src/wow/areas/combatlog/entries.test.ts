@@ -1,6 +1,5 @@
 import { describe, expect, test } from "bun:test";
 import {
-  energizeEntry,
   healEntry,
   meleeEntry,
   periodicEntries,
@@ -135,25 +134,6 @@ describe("heal, energize and periodic builders", () => {
     });
     expect(entry.amount).toBe(0);
     expect(entry.over).toBe(100);
-  });
-
-  test("mana power type 0 stays on an energize entry", () => {
-    expect(
-      energizeEntry({
-        amount: 150,
-        caster: ME,
-        power: 0,
-        spellId: 2455,
-        victim: ME,
-      }),
-    ).toEqual({
-      amount: 150,
-      kind: "energize",
-      power: 0,
-      source: ME,
-      spellId: 2455,
-      target: ME,
-    });
   });
 
   test("each tick family maps to its kind and fields", () => {

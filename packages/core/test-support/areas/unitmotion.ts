@@ -11,7 +11,7 @@ import { type MovementInfo, writeMovementInfo } from "#wow/protocol/movement";
 import { PacketWriter } from "#wow/protocol/packet";
 import { UNIT_FIELDS } from "#wow/protocol/update-fields";
 
-export const BASE_CREATE_SPEEDS = [
+const BASE_CREATE_SPEEDS = [
   2.5, 7, 4.5, 4.722_222, 2.5, 7, 4.5, 3.141_594, 3.14,
 ] as const;
 

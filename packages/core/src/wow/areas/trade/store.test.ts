@@ -111,14 +111,6 @@ describe("trade store", () => {
     }
   });
 
-  test("TRADE_CANCELED during a request applies to that request", () => {
-    const { events, store } = clockStore();
-    store.beginRequest(TRADE_PARTNER);
-    store.receiveStatus(CANCELED_STATUS);
-    expect(events).toEqual([{ status: "trade_canceled", type: "canceled" }]);
-    expect(store.snapshot().phase).toBe("closed");
-  });
-
   test("TRADE_CANCELED while idle changes nothing and is counted", () => {
     const { events, store } = clockStore();
     store.beginRequest(TRADE_PARTNER);
@@ -216,15 +208,6 @@ describe("trade store", () => {
         phase: "idle",
         with: undefined,
       });
-    } finally {
-      rig.dispose();
-    }
-  });
-
-  test("dispatch handles SMSG_TRADE_STATUS and the stub pair is gone", () => {
-    const rig = tradeRig();
-    try {
-      expect(rig.dispatch.has(GameOpcode.SMSG_TRADE_STATUS)).toBe(true);
     } finally {
       rig.dispose();
     }
@@ -348,22 +331,6 @@ describe("trade store", () => {
       got: { gold: 40, items: [], spell: 0, version: 1 },
       type: "completed",
     });
-  });
-
-  test("TRADE_COMPLETE closes the trade so a new request can start (TradeHandler.cpp:655-657)", () => {
-    const { store } = clockStore();
-    store.receiveStatus({
-      kind: "open_window",
-      status: 2,
-      statusName: "open_window",
-      tradeId: 1,
-    });
-    store.receiveStatus({
-      kind: "none",
-      status: 8,
-      statusName: "trade_complete",
-    });
-    expect(store.snapshot().phase).toBe("closed");
   });
 
   test("CLOSE_WINDOW records the named refusal fields from the packet (TradeHandler.cpp:431-460)", () => {

@@ -1,4 +1,4 @@
-import { describe, expect, test } from "bun:test";
+import { describe, expect, jest, test } from "bun:test";
 import type { AreaState } from "@peon/core";
 import { journalTool } from "#harness/tools/journal";
 import type { MockHandle } from "#test-support/runtime-fixture";
@@ -82,20 +82,28 @@ describe("journal about mail", () => {
     expect(out.text.split("\n").length).toBeLessThanOrEqual(24);
   });
 
-  test("an empty inbox names the unread flag", async () => {
+  test("an empty inbox names the unread flag only when unread is set", async () => {
     const t = await createTestRuntime();
-    inboxOf(t.handle, []);
-    const out = await runTool(journalTool.definition(t.rt), {
+    Object.assign(t.handle.mail, {
+      state: () => ({ inbox: [], unread: true }),
+    });
+    const unread = await runTool(journalTool.definition(t.rt), {
       about: "mail",
     });
-    expect(out.text).toContain("empty");
+    expect(unread.text).toContain("unread waiting");
+    inboxOf(t.handle, []);
+    const read = await runTool(journalTool.definition(t.rt), {
+      about: "mail",
+    });
+    expect(read.text).toContain("empty");
+    expect(read.text).not.toContain("unread");
   });
 
   test("mail reads stay away from the mailbox", async () => {
     const t = await createTestRuntime();
     inboxOf(t.handle, []);
-    const list = t.handle.mail.act.listMail;
+    const list = jest.spyOn(t.handle.mail.act, "listMail");
     await runTool(journalTool.definition(t.rt), { about: "mail" });
-    expect(t.handle.mail.act.listMail).toBe(list);
+    expect(list).not.toHaveBeenCalled();
   });
 });

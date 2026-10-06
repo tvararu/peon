@@ -5,7 +5,6 @@ import {
   questsQuestgiverStatusMultipleBody,
   questsQuestPoiQueryResponseBody,
 } from "#test-support/areas/quests";
-import { REPLY_TIMEOUT_MS } from "#wow/areas/quests/runtime";
 import { COMPLETED_QUERY_TIMEOUT_MS } from "#wow/areas/quests/runtime-log";
 import type {
   EntityEvent,
@@ -16,7 +15,6 @@ import { ObjectType } from "#wow/protocol/entity-fields";
 import { GameOpcode } from "#wow/protocol/opcodes";
 import { PacketReader } from "#wow/protocol/packet";
 import type { QuestEvent } from "#wow/quests";
-import { QUEST_REPLY_TIMEOUT_MS } from "#wow/quests-requests";
 
 const ERONA = 0xf1_30_00_3f_d1_00_1a_2bn;
 const JESSE = 0xf1_30_00_3e_a7_00_1a_30n;
@@ -431,9 +429,6 @@ describe("quests runtime", () => {
       quest("log");
       expect(poiQueries(rig)).toEqual([[9999], [9999], [9999]]);
     });
-  });
-  test("the timeout equals QUEST_REPLY_TIMEOUT_MS", () => {
-    expect(REPLY_TIMEOUT_MS).toBe(QUEST_REPLY_TIMEOUT_MS);
   });
 });
 

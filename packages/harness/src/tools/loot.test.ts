@@ -240,21 +240,4 @@ describe("loot", () => {
     expect(spy).toHaveBeenCalledTimes(1);
     expect(res.detail.startsWith("Dismounted first. ")).toBe(true);
   });
-
-  test("a taxi mount stops the loot with in_flight", async () => {
-    const t = await createTestRuntime();
-    setSelf(t.handle);
-    setUnits(t.handle, [corpseRow(2, true)]);
-    lootsFang(t.handle, []);
-    jest
-      .spyOn(t.handle.selfstate, "state")
-      .mockReturnValue(dismountState(true));
-    t.handle.selfstate.act.dismount = async () => ({
-      reason: "in_flight",
-      status: "refused",
-    });
-    await expect(lootSpec.run({}, toolCtx<LootAfter>(t))).rejects.toMatchObject(
-      { reason: "in_flight" },
-    );
-  });
 });

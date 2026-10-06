@@ -7,7 +7,6 @@ import {
   lfgRewardBody,
   lfgTeleportDeniedBody,
 } from "#test-support/areas/lfg";
-import { areaStubs } from "#wow/areas/compose";
 import type { LfgEvent } from "#wow/areas/lfg/store";
 import type { LfgTeleportReason } from "#wow/areas/lfg/views";
 import { GameOpcode } from "#wow/protocol/opcodes";
@@ -156,12 +155,6 @@ describe("LfgStore proposal", () => {
       }
     },
   );
-
-  test("the SMSG_LFG_PROPOSAL_UPDATE stub pair is gone from areaStubs", () => {
-    expect(areaStubs().some(([, label]) => label === "LFG proposal")).toBe(
-      false,
-    );
-  });
 });
 
 describe("LfgStore boot vote", () => {

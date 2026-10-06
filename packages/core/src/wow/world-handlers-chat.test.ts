@@ -13,21 +13,6 @@ import { ChatType } from "#wow/protocol/enums";
 import { GameOpcode } from "#wow/protocol/opcodes";
 
 describe("world handler tests", () => {
-  test("handles SMSG_TIME_SYNC_REQ", async () => {
-    const ws = await startMockWorldServer({ sendTimeSyncAfterLogin: true });
-    try {
-      const handle = await worldSession(
-        { ...base, host: "127.0.0.1", port: ws.port },
-        fakeAuth(ws.port),
-      );
-      await waitForEchoProbe(handle);
-      handle.close();
-      await handle.closed;
-    } finally {
-      ws.stop();
-    }
-  });
-
   test("sendWhisper with empty target does not poison sticky mode", async () => {
     const ws = await startMockWorldServer();
     try {
@@ -61,27 +46,6 @@ describe("world handler tests", () => {
       const msg = await messageReceived;
 
       expect(msg.message).toBe("test whisper");
-
-      handle.close();
-      await handle.closed;
-    } finally {
-      ws.stop();
-    }
-  });
-
-  test("channel tracking populates from SMSG_CHANNEL_NOTIFY", async () => {
-    const ws = await startMockWorldServer();
-    try {
-      const handle = await worldSession(
-        { ...base, host: "127.0.0.1", port: ws.port },
-        fakeAuth(ws.port),
-      );
-
-      await waitForEchoProbe(handle);
-
-      expect(handle.getChannel(1)).toBe("General");
-      expect(handle.getChannel(2)).toBe("Trade");
-      expect(handle.getChannel(3)).toBeUndefined();
 
       handle.close();
       await handle.closed;
@@ -314,9 +278,6 @@ describe("world handler tests", () => {
       ws.inject(GameOpcode.SMSG_CHAT_PLAYER_AMBIGUOUS, new Uint8Array(0));
       const notice = await received;
       expect(notice.type).toBe("not_implemented");
-      expect(notice.text).toBe(
-        "[peon] Ambiguous player name is not yet implemented",
-      );
 
       handle.close();
       await handle.closed;

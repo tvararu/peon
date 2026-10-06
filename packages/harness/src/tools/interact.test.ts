@@ -59,9 +59,9 @@ describe("interact", () => {
       { npc: "Velan Brightoak" },
       toolCtx<InteractAfter>(t),
     );
-    expect(res.detail).toBe(
-      `Velan Brightoak (${res.after.npc.ref}) opened no dialog in 3 s.`,
-    );
+    expect(res.status).toBe("DONE");
+    expect(res.detail).toContain("opened no dialog");
+    expect(res.detail).toContain("3 s");
   });
 
   test("accept selects the quest, accepts it and points at engage", async () => {

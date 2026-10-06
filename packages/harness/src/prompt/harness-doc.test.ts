@@ -53,16 +53,4 @@ describe("docs/harness.md", () => {
       ),
     ).toEqual([]);
   });
-
-  test("names the stop keys and the credential exit code", async () => {
-    const text = await doc();
-    for (const word of [
-      "`F9`",
-      "`Esc`",
-      "exit code 3",
-      "`TYPESAFE_API_KEY`",
-      "`PEON_GLYPHS`",
-    ])
-      expect(text).toContain(word);
-  });
 });

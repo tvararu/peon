@@ -116,7 +116,12 @@ describe("achievements area wiring", () => {
       expect(seen).toEqual([
         { guid: OTHER, id: 457, name: "Firsty", type: "server_first" },
       ]);
-      expect(rig.handle.state().count).toBe(0);
+      expect(rig.handle.state()).toEqual({
+        count: 0,
+        criteria: 0,
+        recent: [],
+        titles: { chosen: 0, known: [] },
+      });
     } finally {
       rig.dispose();
     }

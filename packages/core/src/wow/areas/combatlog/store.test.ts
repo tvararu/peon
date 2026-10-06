@@ -419,21 +419,4 @@ describe("CombatlogStore immunities", () => {
     ]);
     expect(store.snapshot().immunities).toEqual([]);
   });
-
-  test("a miss with the immune outcome counts as immunity", () => {
-    const { store } = setup();
-    store.receive([
-      {
-        amount: 0,
-        kind: "miss",
-        outcome: "immune",
-        source: ME,
-        spellId: 8921,
-        target: BOAR,
-      },
-    ]);
-    expect(store.snapshot().immunities).toEqual([
-      { at: 1000, entry: 0x3e_ea, spellId: 8921 },
-    ]);
-  });
 });

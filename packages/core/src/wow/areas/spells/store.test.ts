@@ -1,4 +1,4 @@
-import { describe, expect, jest, test } from "bun:test";
+import { describe, expect, test } from "bun:test";
 import { areaRig } from "#test-support/area-rig";
 import {
   spellsChannelStartBody,
@@ -180,24 +180,6 @@ describe("spells channel wiring", () => {
       expect(rig.stores.combat.casts.channel).toBeUndefined();
     } finally {
       rig.dispose();
-    }
-  });
-
-  test("another caster's channel update 0 at full duration is finished once the tick settles", () => {
-    jest.useFakeTimers();
-    const { advance, rig, seen, start, update } = setup();
-    try {
-      start(MOB);
-      advance(3000);
-      update(0, MOB);
-      expect(seen.filter((e) => e.type === "unit_cast_end")).toEqual([]);
-      jest.advanceTimersByTime(1000);
-      const ends = seen.filter((e) => e.type === "unit_cast_end");
-      expect(ends).toHaveLength(1);
-      expect(ends[0]).toMatchObject({ outcome: "finished" });
-    } finally {
-      rig.dispose();
-      jest.useRealTimers();
     }
   });
 });

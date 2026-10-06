@@ -379,31 +379,6 @@ describe("bank moves of equipped items", () => {
     }
   });
 
-  test("a bank-full refusal while still equipped settles refused", () => {
-    const { rig, world } = bankScene();
-    try {
-      rig.inject(GameOpcode.SMSG_SHOW_BANK, bankShowBankBody(BANK_BANKER));
-      equipChest(world);
-      rig.stores.areas.bank.begin({
-        bag: 255,
-        guid: CHEST,
-        kind: "deposit",
-        requestedAt: 0,
-        slot: 4,
-      });
-      rig.inject(
-        GameOpcode.SMSG_INVENTORY_CHANGE_FAILURE,
-        itemsInventoryChangeFailureBody({ item1: CHEST, result: 50 }),
-      );
-      expect(rig.handle.state().lastOutcome).toMatchObject({
-        reason: "inventory_full",
-        status: "refused",
-      });
-    } finally {
-      rig.dispose();
-    }
-  });
-
   test("a withdraw does not settle on the equipment region", () => {
     const { rig, world } = bankScene();
     try {

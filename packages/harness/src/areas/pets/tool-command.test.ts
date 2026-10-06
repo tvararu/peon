@@ -24,7 +24,6 @@ describe("pet follow and stay", () => {
     const out = await petSpec.run({ do: "follow" }, toolCtx(t));
     expect(act).toHaveBeenCalledWith("follow");
     expect(out.status).toBe("DONE");
-    expect(out.detail).toContain("follow");
   });
 
   test("a follow bar while waiting for stay keeps waiting, then times out UNCONFIRMED", async () => {

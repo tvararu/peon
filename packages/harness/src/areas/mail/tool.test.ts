@@ -143,9 +143,11 @@ describe("mail tool spec", () => {
   test("send with no known mailbox refuses without coordinates", async () => {
     const t = await world();
     setUnits(t.handle, []);
-    await expect(
-      mailSpec.run({ do: "send", text: "hi", to: "Fgk" }, toolCtx(t)),
-    ).rejects.toThrow("No mailbox is known nearby");
+    const error = await mailSpec
+      .run({ do: "send", text: "hi", to: "Fgk" }, toolCtx(t))
+      .catch((caught: unknown) => caught);
+    expect(error).toMatchObject({ reason: "no_mailbox" });
+    expect(String(error)).not.toContain("yd away");
     expect(t.acts.sendMail).not.toHaveBeenCalled();
   });
 

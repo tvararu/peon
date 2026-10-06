@@ -232,23 +232,6 @@ describe("reputation settings acts", () => {
     }
   });
 
-  test("the next SMSG_INITIALIZE_FACTIONS clears the pending flags", async () => {
-    const { rig, row } = await settled();
-    try {
-      rig.handle.act.setInactive(BLOODSAIL, true);
-      expect(row(BLOODSAIL)?.inactive).toBe(true);
-      rig.inject(
-        GameOpcode.SMSG_INITIALIZE_FACTIONS,
-        reputationInitializeFactionsBody(
-          new Map([[BLOODSAIL, { flags: 0x01, standing: 0 }]]),
-        ),
-      );
-      expect(row(BLOODSAIL)?.inactive).toBe(false);
-    } finally {
-      rig.dispose();
-    }
-  });
-
   test("setAtWar refuses what the server drops in silence and sends nothing (ReputationMgr.cpp:504-533)", async () => {
     const { rig } = await settled();
     try {

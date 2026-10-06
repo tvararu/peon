@@ -1,4 +1,4 @@
-import { describe, expect, test } from "bun:test";
+import { describe, expect, jest, test } from "bun:test";
 import { journalTool } from "#harness/tools/journal";
 import type { MockHandle, TestRuntime } from "#test-support/runtime-fixture";
 import { createTestRuntime } from "#test-support/runtime-fixture";
@@ -114,12 +114,12 @@ describe("journal about bank", () => {
         slot: 1,
       },
     ]);
-    const open = t.handle.bank.act.openBank;
+    const open = jest.spyOn(t.handle.bank.act, "openBank");
     const out = await runTool(journalTool.definition(t.rt), {
       about: "bank",
     });
     expect(out.text).toContain("Linen Cloth");
-    expect(t.handle.bank.act.openBank).toBe(open);
+    expect(open).not.toHaveBeenCalled();
   });
 
   test("a full bank still fits the line cap", async () => {

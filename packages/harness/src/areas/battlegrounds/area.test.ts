@@ -22,15 +22,14 @@ describe("battlegrounds harness rules", () => {
       }),
       testRuleInput({}),
     );
-    expect<unknown[]>(rows).toEqual([
-      {
-        class: "log",
-        data: { flagged: true, timer: false, wants: true },
-        domain: "battlegrounds",
-        event: "battlegrounds/flag",
-        text: "PvP flag is on.",
-      },
-    ]);
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({
+      class: "log",
+      data: { flagged: true, timer: false, wants: true },
+      domain: "battlegrounds",
+      event: "battlegrounds/flag",
+    });
+    expect(rows[0]?.text).toContain("is on");
   });
 
   test("honor_credit writes one battlegrounds/honor log row", () => {
@@ -44,15 +43,14 @@ describe("battlegrounds harness rules", () => {
       }),
       testRuleInput({}),
     );
-    expect<unknown[]>(rows).toEqual([
-      {
-        class: "log",
-        data: { honor: 100, rank: 2 },
-        domain: "battlegrounds",
-        event: "battlegrounds/honor",
-        text: "Earned 100 honor.",
-      },
-    ]);
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({
+      class: "log",
+      data: { honor: 100, rank: 2 },
+      domain: "battlegrounds",
+      event: "battlegrounds/honor",
+    });
+    expect(rows[0]?.text).toContain("Earned 100 honor");
   });
 
   test("zone_under_attack is always passive in wave 5 (no area id in RuleInput)", () => {
@@ -66,15 +64,15 @@ describe("battlegrounds harness rules", () => {
       }),
       testRuleInput({}),
     );
-    expect<unknown[]>(rows).toEqual([
-      {
-        class: "passive",
-        data: { areaId: 42 },
-        domain: "battlegrounds",
-        event: "battlegrounds/zone_attack",
-        text: "Zone 42 is under attack.",
-      },
-    ]);
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({
+      class: "passive",
+      data: { areaId: 42 },
+      domain: "battlegrounds",
+      event: "battlegrounds/zone_attack",
+    });
+    expect(rows[0]?.text).toContain("under attack");
+    expect(rows[0]?.text).toContain("42");
   });
 
   test("honor_inspect and pvp_kill_quest write log rows", () => {

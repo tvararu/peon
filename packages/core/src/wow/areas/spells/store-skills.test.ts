@@ -134,18 +134,27 @@ describe("spells skill baseline", () => {
     }
   });
 
-  test("an other unit's update and the same value repeated emit nothing", () => {
+  test("an other unit's update with a different value changes no self skills or events", () => {
     const { rig, seen, update } = setup();
     try {
       rig.events.entity.emit({
         changed: ["rawFields"],
-        entity: { ...player(fields()), guid: 0x2bn },
+        entity: {
+          ...player(
+            spellsSkillFields([
+              { id: MINING, max: 75, perm: 0, step: 1, temp: 0, value: 99 },
+            ]),
+          ),
+          guid: 0x2bn,
+        },
         type: "update",
       });
+      expect(rig.handle.state().skills).toEqual([]);
       update(fields());
       update(fields());
       expect(seen).toEqual([]);
       expect(rig.handle.state().skills).toHaveLength(1);
+      expect(rig.handle.state().skills.at(0)).toMatchObject({ value: 12 });
     } finally {
       rig.dispose();
     }

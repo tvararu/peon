@@ -117,7 +117,23 @@ describe("world handler tests", () => {
         handle.onMessage(resolve),
       );
       handle.acceptInvite();
-      expect((await msg).message).toBe("Nothing to accept.");
+      const message = await msg;
+      expect(message.type).toBe(ChatType.SYSTEM);
+      const declined = new Promise<ChatMessage>((resolve) =>
+        handle.onMessage(resolve),
+      );
+      handle.declineInvite();
+      expect((await declined).type).toBe(ChatType.SYSTEM);
+
+      await waitForEchoProbe(handle);
+      expect(
+        ws.captured.filter(
+          (p) =>
+            p.opcode === GameOpcode.CMSG_GROUP_ACCEPT ||
+            p.opcode === GameOpcode.CMSG_GROUP_DECLINE ||
+            p.opcode === GameOpcode.CMSG_DUEL_CANCELLED,
+        ),
+      ).toEqual([]);
       expect(seen).toEqual([]);
 
       handle.close();
@@ -258,7 +274,14 @@ describe("world handler tests", () => {
       handle.setLeader("Ghostplayer");
       const message = await received;
       expect(message.type).toBe(ChatType.SYSTEM);
-      expect(message.message).toBe('"Ghostplayer" is not in your party.');
+      expect(message.message).toContain("Ghostplayer");
+
+      await waitForEchoProbe(handle);
+      expect(
+        ws.captured.filter(
+          (p) => p.opcode === GameOpcode.CMSG_GROUP_SET_LEADER,
+        ),
+      ).toEqual([]);
 
       handle.close();
       await handle.closed;
@@ -267,7 +290,7 @@ describe("world handler tests", () => {
     }
   });
 
-  test("group command methods run after login", async () => {
+  test("group commands write their packet bodies after login", async () => {
     const ws = await startMockWorldServer();
     try {
       const handle = await worldSession(
@@ -295,9 +318,23 @@ describe("world handler tests", () => {
       handle.invite("Voidtrix");
       handle.uninvite("Voidtrix");
       handle.leaveGroup();
-      handle.acceptInvite();
-      handle.declineInvite();
       handle.setLeader("Voidtrix");
+      await ws.waitForCapture(
+        (p) => p.opcode === GameOpcode.CMSG_GROUP_SET_LEADER,
+      );
+
+      const body = (opcode: number) =>
+        new PacketReader(
+          must(ws.captured.find((p) => p.opcode === opcode)).body,
+        );
+      const invite = body(GameOpcode.CMSG_GROUP_INVITE);
+      expect(invite.cString()).toBe("Voidtrix");
+      expect(invite.uint32LE()).toBe(0);
+      expect(body(GameOpcode.CMSG_GROUP_UNINVITE).cString()).toBe("Voidtrix");
+      expect(body(GameOpcode.CMSG_GROUP_DISBAND).remaining).toBe(0);
+      const leader = body(GameOpcode.CMSG_GROUP_SET_LEADER);
+      expect(leader.uint32LE()).toBe(0x20_00_10);
+      expect(leader.uint32LE()).toBe(0);
 
       handle.close();
       await handle.closed;
@@ -356,37 +393,6 @@ describe("world handler tests", () => {
       expect(msg.type).toBe(ChatType.ROLL);
       expect(msg.sender).toBe(FIXTURE_CHARACTER);
       expect(msg.message).toBe("rolled 42 (1-100)");
-
-      handle.close();
-      await handle.closed;
-    } finally {
-      ws.stop();
-    }
-  });
-
-  test("MSG_RANDOM_ROLL resolves unknown roller via name query", async () => {
-    const ws = await startMockWorldServer();
-    try {
-      const handle = await worldSession(
-        { ...base, host: "127.0.0.1", port: ws.port },
-        fakeAuth(ws.port),
-      );
-      await waitForEchoProbe(handle);
-
-      const received = new Promise<ChatMessage>((r) => handle.onMessage(r));
-
-      const w = new PacketWriter();
-      w.uint32LE(5);
-      w.uint32LE(50);
-      w.uint32LE(25);
-      w.uint32LE(0x42);
-      w.uint32LE(0x00);
-      ws.inject(GameOpcode.MSG_RANDOM_ROLL, w.finish());
-
-      const msg = await received;
-      expect(msg.type).toBe(ChatType.ROLL);
-      expect(msg.sender).toBe(FIXTURE_CHARACTER);
-      expect(msg.message).toBe("rolled 25 (5-50)");
 
       handle.close();
       await handle.closed;

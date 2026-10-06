@@ -78,13 +78,13 @@ describe("handleGuildCommandResult success", () => {
     handleGuildCommandResult(
       conn,
       new PacketReader(
-        guildadminCommandResultBody({ command: 0, name: "", result: 0 }),
+        guildadminCommandResultBody({ command: 1, name: "Thrall", result: 0 }),
       ),
     );
     expect(result).toEqual({
       type: "command_result",
-      command: 0,
-      name: "",
+      command: 1,
+      name: "Thrall",
       result: 0,
     });
   });

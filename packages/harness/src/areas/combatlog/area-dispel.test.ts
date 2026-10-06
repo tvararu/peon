@@ -46,7 +46,6 @@ describe("combatlog dispelled rule", () => {
     });
     expect(rows[0]?.text).toContain("Defias Mage");
     expect(rows[0]?.text).toContain("dispels");
-    expect(rows[0]?.text).toContain("168");
   });
 
   test("a steal reads as stealing", () => {

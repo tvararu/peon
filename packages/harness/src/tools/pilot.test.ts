@@ -46,7 +46,7 @@ describe("pilot refusals", () => {
       toolCtx<PilotAfter>(t),
     );
     expect(res.reason).not.toBe("no_combat_helper");
-    expect(t.rt.runs.active() ?? res.runId).toBeDefined();
+    expect(res.runId).toBeDefined();
   });
   test("a map without navigation refuses unsupported_map", async () => {
     const t = await ready();

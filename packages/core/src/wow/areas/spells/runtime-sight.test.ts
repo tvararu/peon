@@ -74,24 +74,6 @@ describe("sight acts", () => {
     }
   });
 
-  test("the request mark clears when the image disappears", () => {
-    const rig = areaRig("spells", {
-      getEntity: (guid: bigint) => (guid === IMAGE ? unit(IMAGE) : undefined),
-      selfGuid: ME,
-    });
-    try {
-      rig.handle.act.requestMirrorImage(IMAGE);
-      rig.events.entity.emit({ guid: IMAGE, type: "disappear" });
-      expect(rig.handle.act.requestMirrorImage(IMAGE)).toEqual({ ok: true });
-      const sent = rig.sent.filter(
-        (p) => p.opcode === GameOpcode.CMSG_GET_MIRRORIMAGE_DATA,
-      );
-      expect(sent.length).toBe(2);
-    } finally {
-      rig.dispose();
-    }
-  });
-
   test("setFarSight sends a one-byte toggle with no refusal", () => {
     const rig = areaRig("spells", { selfGuid: ME });
     try {

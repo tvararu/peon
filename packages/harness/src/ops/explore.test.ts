@@ -58,6 +58,13 @@ describe("parseDirection", () => {
 });
 
 describe("explore", () => {
+  test("refuses no_pose with a look() next call when the position is unknown", async () => {
+    const t = await createTestRuntime();
+    await expect(explore(toolCtx(t), { direction: "N" })).rejects.toMatchObject(
+      { next: "look()", reason: "no_pose" },
+    );
+  });
+
   test("walks planned point legs with no z and stops on a new hostile", async () => {
     const t = await createTestRuntime();
     setSelf(t.handle, { x: 0, y: 0 });

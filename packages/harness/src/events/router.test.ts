@@ -219,6 +219,12 @@ describe("createEventRouter", () => {
       "transport",
       "stopped",
     ]);
+    expect(jevRows.map((row) => (row as { loop: string }).loop)).toEqual([
+      "combat",
+      "combat",
+      "combat",
+      "combat",
+    ]);
     expect(jevRows[2]).toMatchObject({ call: 1, ts: 1_000_000 });
     expect(jevRows[3]).toEqual({
       loop: "combat",
@@ -394,8 +400,11 @@ describe("createEventRouter", () => {
     const died = log.since(0).find((row) => row.event === "combat/target_died");
     expect(died).toMatchObject({
       class: "wake",
-      text: "Springpaw Stalker u17 died (no credit to you).",
     });
+    expect(died?.text).toContain("Springpaw Stalker");
+    expect(died?.text).toContain("u17");
+    expect(died?.text).toContain("no credit to you");
+    expect(died?.text).not.toContain("killed by another player");
     expect(sink.wake).toHaveBeenCalledWith([died]);
   });
 

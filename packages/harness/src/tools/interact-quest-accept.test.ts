@@ -113,7 +113,6 @@ describe("accept with a quest region", () => {
       { do: "accept", npc: "Velan Brightoak", what: "1" },
       toolCtx<InteractAfter>(t),
     );
-    expect(res.detail).toContain("objective region");
     expect(res.next).toBe('travel(to: "-9843.54, 127.53, 5.37")');
   });
   test("points at the journal's region when the objective is far", async () => {
@@ -151,7 +150,7 @@ describe("accept with a quest region", () => {
       { do: "accept", npc: "Velan Brightoak", what: "1" },
       toolCtx<InteractAfter>(t),
     );
-    expect(res.detail).toContain("objective region around 10385, -6316");
+    expect(res.detail).toContain("10385, -6316");
     expect(res.next).toBe('journal(about: "quests")');
   });
 });
@@ -316,13 +315,6 @@ describe("accept an explore quest with several area triggers", () => {
       { id: 2, x: -9840, y: 135, z: 10 },
     ]);
     expect(res.next).toBe('travel(to: "-9840, 135, 10")');
-  });
-
-  test("names the other inside triggers for when the first does not finish it", async () => {
-    const res = await accept([
-      { id: 1, x: -9840, y: 105, z: 10 },
-      { id: 2, x: -9840, y: 135, z: 10 },
-    ]);
     expect(res.detail).toContain("-9840, 105, 10");
   });
 

@@ -41,12 +41,11 @@ function fixture(
 }
 
 describe("goTo a unit", () => {
-  test("routes to a far observed unit and reports its position", () => {
+  test("routes to a far observed unit and activates its guid route", () => {
     const targets = new Map<bigint, NavPoint>();
     const f = fixture(() => [70.34], {}, targets);
     const start = must(f.runtime.snapshot().pose);
     targets.set(5n, { x: start.x + 60, y: start.y, z: 70.34 });
-    expect(f.handle.observedPosition(5n)).toEqual(must(targets.get(5n)));
     f.handle.goTo({ guid: 5n, kind: "guid" });
     expect(f.runtime.navigationState()).toMatchObject({
       active: true,
@@ -301,7 +300,17 @@ describe("goTo a creature over several floors", () => {
   test("plans to an upper floor when the creature stands on it", () => {
     const f = creatureAt(72.84);
     const plan = jest.spyOn(f.navigation, "plan");
-    expect(() => f.handle.goTo({ guid: 0x99n, kind: "guid" })).toThrow();
+    expect(() => f.handle.goTo({ guid: 0x99n, kind: "guid" })).toThrow(
+      "stop: path corner disagrees with connected ground",
+    );
+    expect(f.runtime.navigationState()).toMatchObject({
+      active: false,
+      blockedReason: expect.stringContaining(
+        "path corner disagrees with connected ground",
+      ),
+      refusal: "stop",
+      target: 0x99n,
+    });
     expect(plan).toHaveBeenCalledWith(
       530,
       expect.anything(),

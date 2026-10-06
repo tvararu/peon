@@ -97,30 +97,36 @@ describe("noteEntry", () => {
 
 describe("fightText", () => {
   test("names dealt, taken and the misses of the fight", () => {
-    expect(
-      fightText({
-        dealt: 312,
-        healed: 0,
-        misses: { dodge: 1, resist: 1 },
-        taken: 145,
-      }),
-    ).toBe("Fight over: dealt 312, took 145 (1 dodge, 1 resist).");
+    const text = fightText({
+      dealt: 312,
+      healed: 0,
+      misses: { dodge: 1, resist: 1 },
+      taken: 145,
+    });
+    expect(text).toContain("Fight over");
+    expect(text).toContain("dealt 312");
+    expect(text).toContain("took 145");
+    expect(text).toContain("1 dodge");
+    expect(text).toContain("1 resist");
   });
 
   test("leaves the brackets out with no misses and adds healing when there was some", () => {
-    expect(fightText({ dealt: 20, healed: 15, misses: {}, taken: 0 })).toBe(
-      "Fight over: dealt 20, took 0, healed 15.",
-    );
+    const healed = fightText({ dealt: 20, healed: 15, misses: {}, taken: 0 });
+    expect(healed).toContain("healed 15");
+    expect(healed).not.toContain("(");
+    const plain = fightText({ dealt: 20, healed: 0, misses: {}, taken: 0 });
+    expect(plain).not.toContain("healed");
+    expect(plain).not.toContain("(");
   });
 
   test("pluralises counts above one", () => {
-    expect(
-      fightText({
-        dealt: 1,
-        healed: 0,
-        misses: { dodge: 2, miss: 3 },
-        taken: 1,
-      }),
-    ).toBe("Fight over: dealt 1, took 1 (2 dodges, 3 misses).");
+    const text = fightText({
+      dealt: 1,
+      healed: 0,
+      misses: { dodge: 2, miss: 3 },
+      taken: 1,
+    });
+    expect(text).toContain("2 dodges");
+    expect(text).toContain("3 misses");
   });
 });

@@ -1,8 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import {
-  vehiclesMonsterMoveTransportBody,
-  vehiclesPlayerVehicleDataBody,
-} from "#test-support/areas/vehicles";
+import { vehiclesMonsterMoveTransportBody } from "#test-support/areas/vehicles";
 import {
   buildChangeSeatsOnControlledVehicle,
   buildDismissControlledVehicle,
@@ -10,10 +7,7 @@ import {
   buildPlayerVehicleEnter,
   buildRequestVehicleSwitchSeat,
   buildSpellClick,
-  NPC_FLAG_PLAYER_VEHICLE,
-  NPC_FLAG_SPELLCLICK,
   parseMonsterMoveTransport,
-  parsePlayerVehicleData,
 } from "#wow/areas/vehicles/protocol";
 import { MovementFlag } from "#wow/protocol/entity-fields";
 import { buildMoveMessage, parseMovementInfo } from "#wow/protocol/movement";
@@ -63,28 +57,6 @@ describe("parseMonsterMoveTransport", () => {
       splineId: 9,
       start: { x: 1, y: 2, z: 3 },
     });
-  });
-});
-
-describe("parsePlayerVehicleData", () => {
-  test("vehicle id 0 means no longer a vehicle (Unit.cpp:10242-10245,10309-10312)", () => {
-    const kept = parsePlayerVehicleData(
-      new PacketReader(
-        vehiclesPlayerVehicleDataBody({ guid: GUID, vehicleId: 315 }),
-      ),
-    );
-    expect(kept).toEqual({ guid: GUID, vehicleId: 315 });
-    const cleared = parsePlayerVehicleData(
-      new PacketReader(
-        vehiclesPlayerVehicleDataBody({ guid: GUID, vehicleId: 0 }),
-      ),
-    );
-    expect(cleared).toEqual({ guid: GUID, vehicleId: 0 });
-  });
-
-  test("vehicle flag constants match the kit bits (Vehicle.cpp:395-397)", () => {
-    expect(NPC_FLAG_SPELLCLICK).toBe(0x01_00_00_00);
-    expect(NPC_FLAG_PLAYER_VEHICLE).toBe(0x02_00_00_00);
   });
 });
 

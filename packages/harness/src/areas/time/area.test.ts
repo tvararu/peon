@@ -2,7 +2,6 @@ import { describe, expect, jest, test } from "bun:test";
 import type { AreaEvent, AreaState } from "@peon/core";
 import { flushMicrotasks } from "@peon/core/test-support/microtasks";
 import { areaDrafts, areaRuleSet, attachDrafts } from "#harness/areas/rules";
-import { timeHarness } from "#harness/areas/time/area";
 import { createWorldService } from "#harness/world/hub";
 import type { WorldSession } from "#harness/world/service";
 import { createMockGame } from "#test-support/mock-game";
@@ -95,10 +94,6 @@ describe("time harness rules", () => {
     };
     expect(areaDrafts(areaRuleSet(), event, testRuleInput())).toEqual([]);
   });
-
-  test("the world acts are query and requestUiTime", () => {
-    expect(timeHarness.worldActs).toEqual(["query", "requestUiTime"]);
-  });
 });
 
 describe("time through the world service", () => {
@@ -124,7 +119,6 @@ describe("time through the world service", () => {
   test("claim.areas.time.requestUiTime sends one CMSG_WORLD_STATE_UI_TIMER_UPDATE", async () => {
     const { game, world } = await connected();
     const claim = world.claim("loop", "probe");
-    expect(typeof claim?.areas.time.requestUiTime).toBe("function");
     jest.useFakeTimers();
     try {
       const settled = claim?.areas.time.requestUiTime().then(

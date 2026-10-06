@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { AREA_NAMES } from "@peon/core";
-import { HARNESS_AREAS, HARNESS_AREAS_TOTAL } from "#harness/areas/registry";
+import { HARNESS_AREAS } from "#harness/areas/registry";
 import { DOMAIN_GLYPH } from "#harness/ui/draw";
 import { createMockGame } from "#test-support/mock-game";
 
@@ -35,12 +35,6 @@ function registryProblems(
   ]);
 }
 
-const FIXTURE: LooseRegistry = {
-  alpha: { area: "alpha", worldActs: ["ping"] },
-  beta: { area: "gamma", worldActs: ["pong"] },
-  loot: { area: "loot", worldActs: [] },
-};
-
 describe("harness area registry", () => {
   test("every module names a core area, no core domain, and real acts", () => {
     expect(
@@ -48,30 +42,13 @@ describe("harness area registry", () => {
     ).toEqual([]);
   });
 
-  test("the checks name each broken fixture module", () => {
-    const game = Object.assign(createMockGame(), {
-      alpha: { act: { ping: () => undefined } },
-      beta: { act: { pong: 1 } },
-    });
-    expect(registryProblems(FIXTURE, ["alpha", "beta"], game)).toEqual([
-      "beta: area is gamma",
-      "beta: pong is not an act",
-      "loot: not an area name",
-      "loot: a core log domain",
-    ]);
-  });
-
-  test("the registry is total over the core area names", () => {
-    type Fixture = { alpha: unknown };
-    type Total<N extends string> = [Exclude<N, keyof Fixture>] extends [never]
-      ? true
-      : false;
-    const complete: Total<"alpha"> = true;
-    const missing: Total<"alpha" | "beta"> = false;
-    expect([complete, missing, HARNESS_AREAS_TOTAL]).toEqual([
-      true,
-      false,
-      true,
-    ]);
+  test("a harness area keyed as a core log domain is reported", () => {
+    expect(
+      registryProblems(
+        { loot: { area: "loot", worldActs: [] } },
+        [],
+        createMockGame(),
+      ),
+    ).toEqual(["loot: not an area name", "loot: a core log domain"]);
   });
 });

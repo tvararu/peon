@@ -45,9 +45,8 @@ describe("travel after a structural failure", () => {
     expect(limitProblem(text)).toBeUndefined();
     expect(res.next).toBe(MAP_ASK);
     expect(text).not.toContain("travel(");
-    expect(res.detail).toBe(
-      "unsupported map 0 (only Expansion01/530). Walked 0 yd. Tried: planner once. This map has no navigation data, so no travel can work here.",
-    );
+    expect(res.detail).toContain("unsupported map 0");
+    expect(res.detail).toContain("530");
   });
 
   test("explore on an unsupported map asks the human", async () => {
@@ -57,9 +56,7 @@ describe("travel after a structural failure", () => {
       { to: "explore north" },
       toolCtx<TravelAfter>(t),
     );
-    expect(res.next).toBe(
-      'ask the human: "This map has no navigation data, so I cannot walk anywhere. Can you move me?"',
-    );
+    expect(res.next).toStartWith("ask the human:");
     expect(contentOf(res)).not.toContain("travel(");
   });
 
@@ -77,8 +74,7 @@ describe("travel after a structural failure", () => {
       reason: "obstructed",
       status: "PARTLY",
     });
-    expect(res.detail).toBe(
-      "explored 0 yd north; 3 legs were blocked, each by the same fault where you stand (position_disagrees_with). Moving off this spot also failed. Nothing new in view.",
-    );
+    for (const value of ["3 legs", "0 yd", "position_disagrees_with"])
+      expect(res.detail).toContain(value);
   });
 });

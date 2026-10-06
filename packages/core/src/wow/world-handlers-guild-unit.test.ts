@@ -112,24 +112,6 @@ describe("handleGuildCommandResult", () => {
     });
   });
 
-  test("emits success result (code 0) as a command_result event", () => {
-    const w = new PacketWriter();
-    w.uint32LE(1);
-    w.cString("Thrall");
-    w.uint32LE(0x00);
-    let result!: GuildEvent;
-    const conn = connWith((e: GuildEvent) => {
-      result = e;
-    });
-    handleGuildCommandResult(conn, new PacketReader(w.finish()));
-    expect(result).toEqual({
-      type: "command_result",
-      command: 1,
-      name: "Thrall",
-      result: 0x00,
-    });
-  });
-
   test("works without a guild listener", () => {
     const w = new PacketWriter();
     w.uint32LE(1);

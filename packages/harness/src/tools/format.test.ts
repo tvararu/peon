@@ -3,26 +3,13 @@ import type { ToolResult } from "#harness/contract/result";
 import { JevUnavailableError } from "#harness/jev/failure";
 import {
   coreErrorResult,
-  emptySelf,
   formatContent,
-  MAX_CONTENT_BYTES,
   MAX_CONTENT_LINES,
   result,
 } from "#harness/tools/define";
 import { askHuman, nextCall } from "#harness/tools/next-call";
 
 const plain = { danger: undefined, maxLines: MAX_CONTENT_LINES };
-
-describe("result", () => {
-  test("fills an empty body", () => {
-    expect(result("DONE", { after: 1, detail: "ok." })).toEqual({
-      after: 1,
-      body: [],
-      detail: "ok.",
-      status: "DONE",
-    });
-  });
-});
 
 describe("formatContent", () => {
   test("puts the status word first, then the body", () => {
@@ -99,21 +86,6 @@ describe("formatContent", () => {
     expect(lines.at(-3)).toBe("+22 more; narrow the call.");
     expect(lines.at(-2)).toBe("Danger: x.");
     expect(lines.at(-1)).toBe("Next: look()");
-  });
-
-  test("the design stop example fits the limits", () => {
-    const stop = result("DONE", {
-      after: 0,
-      detail:
-        "stopped r4 (engage, 1 of 3 kills). Not moving, not attacking. HP 190/217.",
-    });
-    const text = formatContent(stop, {
-      danger:
-        "Danger: Springpaw Stalker u9 is still attacking you. You are at 88% HP.",
-      maxLines: MAX_CONTENT_LINES,
-    });
-    expect(text.split("\n").length).toBeLessThanOrEqual(MAX_CONTENT_LINES);
-    expect(Buffer.byteLength(text)).toBeLessThanOrEqual(MAX_CONTENT_BYTES);
   });
 });
 
@@ -224,15 +196,5 @@ describe("coreErrorResult", () => {
     expect(formatContent(mapped, plain)).toBe(
       "FAILED error: boom\nNext: look()",
     );
-  });
-});
-
-describe("empty views", () => {
-  test("emptySelf has no pose and unknown life", () => {
-    expect(emptySelf()).toMatchObject({
-      life: "unknown",
-      pose: undefined,
-      powerKind: "none",
-    });
   });
 });

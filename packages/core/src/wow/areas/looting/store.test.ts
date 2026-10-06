@@ -1,11 +1,9 @@
 import { describe, expect, test } from "bun:test";
 import { areaRig } from "#test-support/area-rig";
 import {
-  lootingLootErrorBody,
   lootingLootListBody,
   lootingLootMasterListBody,
   lootingLootReleaseBody,
-  lootingLootRemovedBody,
 } from "#test-support/areas/looting";
 import type { LootingEvent } from "#wow/areas/looting/store";
 import { GameOpcode } from "#wow/protocol/opcodes";
@@ -26,7 +24,7 @@ function setup() {
 }
 
 describe("LootingStore", () => {
-  test("starts with no owners, no master candidates and no pass", () => {
+  test("starts with no owners, no candidates, no pass and no send", () => {
     const { rig } = setup();
     try {
       expect(rig.handle.state()).toEqual({
@@ -34,6 +32,7 @@ describe("LootingStore", () => {
         masterCandidates: [],
         passOnLoot: false,
       });
+      expect(rig.sent).toEqual([]);
     } finally {
       rig.dispose();
     }
@@ -168,23 +167,6 @@ describe("LootingStore", () => {
       );
       expect(rig.handle.state().masterCandidates).toEqual([]);
       expect(seen).toEqual([]);
-    } finally {
-      rig.dispose();
-    }
-  });
-
-  test("duplicate items with the same label settle only their own give", () => {
-    const { rig } = setup();
-    try {
-      rig.inject(GameOpcode.SMSG_LOOT_REMOVED, lootingLootRemovedBody(0));
-      rig.inject(
-        GameOpcode.SMSG_LOOT_RESPONSE,
-        lootingLootErrorBody(CREATURE, 12),
-      );
-      rig.inject(
-        GameOpcode.SMSG_LOOT_RELEASE_RESPONSE,
-        lootingLootReleaseBody(CREATURE, 1),
-      );
     } finally {
       rig.dispose();
     }

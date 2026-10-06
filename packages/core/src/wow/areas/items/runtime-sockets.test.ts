@@ -193,18 +193,25 @@ describe("items runtime: socket", () => {
   test("a request the server would drop silently is refused before sending", async () => {
     const { rig } = setup();
     try {
-      const refusals = [
-        rig.handle.act.socket(RING, [GEM_A, GEM_A]),
-        rig.handle.act.socket(RING, []),
-        rig.handle.act.socket(RING, [GEM_A, GEM_B, GEM_A, GEM_B]),
-        rig.handle.act.socket(STRANGER, [GEM_A]),
-        rig.handle.act.socket(RING, [STRANGER]),
-        rig.handle.act.socket(RING, [RING]),
+      const refusals: [Promise<unknown>, string][] = [
+        [rig.handle.act.socket(RING, [GEM_A, GEM_A]), "distinct gems"],
+        [rig.handle.act.socket(RING, []), "at least one gem"],
+        [
+          rig.handle.act.socket(RING, [GEM_A, GEM_B, GEM_A, GEM_B]),
+          "at most 3 gems",
+        ],
+        [
+          rig.handle.act.socket(STRANGER, [GEM_A]),
+          `item ${STRANGER} is not in the inventory`,
+        ],
+        [
+          rig.handle.act.socket(RING, [STRANGER]),
+          `gem ${STRANGER} is not in the bags`,
+        ],
+        [rig.handle.act.socket(RING, [RING]), `gem ${RING} is not in the bags`],
       ];
-      const settled = await Promise.allSettled(refusals);
-      expect(settled.map((s) => s.status)).toEqual(
-        new Array(6).fill("rejected"),
-      );
+      for (const [refusal, reason] of refusals)
+        await expect(refusal).rejects.toThrow(reason);
       expect(sends(rig.sent, GameOpcode.CMSG_SOCKET_GEMS)).toEqual([]);
     } finally {
       rig.dispose();

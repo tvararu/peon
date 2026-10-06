@@ -45,22 +45,23 @@ describe("report text", () => {
     expect(heldName("Replace the permanent reaper report issue")).toBeNull();
   });
 
-  test("the body names the hold and a fix without mentioning anyone", () => {
+  test("the body names the held worktree and archive without pinging anyone", () => {
     const body = reportBody(a);
     expect(body).not.toContain("@");
     expect(body).toContain("`alpha`");
     expect(body).toContain("/x/alpha.patch");
-    expect(body).toContain("What to do:");
-    expect(body).toContain("deletes this card");
     expect(body).not.toContain("- Issue:");
-    expect(body).not.toContain("back to Ready");
+    expect(body).not.toContain("factory:claim");
   });
 
-  test("a branch that names an issue links it", () => {
+  test("a branch that names an issue links it and a reaper run gets the claim note", () => {
     expect(issueOf("refs/heads/factory/103-factory-project-board")).toBe(103);
     expect(issueOf("OpenHubris/auto-work-run-177")).toBeNull();
     expect(reportBody(b)).toContain("- Issue: #103");
-    expect(reportBody(b)).toContain("move #103 back to Ready");
+    expect(reportBody(b)).toContain("`factory:claim`");
+    expect(reportBody({ ...b, owner: "maintainer" })).not.toContain(
+      "factory:claim",
+    );
   });
 });
 

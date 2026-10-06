@@ -182,7 +182,7 @@ describe("ItemsStore sets", () => {
     });
   });
 
-  test("empty quest sets and empty slots stay visible: guid 0 unequips, guid 1 is ignored", () => {
+  test("receiveSetList keeps each listed slot guid as stored and an empty list clears the sets", () => {
     const { store } = setup();
     store.receiveSetList([setEntry({ items: items({ 5: 1n }) })]);
     expect(

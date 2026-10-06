@@ -1,6 +1,5 @@
 import { describe, expect, test } from "bun:test";
 import {
-  APPLY,
   flush,
   INFO,
   infoWith,
@@ -12,20 +11,6 @@ import { GLYPH_ANSWER_MS } from "#wow/areas/talents/runtime-glyph";
 import { PacketReader } from "#wow/protocol/packet";
 
 describe("removeGlyph", () => {
-  test("a second talent act while one runs throws talent_request_busy but the slot is kept", async () => {
-    const { rig } = rigged();
-    try {
-      const pending = rig.handle.act.applyGlyph(APPLY);
-      pending.catch(() => undefined);
-      await flush();
-      await expect(rig.handle.act.removeGlyph(0)).rejects.toThrow(
-        "talent_request_busy",
-      );
-    } finally {
-      rig.dispose();
-    }
-  });
-
   test("an empty socket is slot_empty and sends nothing", async () => {
     const { rig, sent } = rigged();
     try {

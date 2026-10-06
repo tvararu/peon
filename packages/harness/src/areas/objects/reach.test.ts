@@ -37,20 +37,6 @@ describe("object reach", () => {
     expect(interactionRadius(99)).toBe(5.5);
   });
 
-  test("a nearer box face outweighs a farther face for the walk-up range", () => {
-    expect(
-      inDisplayReach(
-        { x: 30, y: -5.4, z: 42.5 },
-        {
-          at: { x: 30, y: 0, z: 42.5 },
-          bounds: SHRINE,
-          scale: 1.91,
-          type: 9,
-        },
-      ),
-    ).toBe(true);
-  });
-
   test("the shrine stays usable from the far side of its stone", () => {
     const target = {
       at: { x: 30, y: 0, z: 42.5 },

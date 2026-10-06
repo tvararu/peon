@@ -150,17 +150,3 @@ test("an attacked stop ends the pilot stopped with the attack reason", () => {
     status: "stopped",
   });
 });
-
-test("combat events keep loop combat", () => {
-  const { jevRows, router } = setup();
-  const handle = createMockGame();
-  router.attach(handle);
-  handle.triggerTacticsEvent({
-    framing: "none",
-    instruction: "fight",
-    runId: "t1",
-    targetGuid: "0x1",
-    type: "started",
-  });
-  expect((jevRows[0] as { loop: string }).loop).toBe("combat");
-});

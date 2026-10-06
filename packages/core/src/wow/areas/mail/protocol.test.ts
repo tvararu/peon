@@ -6,7 +6,6 @@ import {
   mailListResultBody,
   mailNextMailTimeBody,
   mailRawList,
-  mailReceivedMailBody,
   mailSendMailResultBody,
   mailShowMailboxBody,
   mailSized,
@@ -19,7 +18,6 @@ import {
   buildMailReturnToSender,
   buildMailTakeItem,
   buildMailTakeMoney,
-  buildQueryNextMailTime,
   buildSendMail,
   MAX_MAIL_SENDER_ROWS,
   type MailResultStatusName,
@@ -183,14 +181,6 @@ describe("parseShowMailbox", () => {
   });
 });
 
-describe("parseReceivedMail", () => {
-  test("reads the zero-body notice", () => {
-    const reader = new PacketReader(mailReceivedMailBody());
-    expect(reader.uint32LE()).toBe(0);
-    expect(reader.remaining).toBe(0);
-  });
-});
-
 describe("build mail requests", () => {
   test("buildGetMailList and buildMailMarkAsRead write guid then id", () => {
     const mailbox = 0xf1_10_00_00_00_00_00_01n;
@@ -201,10 +191,6 @@ describe("build mail requests", () => {
     expect(marked.uint64LE()).toBe(mailbox);
     expect(marked.uint32LE()).toBe(101);
     expect(marked.remaining).toBe(0);
-  });
-
-  test("buildQueryNextMailTime writes an empty body", () => {
-    expect(buildQueryNextMailTime()).toEqual(new Uint8Array());
   });
 });
 

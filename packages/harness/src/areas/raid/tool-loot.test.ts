@@ -255,12 +255,12 @@ describe("group tool give", () => {
     const out = await runTool(t.tool, {
       do: "give",
       target: "Springpaw Lynx",
-      to: "Tom",
+      to: "tom",
       what: "linen",
     });
     expect(out.text).toContain("DONE");
     expect(out.text).toContain("Linen Cloth");
-    expect(out.text).toContain("Tom");
+    expect(out.text).toContain("to Tom");
     expect(t.handle.openLoot).toHaveBeenCalledWith(CORPSE);
     expect(t.give).toHaveBeenCalledWith(CORPSE, 1, "Tom");
     expect(t.release).toHaveBeenCalledTimes(1);
@@ -374,20 +374,21 @@ describe("group tool give", () => {
     expect(t.give).not.toHaveBeenCalled();
   });
 
-  test("refuses a corpse out of reach and names the walk", async () => {
+  test("refuses a corpse out of reach with its distance, without opening it", async () => {
     const t = await world({ corpseDistance: 40 });
     const out = await runTool(t.tool, { do: "give", to: "Tom", what: "Linen" });
     expect(out.text).toContain("REFUSED too_far");
+    expect(out.text).toContain("40 yd");
     expect(t.handle.openLoot).not.toHaveBeenCalled();
   });
 });
 
 describe("group tool pass_loot", () => {
-  test("sends the opt-out flag and says it is only requested", async () => {
+  test("sends the opt-out flag on and off", async () => {
     const t = await world();
     const on = await runTool(t.tool, { do: "pass_loot", what: "on" });
     expect(t.pass).toHaveBeenLastCalledWith(true);
-    expect(on.text).toContain("requested");
+    expect(on.text).toContain("DONE");
     await runTool(t.tool, { do: "pass_loot", what: "off" });
     expect(t.pass).toHaveBeenLastCalledWith(false);
   });

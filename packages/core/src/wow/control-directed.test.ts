@@ -2,7 +2,6 @@ import { describe, expect, jest, test } from "bun:test";
 import { info, LOGIN, lastMove, setup } from "#test-support/control-fixtures";
 import { must } from "#test-support/must";
 import { ControlRuntime } from "#wow/control";
-import { MovementFlag } from "#wow/protocol/entity-fields";
 import { GameOpcode } from "#wow/protocol/opcodes";
 import { PacketReader } from "#wow/protocol/packet";
 
@@ -146,22 +145,6 @@ describe("ControlRuntime", () => {
       runtime.clientControl({ guid: 0x0764n, allow: false });
       expect(runtime.snapshot().movementAllowed).toBe(false);
       expect(() => runtime.move("left", 500)).toThrow("no_control");
-    } finally {
-      jest.useRealTimers();
-    }
-  });
-
-  test("unsupported transport flags are reported instead of faked", () => {
-    jest.useFakeTimers();
-    try {
-      const { runtime } = setup();
-      runtime.observeSelf({
-        position: { mapId: 530, x: 1, y: 2, z: 3, orientation: 0 },
-        movementFlags: MovementFlag.ON_TRANSPORT,
-        runSpeed: 7,
-      });
-      expect(runtime.snapshot().blockedReason).toBe("transport");
-      expect(() => runtime.move("forward", 500)).toThrow("transport");
     } finally {
       jest.useRealTimers();
     }

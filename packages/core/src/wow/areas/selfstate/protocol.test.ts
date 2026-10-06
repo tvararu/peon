@@ -17,7 +17,6 @@ import { must } from "#test-support/must";
 import {
   buildCorpseMapPositionQuery,
   buildStandStateChange,
-  MIRROR_TIMERS,
   parseCollisionHeight,
   parseCorpseMapPosition,
   parseDismount,
@@ -79,10 +78,6 @@ describe("selfstate protocol", () => {
       paused: true,
       spellId: 7,
     });
-  });
-
-  test("the timer ids are AzerothCore's fatigue 0, breath 1, fire 2 (AC Entities/Player/Player.h:557-562)", () => {
-    expect(MIRROR_TIMERS).toEqual(["fatigue", "breath", "fire"]);
   });
 
   test("SMSG_STOP_MIRROR_TIMER reads the timer id (AC Server/Packets/MiscPackets.cpp:121-126)", () => {

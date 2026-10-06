@@ -107,6 +107,6 @@ describe("loadAccount", () => {
     const dir = await root();
     await write(accountPaths(dir, ACCOUNT).config, config("FAC0000000000"));
     const error = await loadAccount(dir, ACCOUNT).catch((e: Error) => e);
-    expect(String(error)).not.toContain("secret1");
+    expect(String(error).toUpperCase()).not.toContain("SECRET1");
   });
 });

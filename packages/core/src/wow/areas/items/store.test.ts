@@ -259,12 +259,6 @@ describe("ItemsStore timers", () => {
     ]);
   });
 
-  test("the death durability notice emits durability_loss", () => {
-    const { events, store } = setup();
-    store.receiveDeathDurability();
-    expect(events).toEqual([{ type: "durability_loss_death" }]);
-  });
-
   test("a proficiency packet names the new weapon skills and keeps the mask", () => {
     const { events, store } = setup();
     store.receiveProficiency({ itemClass: 2, mask: 0b1000_0001 });

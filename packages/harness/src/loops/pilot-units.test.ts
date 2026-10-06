@@ -122,6 +122,17 @@ describe("pilot units", () => {
     expect(units[0]?.marginYd).toBeLessThan(units[1]?.marginYd ?? 0);
   });
 
+  test("a creature inside its aggro radius reads inside, one beyond reads outside", () => {
+    const rows = [selfRow(), mob(2n, 10, 0, { level: 10 }), mob(3n, 31, 0)];
+    const units = buildPilotUnits(rows, pose());
+    const inside = units.find((unit) => unit.marginYd < 0);
+    const outside = units.find((unit) => unit.marginYd > 0);
+    expect(inside).toBeDefined();
+    expect(outside).toBeDefined();
+    expect(unitLine(inside as PilotUnit, pose())).toContain("yd inside it");
+    expect(unitLine(outside as PilotUnit, pose())).toContain("yd outside it");
+  });
+
   test("caps the list at five units", () => {
     const rows = [
       selfRow(),
@@ -268,21 +279,6 @@ describe("danger masking", () => {
     expect(dangerAlong({ x: 0, y: 0 }, 0, circles, 10)?.yd).toBeLessThan(2);
     expect(dangerAlong({ x: 0, y: 0 }, Math.PI, circles, 10)).toBeUndefined();
   });
-
-  test("moving away while inside is not danger", () => {
-    const rows = [selfRow(), mob(2n, 10, 0)];
-    const units = buildPilotUnits(rows, pose());
-    const [unit] = units;
-    expect(unit?.marginYd).toBeLessThan(0);
-    expect(
-      rayEntryYd({ x: 0, y: 0 }, Math.PI, {
-        name: "mob",
-        radiusYd: (unit?.radiusYd ?? 0) + 1,
-        x: 10,
-        y: 0,
-      }),
-    ).toBeUndefined();
-  });
 });
 
 describe("unit line", () => {
@@ -297,6 +293,6 @@ describe("unit line", () => {
     const line = unitLine({ ...unit, state: "standing still" }, pose());
     expect(line).toContain("Kobold Vermin, level 8");
     expect(line).toContain("(observed)");
-    expect(line).toContain("Inferred aggro range");
+    expect(line).toContain("Inferred aggro range 18 yd");
   });
 });

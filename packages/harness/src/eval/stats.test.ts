@@ -82,8 +82,9 @@ describe("createToolStats", () => {
     });
   });
 
-  test("stop without start writes nothing", async () => {
+  test("stop without start resolves", async () => {
     const stats = createToolStats({ now: () => 7 });
-    await expect(stats.stop()).resolves.toBeUndefined();
+    stats.call("look");
+    await stats.stop();
   });
 });

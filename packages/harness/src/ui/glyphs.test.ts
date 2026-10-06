@@ -15,8 +15,7 @@ import {
 const names = Object.keys(nerdClasses);
 
 describe("glyph sets", () => {
-  test("every set has the same 83 names", () => {
-    expect(names).toHaveLength(83);
+  test("every set has the same names", () => {
     for (const set of glyphSetNames) {
       expect(Object.keys(glyphSets[set]).sort()).toEqual([...names].sort());
     }

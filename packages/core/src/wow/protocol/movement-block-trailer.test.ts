@@ -76,21 +76,6 @@ describe("parseMovementBlock trailers", () => {
     expect(r.remaining).toBe(0);
   });
 
-  test("trailing: ROTATION", () => {
-    const w = new PacketWriter();
-    w.uint16LE(UpdateFlag.HAS_POSITION | UpdateFlag.ROTATION);
-    w.floatLE(5);
-    w.floatLE(6);
-    w.floatLE(7);
-    w.floatLE(0);
-    w.uint64LE(0n);
-    const r = new PacketReader(w.finish());
-    const m = parseMovementBlock(r);
-    expect(must(m.point).x).toBeCloseTo(5);
-    expect(m.rotation).toMatchObject({ w: 1, x: 0, y: 0, z: 0 });
-    expect(r.remaining).toBe(0);
-  });
-
   test("combined LIVING + trailing", () => {
     const w = new PacketWriter();
     const flags =

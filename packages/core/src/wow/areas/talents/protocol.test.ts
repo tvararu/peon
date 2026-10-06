@@ -43,6 +43,7 @@ describe("parseTalentsInfo", () => {
           talents: [
             { rank: 1, talentId: 1862 },
             { rank: 0, talentId: 1868 },
+            { rank: 3, talentId: 1870 },
           ],
         },
       ],
@@ -58,6 +59,7 @@ describe("parseTalentsInfo", () => {
           talents: [
             { rank: 1, talentId: 1862 },
             { rank: 0, talentId: 1868 },
+            { rank: 3, talentId: 1870 },
           ],
         },
       ],

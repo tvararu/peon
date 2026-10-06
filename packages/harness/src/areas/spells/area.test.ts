@@ -1,7 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import type { AreaEvent } from "@peon/core";
 import { areaDrafts, areaRuleSet } from "#harness/areas/rules";
-import { spellsHarness } from "#harness/areas/spells/area";
 import { testLookup, testRuleInput } from "#test-support/rule-fixtures";
 
 const ME = 0x2an;
@@ -9,14 +8,6 @@ const TRAINER = 0xf1_30_00_3e_d7_00_1a_2bn;
 const MOB = 0xf1_30_00_3e_ea_00_0a_bcn;
 
 describe("spells harness rules", () => {
-  test("the area claims the cancelAura and setActionButton acts", () => {
-    expect(spellsHarness.worldActs).toEqual([
-      "cancelAura",
-      "destroyTotem",
-      "setActionButton",
-      "unlearnSkill",
-    ]);
-  });
   test("a mirror image writes no row and no fallback", () => {
     const event: AreaEvent = {
       area: "spells",
@@ -93,9 +84,18 @@ describe("spells harness rules", () => {
       (event) => areaDrafts(rules, event, testRuleInput())[0],
     );
     expect(rows).toMatchObject([
-      { event: "spells/channel_start", text: "Channelling spell 5143." },
-      { event: "spells/channel_start", text: "Channelling spell 5143." },
-      { event: "spells/channel_end", text: "spell 5143 ended (cancelled)." },
+      {
+        event: "spells/channel_start",
+        text: expect.stringMatching(/Channelling.*5143/),
+      },
+      {
+        event: "spells/channel_start",
+        text: expect.stringMatching(/Channelling.*5143/),
+      },
+      {
+        event: "spells/channel_end",
+        text: expect.stringMatching(/5143.*cancelled/),
+      },
     ]);
   });
 
@@ -137,7 +137,9 @@ describe("spells harness rules", () => {
           spellName: "Shadow Bolt",
         },
         event: "spells/target_start",
-        text: "Scourge Invader starts casting Shadow Bolt.",
+        text: expect.stringMatching(
+          /Scourge Invader starts casting Shadow Bolt/,
+        ),
       },
     ]);
     expect(areaDrafts(rules, end, rc)).toMatchObject([
@@ -148,7 +150,9 @@ describe("spells harness rules", () => {
           spellName: "Shadow Bolt",
         },
         event: "spells/target_interrupted",
-        text: "Scourge Invader's Shadow Bolt interrupted.",
+        text: expect.stringMatching(
+          /Scourge Invader.*Shadow Bolt.*interrupted/,
+        ),
       },
     ]);
   });
@@ -179,11 +183,11 @@ describe("spells harness rules", () => {
           spellName: "Drain Life",
         },
         event: "spells/target_start",
-        text: "Scourge Invader starts channelling Drain Life.",
+        text: expect.stringMatching(/Scourge Invader.*channelling.*Drain Life/),
       },
     ]);
   });
-  test("an unnamed caster or spell falls back to ids", () => {
+  test("an unnamed caster and spell fall back to 'A unit' and the spell id", () => {
     const start: AreaEvent = {
       area: "spells",
       event: {
@@ -196,9 +200,9 @@ describe("spells harness rules", () => {
         type: "unit_cast_start",
       },
     };
-    expect(
-      areaDrafts(areaRuleSet(), start, testRuleInput())[0]?.text,
-    ).toContain("spell 5143");
+    const text = areaDrafts(areaRuleSet(), start, testRuleInput())[0]?.text;
+    expect(text).toContain("spell 5143");
+    expect(text).toContain("A unit");
   });
 
   test("other casters and settled casts write no row", () => {
@@ -279,11 +283,11 @@ describe("spells totem rows", () => {
     expect(rows).toMatchObject([
       {
         event: "spells/totem_created",
-        text: "Stoneskin Totem placed (earth).",
+        text: expect.stringMatching(/Stoneskin Totem.*earth/),
       },
       {
         event: "spells/totem_gone",
-        text: "Stoneskin Totem gone (earth, gone).",
+        text: expect.stringMatching(/Stoneskin Totem.*earth.*gone/),
       },
     ]);
   });
@@ -312,7 +316,7 @@ describe("spells skill rows", () => {
     ).toMatchObject([
       {
         event: "spells/skill_changed",
-        text: "Mining learned, 1/75.",
+        text: expect.stringMatching(/Mining.*learned.*1\/75/),
       },
     ]);
     expect(
@@ -320,13 +324,13 @@ describe("spells skill rows", () => {
     ).toMatchObject([
       {
         event: "spells/skill_changed",
-        text: "Mining is now 12/75.",
+        text: expect.stringMatching(/Mining.*is now.*12\/75/),
       },
     ]);
     expect(areaDrafts(areaRuleSet(), removed, testRuleInput())).toMatchObject([
       {
         event: "spells/skill_removed",
-        text: "Mining dropped.",
+        text: expect.stringMatching(/Mining.*dropped/),
       },
     ]);
   });

@@ -1,12 +1,12 @@
-import { afterEach, describe, expect, test } from "bun:test";
+import { afterEach, describe, expect, spyOn, test } from "bun:test";
 import { existsSync, readdirSync } from "node:fs";
-import { join } from "node:path";
 import {
   fauxAssistantMessage,
   fauxProvider,
   Type,
 } from "@earendil-works/pi-ai";
 import type { ExtensionFactory } from "@earendil-works/pi-coding-agent";
+import * as managedTools from "#harness/runtime/managed-tools";
 import { createPiRuntime, splitModel } from "#harness/runtime/pi-runtime";
 import {
   createFauxSession,
@@ -116,9 +116,7 @@ describe("createPiRuntime", () => {
       );
     expect(systems).toHaveLength(1);
     const [first] = systems;
-    expect(first?.sections?.["preamble"]).toStartWith(
-      `You play World of Warcraft 3.3.5a as ${rt.profile.character}.`,
-    );
+    expect(first?.sections?.["preamble"]).toContain(rt.profile.character);
     expect(Object.keys(first?.sections ?? {})).toEqual(["preamble", "cwd"]);
     const recorded = JSON.stringify(systems);
     expect(recorded).not.toContain("expert coding assistant");
@@ -140,9 +138,10 @@ describe("createPiRuntime", () => {
     expect(existsSync(rt.paths.workspace)).toBe(true);
   });
 
-  test("seeds fd and rg so Pi prints no fd not found warning", async () => {
+  test("seeds managed fd and rg tools into the agent dir", async () => {
     const { rt } = await createTestRuntime();
     const faux = fauxProvider({ models: [{ id: "faux-1" }] });
+    const seed = spyOn(managedTools, "seedManagedTools");
     await createPiRuntime({
       agentDir: rt.paths.dir,
       extensions: [{ factory: probeTool, name: "wow" }],
@@ -150,16 +149,7 @@ describe("createPiRuntime", () => {
       models: await sharedModels([faux.provider]),
       runtime: rt,
     }).catch(() => undefined);
-    for (const [bin, names] of [
-      ["fd", ["fd", "fdfind"]],
-      ["rg", ["rg"]],
-    ] as const)
-      expect(
-        existsSync(join(rt.paths.dir, "bin", bin)) ||
-          names.some((name) => Bun.which(name) !== null),
-      ).toBe(true);
-    expect(existsSync(join(rt.paths.dir, "bin", "fd"))).toBe(
-      Bun.which("fd") === null && Bun.which("fdfind") === null,
-    );
+    expect(seed).toHaveBeenCalledWith(rt.paths.dir);
+    seed.mockRestore();
   });
 });

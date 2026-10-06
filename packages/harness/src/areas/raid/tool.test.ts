@@ -12,7 +12,7 @@ import type { GroupAfter } from "#harness/areas/raid/tool-shared";
 import { groupParams } from "#harness/areas/raid/tool-shared";
 import { toolCtx } from "#test-support/ops-fixtures";
 import { createTestRuntime } from "#test-support/runtime-fixture";
-import { expectSendKind, runTool } from "#test-support/tool-harness";
+import { runTool } from "#test-support/tool-harness";
 
 type RaidState = AreaState<"raid">;
 type RaidGroup = NonNullable<RaidState["group"]>;
@@ -116,22 +116,12 @@ describe("group tool", () => {
     ).toEqual(groupSpec.minimalArgs);
   });
 
-  test("status and refusals send nothing", async () => {
-    await expectSendKind(groupTool, {});
-    await expectSendKind(groupTool, { do: "kick", to: "Nobody" });
-    await expectSendKind(groupTool, { do: "lead", to: "Nobody" });
-    await expectSendKind(groupTool, { do: "give", what: "Linen" });
-    await expectSendKind(groupTool, { do: "pass_loot", what: "on" });
-    await expectSendKind(groupTool, { do: "roll", what: "need" });
-    await expectSendKind(groupTool, { do: "share_quest", quest: "Nothing" });
-  });
-
   describe("status", () => {
-    test("says so when not in a group and sends nothing", async () => {
+    test("outside a group it says so and sends nothing", async () => {
       const t = await world({ inGroup: false });
       const out = await runTool(t.tool, {});
       expect(out.text).toContain("DONE");
-      expect(out.text).toContain("You are not in a group.");
+      expect(out.text).toContain("not in a group");
       expect(t.uninvite).not.toHaveBeenCalled();
       expect(t.handle.setLeader).not.toHaveBeenCalled();
     });
@@ -394,10 +384,11 @@ describe("group tool", () => {
       });
       t.uninvite.mockImplementation(() => elapse(3000));
       const out = await withFakeTimers(() =>
-        runTool(t.tool, { do: "kick", to: "Ann" }),
+        runTool(t.tool, { do: "kick", to: "ann" }),
       );
       expect(t.uninvite).toHaveBeenCalledWith("Ann", "");
-      expect(out.text).toContain("UNCONFIRMED");
+      expect(out.text).toContain("UNCONFIRMED no_answer");
+      expect(out.text).toContain("Ann");
     });
 
     test("sends the reason and is done when the member leaves the roster", async () => {
@@ -438,16 +429,6 @@ describe("group tool", () => {
         runTool(t.tool, { do: "kick", to: "Ann" }),
       );
       expect(out.text).toContain("UNCONFIRMED");
-    });
-
-    test("kicking the only rostered member is refused when it is not Peon", async () => {
-      const t = await world({
-        group: { leader: TOM },
-        members: [tom(), ann({ flags: 0 })],
-      });
-      const out = await runTool(t.tool, { do: "kick", to: "Ann" });
-      expect(t.uninvite).not.toHaveBeenCalled();
-      expect(out.text).toContain("REFUSED not_leader");
     });
 
     test("a party of two with Peon leading disbands on a kick", async () => {
@@ -491,16 +472,6 @@ describe("group tool", () => {
       });
       const out = await runTool(t.tool, { do: "kick", to: "Ann" });
       expect(out.text).toContain("DONE");
-    });
-
-    test("stays unconfirmed after 3 s", async () => {
-      const t = await world({ members: [tom(), ann()] });
-      t.uninvite.mockImplementation(() => elapse(3000));
-      const out = await withFakeTimers(() =>
-        runTool(t.tool, { do: "kick", to: "Ann" }),
-      );
-      expect(out.text).toContain("UNCONFIRMED");
-      expect(out.text).toContain("Ann");
     });
 
     test("a send that throws rejects the call", async () => {

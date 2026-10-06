@@ -2,7 +2,6 @@ import { expect, jest, test } from "bun:test";
 import { type AreaState, ObjectType, UNIT_FIELDS } from "@peon/core";
 import { spell } from "@peon/core/test-support/spell-fixtures";
 import { CombatActions } from "#harness/loops/combat-actions";
-import { timeoutOutcome } from "#harness/loops/combat-actions-observation";
 import { context, setup } from "#test-support/combat-actions-fixtures";
 
 type SpellsState = AreaState<"spells">;
@@ -113,21 +112,17 @@ test("a fact the client never observed reaches Jev as null, not a missing key", 
 });
 
 test("a running channel never times out", () => {
-  const { combatStore } = setup();
+  let time = 1000;
+  const { actions, combat, combatStore } = setup(() => time);
+  jest.spyOn(combat, "definition").mockReturnValue(spell());
   combatStore.casts.beginChannel({
     durationMs: 3000,
     spellId: 17,
     target: 2n,
   });
-  const combat = combatStore.record(2n);
-  const snap = setup().combat.snapshot(2n);
-  const state = {
-    ...snap,
-    ...combat,
-    casting: undefined,
-    pendingCast: undefined,
-  };
-  expect(timeoutOutcome(state, 1000 + 9000)).toBeUndefined();
+  expect(actions.observe(context).outcome).toBeUndefined();
+  time += 9000;
+  expect(actions.observe(context).outcome).toBeUndefined();
 });
 
 test("the observation names damage taken in the last 6 s by source and school", () => {

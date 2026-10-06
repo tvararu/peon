@@ -7,7 +7,7 @@ import {
   type FooterChrome,
   footerLines,
 } from "#harness/ui/footer";
-import { nerd } from "#harness/ui/glyphs";
+import { ascii, nerd } from "#harness/ui/glyphs";
 import { createFakeTui } from "#test-support/pi-recorder";
 import {
   nowFixture,
@@ -153,7 +153,7 @@ describe("footerLines", () => {
     expect(self).not.toContain("41%");
   });
 
-  test("missing capabilities and a lost link are painted", () => {
+  test("missing capabilities are painted as errors and a lost link as a warning", () => {
     const last =
       footerLines({
         chrome: { ...chrome, connection: "backoff" },
@@ -161,8 +161,12 @@ describe("footerLines", () => {
         theme,
         width: 200,
       })[3] ?? "";
+    expect(painted(theme, "warning", last)).toBe(true);
     expect(painted(theme, "error", last)).toBe(true);
-    expect(plain([last])[0]).toStartWith("backoff · ");
+    const text = plain([last])[0] ?? "";
+    expect(text).toStartWith("backoff · ");
+    expect(text).toContain("no-jev");
+    expect(text).toContain("no-nav");
   });
 
   test("waits for the world before the first snapshot", () => {
@@ -171,7 +175,7 @@ describe("footerLines", () => {
     ).toBe(`${nerd.idle} waiting for the world…`);
   });
 
-  test("the ascii set draws no nerd glyph", () => {
+  test("the ascii set draws its own glyph and no nerd glyph", () => {
     setGlyphs("ascii");
     const text = footerLines({
       chrome,
@@ -179,7 +183,8 @@ describe("footerLines", () => {
       theme,
       width: 220,
     }).join("\n");
-    expect(text).not.toContain(nerd.self);
+    expect(text).toContain(ascii.self);
+    for (const glyph of Object.values(nerd)) expect(text).not.toContain(glyph);
   });
 });
 

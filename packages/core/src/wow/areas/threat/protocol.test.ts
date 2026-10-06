@@ -99,26 +99,18 @@ describe("threat parsers", () => {
 });
 
 describe("reaction and target break parsers", () => {
-  test("SMSG_AI_REACTION reads the full guid and HOSTILE (Creature.cpp:2477-2487)", () => {
-    const body = threatAiReactionBody({ reaction: 2, unit: CREATURE });
-    const reader = new PacketReader(body);
-    expect(parseAiReaction(reader)).toEqual({
-      code: 2,
-      reaction: "hostile",
-      unit: CREATURE,
-    });
-    expect(reader.remaining).toBe(0);
-  });
-
   test("SMSG_AI_REACTION reads the AzerothCore byte layout", () => {
-    const body = new Uint8Array([
-      0xbc, 0x0a, 0x00, 0xea, 0x3e, 0x00, 0x30, 0xf1, 0, 0, 0, 0,
-    ]);
-    expect(parseAiReaction(new PacketReader(body))).toEqual({
+    const reader = new PacketReader(
+      new Uint8Array([
+        0xbc, 0x0a, 0x00, 0xea, 0x3e, 0x00, 0x30, 0xf1, 0, 0, 0, 0,
+      ]),
+    );
+    expect(parseAiReaction(reader)).toEqual({
       code: 0,
       reaction: "alert",
       unit: CREATURE,
     });
+    expect(reader.remaining).toBe(0);
   });
 
   test("SMSG_AI_REACTION names every value of AiReaction (SharedDefines.h:3471-3478)", () => {

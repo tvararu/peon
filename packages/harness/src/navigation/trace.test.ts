@@ -66,16 +66,36 @@ describe("lost height traces", () => {
   });
 
   test("keeps a lost height trace refused over two walkable floors", () => {
+    for (const gap of [0.4, 0.6]) {
+      const map = native({
+        findHeight: (from, x) => {
+          if (from.x < 5 && x >= 5) throw groundError("UNKNOWN_HEIGHT");
+          return 0;
+        },
+        findHeights: (x) => (x >= 5 && x < 6 ? [0, gap] : [0]),
+      });
+      expect(() => navigation(map).plan(530, start, end)).toThrow(
+        /UNKNOWN_HEIGHT/,
+      );
+    }
+  });
+
+  test("keeps a lost height trace refused over two clear floors both in reach", () => {
+    const shelf = 0.83;
     const map = native({
       findHeight: (from, x) => {
-        if (from.x < 5 && x >= 5) throw groundError("UNKNOWN_HEIGHT");
-        return 0;
+        if (x < 5) return 0;
+        if (from.x < 5) throw groundError("UNKNOWN_HEIGHT");
+        return shelf;
       },
-      findHeights: (x) => (x >= 5 && x < 6 ? [0, 0.4] : [0]),
+      findHeights: (x) => {
+        if (x < 5) return [0];
+        return x < 5.25 ? [-shelf, shelf] : [shelf];
+      },
     });
-    expect(() => navigation(map).plan(530, start, end)).toThrow(
-      /UNKNOWN_HEIGHT/,
-    );
+    expect(() =>
+      navigation(map).plan(530, start, { x: 10, y: 0, z: shelf }),
+    ).toThrow(/UNKNOWN_HEIGHT/);
   });
 
   test("falls back to the standable floor nearest the walker", () => {
@@ -90,18 +110,5 @@ describe("lost height traces", () => {
     const route = navigation(map).plan(530, pose, { x: 10, y: 0, z: 14.06 });
     expect(route.points.at(-1)).toMatchObject({ x: 10, y: 0, z: 14.06 });
     expect(route.sample(5).z).toBeCloseTo(14.06);
-  });
-
-  test("keeps the fallback refused over two clear floors in reach", () => {
-    const map = native({
-      findHeight: (from, x) => {
-        if (from.x < 5 && x >= 5) throw groundError("UNKNOWN_HEIGHT");
-        return 0;
-      },
-      findHeights: (x) => (x >= 5 && x < 6 ? [0, 0.6] : [0]),
-    });
-    expect(() => navigation(map).plan(530, start, end)).toThrow(
-      /UNKNOWN_HEIGHT/,
-    );
   });
 });

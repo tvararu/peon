@@ -70,7 +70,7 @@ describe("session lifecycle", () => {
         { ...base, host: "127.0.0.1", port: worldServer.port },
         auth,
       );
-
+      expect(handle.getControlState().selfGuid).toBe(0x42n);
       handle.close();
       await handle.closed;
     } finally {

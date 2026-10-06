@@ -5,15 +5,13 @@ function skipped(guid: bigint, cause: string) {
   return { cause, guid, status: "skipped" as const };
 }
 
-test("a later skipped attacker stops the next pull", () => {
-  const stop = besetStop(
-    [skipped(40n, "target_unreachable"), skipped(41n, "target_unreachable")],
-    [41n],
-  );
-  expect(stop).toMatchObject({
-    cause: "attacker_unreachable",
-    detail: { ref: 41n },
-  });
+test("a skipped attacker recorded by cause alone stops the cycle", () => {
+  expect(
+    besetStop(
+      [skipped(40n, "target_unreachable"), skipped(41n, "target_unreachable")],
+      [41n],
+    ),
+  ).toMatchObject({ cause: "attacker_unreachable", detail: { ref: 41n } });
 });
 
 test("no skipped attacker means no stop", () => {

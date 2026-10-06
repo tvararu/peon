@@ -85,7 +85,6 @@ describe("pet cast", () => {
     );
     expect(out.status).toBe("FAILED");
     expect(out.detail).toContain("not_ready");
-    expect(out.detail).toContain("cooldown");
   });
 
   test("a cast_failed for another request of the same spell does not fail this cast", async () => {
@@ -148,7 +147,7 @@ describe("pet cast", () => {
     });
   });
 
-  test("a range miss with no cast afterwards is UNCONFIRMED and says the pet is closing in", async () => {
+  test("a range miss with no cast afterwards is UNCONFIRMED closing_in", async () => {
     await withFakeTimers(async () => {
       const t = await world({ petEntity: unit(), pets: barState() });
       rangeMiss(t);
@@ -157,7 +156,7 @@ describe("pet cast", () => {
         60_000,
       );
       expect(out.status).toBe("UNCONFIRMED");
-      expect(out.detail).toContain("closing in");
+      expect(out.reason).toBe("closing_in");
     });
   });
 

@@ -38,15 +38,6 @@ function rigWithEvents() {
 }
 
 describe("quests marks", () => {
-  test("starts with no marks", () => {
-    const { rig } = rigWithEvents();
-    try {
-      expect(rig.handle.state().marks.size).toBe(0);
-    } finally {
-      rig.dispose();
-    }
-  });
-
   test("the multiple packet replaces every mark, because it lists every giver in view (Player.cpp:7915-7946)", () => {
     const { advance, multiple, rig } = rigWithEvents();
     try {

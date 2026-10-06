@@ -1,9 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import {
   chooseModel,
-  FALLBACK_MODEL,
   type Login,
-  NO_LOGIN,
   peonAuthPath,
   startupLine,
 } from "#harness/credentials/status";
@@ -46,10 +44,6 @@ describe("chooseModel", () => {
       }),
     ).toBe(undefined);
   });
-
-  test("the fallback is the codex model", () => {
-    expect(FALLBACK_MODEL).toBe("openai-codex/gpt-6-luna");
-  });
 });
 
 describe("startupLine", () => {
@@ -62,12 +56,6 @@ describe("startupLine", () => {
   test("names every login", () => {
     expect(startupLine([CODEX, CLAUDE], "openai-codex/gpt-6-luna")).toBe(
       "Logins: openai-codex (OAuth), anthropic (ANTHROPIC_API_KEY). Model: openai-codex/gpt-6-luna.",
-    );
-  });
-
-  test("the no-login line is stable", () => {
-    expect(NO_LOGIN).toBe(
-      "No model login found. Type /login in the harness, or set an API key such as ANTHROPIC_API_KEY or OPENAI_API_KEY.",
     );
   });
 });

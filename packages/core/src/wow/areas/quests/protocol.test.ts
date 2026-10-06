@@ -290,6 +290,7 @@ describe("quest sharing packets", () => {
     );
     const confirm = parseQuestConfirmAccept(new PacketReader(body));
     expect(confirm.questId).toBe(8488);
+    expect(confirm.title).toBe("Unexpected Results");
     expect(confirm.from).toBe(ERONA);
   });
 

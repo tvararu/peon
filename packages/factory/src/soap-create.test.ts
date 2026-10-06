@@ -69,8 +69,14 @@ const pinfoText = (account: string, gmLevel: number) =>
 function depsFor(
   _preset: Preset,
   overrides?: Partial<CreateDeps>,
-): { commands: string[]; deps: CreateDeps; service: ServiceDouble } {
+): {
+  commands: string[];
+  copies: { value: number };
+  deps: CreateDeps;
+  service: ServiceDouble;
+} {
   const commands: string[] = [];
+  const copies = { value: 0 };
   const service = serviceDouble();
   const login = loginDouble({ skill: true });
   const deps: CreateDeps = {
@@ -81,7 +87,10 @@ function depsFor(
       sessionKey: new Uint8Array(0),
     }),
     console: async () => ({ ok: true, text: "" }),
-    copy: async () => 1,
+    copy: async () => {
+      copies.value += 1;
+      return 1;
+    },
     create: async () => ({ result: "success" }),
     createConfig: (names) =>
       ({ account: names.account, character: names.character }) as ClientConfig,
@@ -101,7 +110,7 @@ function depsFor(
     templateEnv: {},
     ...overrides,
   };
-  return { commands, deps, service };
+  return { commands, copies, deps, service };
 }
 
 function privilegeDouble(preset: Preset, stuck = false) {
@@ -137,7 +146,7 @@ describe("specOf", () => {
 
 describe("createByProtocol", () => {
   test("creates the shaman and stages state in table order", async () => {
-    const { commands, deps, service } = depsFor("eversong10-shaman");
+    const { commands, copies, deps, service } = depsFor("eversong10-shaman");
     let seen: {
       config?: ClientConfig;
       name?: string;
@@ -171,14 +180,14 @@ describe("createByProtocol", () => {
       "spells/learn",
     ]);
     expect(service.calls[0]?.body).toMatchObject({ map: 530, x: 8735 });
-    expect(commands.some((c) => c.includes("pdump"))).toBe(false);
+    expect(copies.value).toBe(0);
     expect(commands.some((c) => c.includes("gmlevel"))).toBe(false);
   });
 
   test("no created preset touches templates", async () => {
     for (const preset of Object.keys(presetSpecs) as Preset[]) {
       if (!isCreatePreset(presetSpecs[preset])) continue;
-      const { commands, deps, service } = depsFor(preset);
+      const { commands, copies, deps, service } = depsFor(preset);
       deps.run = (async (command: string) => {
         commands.push(command);
         if (command.startsWith("pinfo"))
@@ -188,6 +197,7 @@ describe("createByProtocol", () => {
         return { ok: true, text: "" };
       }) as CreateDeps["run"];
       await createByProtocol(preset, deps);
+      expect(copies.value).toBe(0);
       const text = [...commands, ...service.calls.map((c) => c.endpoint)].join(
         " ",
       );
@@ -214,7 +224,7 @@ describe("createByProtocol", () => {
     expect(levelAtCreate).toBe(1);
     expect(levelAtStage).toBe(0);
     expect(level.value).toBe(0);
-    expect(service.calls.length).toBeGreaterThan(0);
+    expect(service.calls.map((c) => c.endpoint)).not.toContain("level");
   });
 
   test("the death knight demotes even when creation throws", async () => {
@@ -300,7 +310,7 @@ describe("createByProtocol", () => {
     }) as CreateDeps["create"];
     await expect(
       createByProtocol("eversong55-deathknight", deps),
-    ).rejects.toThrow();
+    ).rejects.toThrow("demotion");
   });
 
   test("a stuck GMLevel 1 fails creation", async () => {

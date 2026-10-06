@@ -32,11 +32,6 @@ describe("registerGameHandlers", () => {
       );
     expect(shadowed).toEqual([]);
   });
-
-  test("runs on a connection that holds only a dispatch", () => {
-    const conn = { dispatch: new OpcodeDispatch() } as unknown as WorldConn;
-    expect(() => registerGameHandlers(conn, testStores())).not.toThrow();
-  });
 });
 
 describe("registerWorldHandlers", () => {
@@ -84,14 +79,6 @@ describe("registerWorldHandlers", () => {
 });
 
 describe("registerWorldHandlers on a coverage connection", () => {
-  test("runs with only a dispatch and events", () => {
-    const conn = {
-      dispatch: new OpcodeDispatch(),
-      events: createWorldEvents(),
-    } as unknown as WorldConn;
-    expect(() => registerWorldHandlers(conn, testStores())).not.toThrow();
-  });
-
   test("reports a failing peek as a packet error", () => {
     const conn = stubConn();
     const errors: [number, Error][] = [];

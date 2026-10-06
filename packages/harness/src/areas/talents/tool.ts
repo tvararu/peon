@@ -78,7 +78,7 @@ export type TalentsArgs = {
   slot?: string | number;
 };
 
-export function wantsOf(args: TalentsArgs): { talent: string; rank: number }[] {
+function wantsOf(args: TalentsArgs): { talent: string; rank: number }[] {
   const text = (value: string | number): string => String(value);
   if (args.plan !== undefined && args.talent === undefined)
     return args.plan.map((entry) => ({

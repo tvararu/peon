@@ -21,7 +21,7 @@ const AGENT_WAITS: Readonly<Record<string, number>> = {
   tradeRequestQuiet: TRADE_WAIT_MS,
 };
 
-export function actionTimeoutMs(argv: readonly string[]): number {
+function actionTimeoutMs(argv: readonly string[]): number {
   if (argv[0] !== "call") return ACTION_TIMEOUT_MS;
   const waits = AGENT_WAITS[argv[1] ?? ""];
   if (waits === undefined) return ACTION_TIMEOUT_MS;

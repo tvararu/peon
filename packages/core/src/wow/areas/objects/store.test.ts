@@ -106,14 +106,6 @@ describe("ObjectsStore triggers", () => {
       },
     ]);
   });
-
-  test("a failed catalog load shows in the state", () => {
-    const { store } = build();
-    store.loadingTriggers();
-    store.triggersFailed();
-    expect(store.snapshot().triggers.catalog).toBe("failed");
-    expect(store.move(INSIDE)).toEqual([]);
-  });
 });
 
 describe("ObjectsStore templates", () => {

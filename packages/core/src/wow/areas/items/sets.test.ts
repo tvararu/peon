@@ -118,7 +118,11 @@ describe("items sets slice", () => {
         setGuid: 9n,
       },
     ]);
+    const first = { ...useRequest(), index: 1 };
+    slice.beginUse(first);
+    expect(slice.snapshot().usePending).toEqual(first);
     slice.beginUse(useRequest());
+    expect(slice.snapshot().usePending).toEqual(useRequest());
     slice.settleUse({
       failures: ["bag_is_full"],
       observedAt: 1001,
@@ -145,6 +149,9 @@ describe("items sets slice", () => {
       { icon: "", index: 0, items: items({}), name: "Peon", setGuid: 1n },
       { icon: "", index: 1, items: items({}), name: "Peon", setGuid: 2n },
     ]);
-    expect(slice.snapshot().sets.map((set) => set.index)).toEqual([0, 1]);
+    expect(slice.snapshot().sets.map((set) => [set.index, set.name])).toEqual([
+      [0, "Peon"],
+      [1, "Peon"],
+    ]);
   });
 });

@@ -211,7 +211,7 @@ describe("queryNearby", () => {
     expect(rows.map((r) => r.preparedAt)).toEqual([NOW, NOW]);
   });
 
-  test("rows carry neutral standing, roles and loot flags until filled", () => {
+  test("rows carry unknown relation, roles and loot flags until filled", () => {
     const [row] = queryNearby(sources(pose(0, 0), [entity(2n, at(1, 0))]));
     expect(row).toMatchObject({
       relation: "unknown",

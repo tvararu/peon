@@ -171,10 +171,7 @@ function buildSelfCreateUpdate(): Uint8Array {
   return w.finish();
 }
 
-function handlePlayerLogin(
-  socket: Socket<ConnState>,
-  sendTimeSync: boolean,
-): void {
+function handlePlayerLogin(socket: Socket<ConnState>): void {
   const verify = new PacketWriter();
   verify.uint32LE(socket.data.loginMapId);
   verify.floatLE(8709.46);
@@ -212,12 +209,6 @@ function handlePlayerLogin(
     GameOpcode.SMSG_CHANNEL_NOTIFY,
     buildChannelNotifyJoined("Trade"),
   );
-
-  if (sendTimeSync) {
-    const syncW = new PacketWriter();
-    syncW.uint32LE(0);
-    send(socket, GameOpcode.SMSG_TIME_SYNC_REQ, syncW.finish());
-  }
 }
 
 function handlePing(socket: Socket<ConnState>, body: Uint8Array): void {
@@ -284,7 +275,6 @@ type CaptureListener = (packet: CapturedPacket) => void;
 
 type ServerContext = {
   authStatus: number;
-  sendTimeSync: boolean;
   captured: CapturedPacket[];
   captureListeners: CaptureListener[];
   guildId: number;
@@ -296,7 +286,7 @@ function handlePacket(
   body: Uint8Array,
   ctx: ServerContext,
 ): void {
-  const { authStatus, sendTimeSync, captured, captureListeners, guildId } = ctx;
+  const { authStatus, captured, captureListeners, guildId } = ctx;
   const packet: CapturedPacket = { body: new Uint8Array(body), opcode };
   captured.push(packet);
   for (const listener of captureListeners) listener(packet);
@@ -304,8 +294,7 @@ function handlePacket(
     handleAuthSession(socket, authStatus);
   else if (opcode === GameOpcode.CMSG_CHAR_ENUM)
     handleCharEnum(socket, guildId);
-  else if (opcode === GameOpcode.CMSG_PLAYER_LOGIN)
-    handlePlayerLogin(socket, sendTimeSync);
+  else if (opcode === GameOpcode.CMSG_PLAYER_LOGIN) handlePlayerLogin(socket);
   else if (opcode === GameOpcode.CMSG_PING) handlePing(socket, body);
   else if (opcode === GameOpcode.CMSG_MESSAGE_CHAT)
     handleMessageChat(socket, body);
@@ -358,7 +347,6 @@ export type CapturedPacket = { opcode: number; body: Uint8Array };
 
 export function startMockWorldServer(opts?: {
   authStatus?: number;
-  sendTimeSyncAfterLogin?: boolean;
   guildId?: number;
   loginMapId?: number;
   coalesceSelfCreate?: boolean;
@@ -372,7 +360,6 @@ export function startMockWorldServer(opts?: {
   ) => Promise<CapturedPacket>;
 }> {
   const authStatus = opts?.authStatus ?? 0x0c;
-  const sendTimeSync = opts?.sendTimeSyncAfterLogin ?? false;
   const guildId = opts?.guildId ?? 0;
   const loginMapId = opts?.loginMapId ?? 0;
   const coalesceSelfCreate = opts?.coalesceSelfCreate ?? false;
@@ -384,7 +371,6 @@ export function startMockWorldServer(opts?: {
     captured,
     captureListeners,
     guildId,
-    sendTimeSync,
   };
 
   return new Promise((resolve) => {

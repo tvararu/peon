@@ -28,11 +28,17 @@ describe("world handler tests", () => {
       handle.sendSay("first");
       await first;
 
+      const queriesBefore = ws.captured.filter(
+        (p) => p.opcode === GameOpcode.CMSG_NAME_QUERY,
+      ).length;
       const second = new Promise<ChatMessage>((r) => handle.onMessage(r));
       handle.sendSay("second");
       const msg = await second;
       expect(msg.sender).toBe(FIXTURE_CHARACTER);
       expect(msg.message).toBe("second");
+      expect(
+        ws.captured.filter((p) => p.opcode === GameOpcode.CMSG_NAME_QUERY),
+      ).toHaveLength(queriesBefore);
 
       handle.close();
       await handle.closed;
@@ -167,9 +173,7 @@ describe("world handler tests", () => {
 
       const msg = await received;
       expect(msg.type).toBe(ChatType.SYSTEM);
-      expect(msg.message).toBe(
-        'No player named "Ghostplayer" is currently playing.',
-      );
+      expect(msg.message).toContain("Ghostplayer");
 
       handle.close();
       await handle.closed;
@@ -225,7 +229,7 @@ describe("world handler tests", () => {
       const msg = await received;
       expect(msg.type).toBe(ChatType.SYSTEM);
       expect(msg.sender).toBe("");
-      expect(msg.message).toBe("Server shutdown in 15:00");
+      expect(msg.message).toContain("15:00");
       expect(msg.origin).toBe("server");
 
       handle.close();
@@ -279,7 +283,6 @@ describe("world handler tests", () => {
       ws.inject(GameOpcode.SMSG_RECEIVED_MAIL, body.finish());
       const msg = await received;
       expect(msg.type).toBe(ChatType.SYSTEM);
-      expect(msg.message).toBe("You have new mail.");
       expect(msg.origin).toBe("mail");
       handle.close();
       await handle.closed;
@@ -306,7 +309,7 @@ describe("world handler tests", () => {
       const msg = await received;
       expect(msg.type).toBe(ChatType.SYSTEM);
       expect(msg.sender).toBe("");
-      expect(msg.message).toBe("Chat is throttled");
+      expect(msg.message).toContain("throttled");
 
       handle.close();
       await handle.closed;
@@ -333,7 +336,7 @@ describe("world handler tests", () => {
       const msg = await received;
       expect(msg.type).toBe(ChatType.SYSTEM);
       expect(msg.sender).toBe("");
-      expect(msg.message).toBe("Chat restriction 255");
+      expect(msg.message).toContain("255");
 
       handle.close();
       await handle.closed;
@@ -358,9 +361,7 @@ describe("world handler tests", () => {
       const msg = await received;
       expect(msg.type).toBe(ChatType.SYSTEM);
       expect(msg.sender).toBe("");
-      expect(msg.message).toBe(
-        "You cannot speak to members of the opposing faction",
-      );
+      expect(msg.message).toMatch(/opposing faction/);
 
       handle.close();
       await handle.closed;

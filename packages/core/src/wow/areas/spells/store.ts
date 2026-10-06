@@ -276,10 +276,6 @@ export class SpellsStore {
     this.totems.requestDestroy(slot);
   }
 
-  castOf(guid: bigint): UnitCast | undefined {
-    return this.units.castOf(guid);
-  }
-
   unlearnSpells(spellIds: readonly number[]): void {
     this.inactiveRanks = spellIds;
   }

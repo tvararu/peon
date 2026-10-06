@@ -5,6 +5,7 @@ import {
   vehiclesMonsterMoveTransportBody,
   vehiclesPlayerVehicleDataBody,
 } from "#test-support/areas/vehicles";
+import { buildRequestVehicleSwitchSeat } from "#wow/areas/vehicles/protocol";
 import { vehiclesRuntime } from "#wow/areas/vehicles/runtime";
 import { type VehiclesEvent, VehiclesStore } from "#wow/areas/vehicles/store";
 import type { Entity } from "#wow/entity-store";
@@ -283,6 +284,9 @@ describe("vehicles acts", () => {
       expect(rig.sent.map((packet) => packet.opcode)).toEqual([
         GameOpcode.CMSG_REQUEST_VEHICLE_SWITCH_SEAT,
       ]);
+      expect(rig.sent.map((packet) => packet.body)).toEqual([
+        buildRequestVehicleSwitchSeat(VEHICLE, 2),
+      ]);
       rig.inject(
         GameOpcode.SMSG_MONSTER_MOVE_TRANSPORT,
         vehiclesMonsterMoveTransportBody({
@@ -323,37 +327,6 @@ describe("vehicles acts", () => {
     }
   });
 
-  test("ejectPassenger sends the passenger guid when seated in a vehicle id (AC Handlers/VehicleHandler.cpp:167-173)", async () => {
-    const rig = rigWith(new Map());
-    rig.inject(
-      GameOpcode.SMSG_PLAYER_VEHICLE_DATA,
-      vehiclesPlayerVehicleDataBody({ guid: SELF, vehicleId: 123 }),
-    );
-    rig.stores.areas.vehicles.setSeat({
-      controlling: false,
-      entry: undefined,
-      seat: 0,
-      vehicle: VEHICLE,
-    });
-    try {
-      const pending = rig.handle.act.ejectPassenger(PARTNER);
-      await Promise.resolve();
-      const ejectSent = rig.sent.slice(-1).map((packet) => packet.opcode);
-      expect(ejectSent).toEqual([GameOpcode.CMSG_CONTROLLER_EJECT_PASSENGER]);
-      board(rig, PARTNER);
-      rig.inject(
-        GameOpcode.SMSG_MONSTER_MOVE,
-        vehiclesMonsterMoveBody({
-          flags: SplineFlag.TRANSPORT_EXIT,
-          guid: PARTNER,
-          stop: false,
-        }),
-      );
-      expect(await pending).toEqual({ status: "ok" });
-    } finally {
-      rig.dispose();
-    }
-  });
   test("ejectPassenger sends the passenger guid from a driver with no seat of its own (AC Handlers/VehicleHandler.cpp:167-173)", async () => {
     const rig = rigWith(new Map());
     rig.inject(

@@ -4,7 +4,6 @@ import {
   defaultProfilePath,
   harnessStateDir,
   parseFlags,
-  USAGE,
   UsageError,
 } from "#harness/config/flags";
 
@@ -108,25 +107,6 @@ describe("parseFlags", () => {
     expect(() => parseFlags(["--profile", "/p", "--account", "X"])).toThrow(
       UsageError,
     );
-  });
-
-  test("names every flag in the usage text", () => {
-    for (const flag of [
-      "--profile",
-      "--run-dir",
-      "--model",
-      "--thinking",
-      "--no-connect",
-      "--wake",
-      "--glyphs",
-      "--stop-reflex",
-      "--now-per-call",
-      "--log-entities",
-      "--packet-trace",
-      "--check",
-    ]) {
-      expect(USAGE).toContain(flag);
-    }
   });
 });
 

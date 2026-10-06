@@ -12,11 +12,7 @@ function rigWithEvents() {
 }
 
 describe("InspectStore", () => {
-  test("starts empty", () => {
-    expect(new InspectStore().snapshot()).toEqual({});
-  });
-
-  test("SMSG_INSPECT_TALENT emits talents with the parsed reply", () => {
+  test("SMSG_INSPECT_TALENT emits the parsed reply and keeps none of it", () => {
     const { rig, seen } = rigWithEvents();
     try {
       const body = inspectInspectTalentBody({
@@ -26,7 +22,10 @@ describe("InspectStore", () => {
       });
       rig.inject(GameOpcode.SMSG_INSPECT_TALENT, body);
       expect(seen).toHaveLength(1);
-      expect(seen[0]?.type).toBe("talents");
+      expect(seen[0]).toMatchObject({
+        reply: { gear: [{ entry: 7, slot: 15 }], guid: 0x49_13n },
+        type: "talents",
+      });
       expect(rig.handle.state()).toEqual({});
     } finally {
       rig.dispose();

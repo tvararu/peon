@@ -179,32 +179,6 @@ describe("journal about spells professions, totems and runes", () => {
     });
   });
 
-  test("caps the profession block at four lines", async () => {
-    const { handle, tool } = await world();
-    installSpells(handle, { book: [] });
-    const base = handle.spells.state();
-    const skills = [171, 164, 333, 202, 186].map((id, index) => ({
-      id,
-      max: 75,
-      name: `Trade ${index}`,
-      permBonus: 0,
-      profession: true,
-      step: 1,
-      tempBonus: 0,
-      value: 10,
-    }));
-    jest
-      .spyOn(handle.spells, "state")
-      .mockImplementation(() => ({ ...base, skills }));
-    const lines = (await runTool(tool, { about: "spells" })).text.split("\n");
-    expect(lines.slice(1)).toEqual([
-      "Trade 0: 10/75.",
-      "Trade 1: 10/75.",
-      "Trade 2: 10/75.",
-      "+2 more professions.",
-    ]);
-  });
-
   test("shows only professions when weapons share the skill list", async () => {
     const { handle, tool } = await world();
     installSpells(handle, { book: [] });

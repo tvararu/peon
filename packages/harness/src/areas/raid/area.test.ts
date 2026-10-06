@@ -44,16 +44,20 @@ describe("raid harness rules", () => {
     ).toEqual([]);
   });
 
-  test("a left change writes one passive roster row", () => {
-    expect(
-      rows({
-        changes: [{ kind: "left", name: "Tom" }],
-        group: GROUP,
-        type: "group_list",
-      }),
-    ).toMatchObject([
-      { class: "passive", event: "raid/roster", text: "Tom left the group." },
+  test("a left change writes one passive roster row that says left", () => {
+    const out = rows({
+      changes: [{ kind: "left", name: "Tom" }],
+      group: GROUP,
+      type: "group_list",
+    });
+    expect(out).toMatchObject([
+      {
+        class: "passive",
+        data: { change: "left", name: "Tom" },
+        event: "raid/roster",
+      },
     ]);
+    expect(out[0]?.text).toContain("left");
   });
 
   test("becoming leader writes a wake roster row", () => {
@@ -113,17 +117,21 @@ describe("raid harness rules", () => {
     ).toMatchObject([{ class: "wake", event: "raid/command" }]);
   });
 
-  test("a death writes one passive member row", () => {
-    expect(
-      rows({
-        guid: 0x10n,
-        name: "Tom",
-        transitions: ["died"],
-        type: "member_stats",
-      }),
-    ).toMatchObject([
-      { class: "passive", event: "raid/member", text: "Tom died." },
+  test("a death writes one passive member row that says died", () => {
+    const out = rows({
+      guid: 0x10n,
+      name: "Tom",
+      transitions: ["died"],
+      type: "member_stats",
+    });
+    expect(out).toMatchObject([
+      {
+        class: "passive",
+        data: { name: "Tom", transition: "died" },
+        event: "raid/member",
+      },
     ]);
+    expect(out[0]?.text).toContain("died");
   });
 
   test("stats with no transition write no rows", () => {
@@ -134,38 +142,41 @@ describe("raid harness rules", () => {
 });
 
 describe("raid roster row detail", () => {
-  test("a flag gained names the flag and carries it", () => {
+  test("a flag gained names the flag and says gained", () => {
     const [row] = rows({
       changes: [{ flag: "main_tank", kind: "flag", name: "Tom", on: true }],
       group: GROUP,
       type: "group_list",
     });
-    expect(row?.text).toContain("Tom");
+    expect(row?.data).toMatchObject({
+      flag: "main_tank",
+      name: "Tom",
+      on: true,
+    });
     expect(row?.text).toContain("main tank");
     expect(row?.text).toContain("gained");
-    expect(row?.data).toMatchObject({ flag: "main_tank", on: true });
   });
 
-  test("a flag removal says lost, not gained", () => {
+  test("a flag removal names the flag and says lost, not gained", () => {
     const [row] = rows({
       changes: [{ flag: "assistant", kind: "flag", on: false, self: true }],
       group: GROUP,
       type: "group_list",
     });
-    expect(row?.text).toContain("lost");
-    expect(row?.text).toContain("assistant");
-    expect(row?.text).not.toContain("gained");
     expect(row?.data).toMatchObject({ flag: "assistant", on: false });
+    expect(row?.text).toContain("assistant");
+    expect(row?.text).toContain("lost");
+    expect(row?.text).not.toContain("gained");
   });
 
-  test("a subgroup move carries and names the destination group", () => {
+  test("a subgroup move names the 1-based destination group", () => {
     const [row] = rows({
       changes: [{ from: 0, kind: "subgroup", name: "Tom", to: 2 }],
       group: GROUP,
       type: "group_list",
     });
-    expect(row?.text).toContain("group 3");
     expect(row?.data).toMatchObject({ from: 0, to: 2 });
+    expect(row?.text).toMatch(/\bgroup 3\b/);
   });
 });
 
@@ -176,13 +187,14 @@ describe("ready check harness rules", () => {
     ).toMatchObject([{ class: "wake", event: "raid/ready_check" }]);
   });
 
-  test("a check the agent starts names the agent", () => {
+  test("a check the agent starts tells the agent it started it", () => {
     const [row] = rows({
       initiator: 0x10n,
       name: "",
       type: "ready_check_started",
     });
     expect(row).toMatchObject({ class: "wake", event: "raid/ready_check" });
+    expect(row?.data).toMatchObject({ name: "" });
     expect(row?.text).toContain("You start");
   });
 
@@ -198,7 +210,6 @@ describe("ready check harness rules", () => {
       data: { answer: "not_ready", name: "Tom" },
       event: "raid/ready_answer",
     });
-    expect(row?.text).toContain("Tom");
     expect(row?.text).toContain("not ready");
   });
 
@@ -215,7 +226,10 @@ describe("ready check harness rules", () => {
       data: { notReady: ["Tom"], offline: 1, pending: 0, ready: 1 },
       event: "raid/ready_done",
     });
-    expect(row?.text).toContain("Tom");
+    expect(row?.text).toContain("1 ready");
+    expect(row?.text).toContain("not ready: Tom");
+    expect(row?.text).toContain("1 offline");
+    expect(row?.text).not.toContain("did not answer");
   });
 });
 
@@ -230,7 +244,7 @@ function rowsWith(event: RaidEvent, over: Parameters<typeof testRuleInput>[0]) {
 const LYNX = 0xf130000123000045n;
 
 describe("raid mark harness rules", () => {
-  test("a set by a named member writes one passive mark row", () => {
+  test("a set by a named member names the icon and the looked-up target", () => {
     const [row, ...rest] = rowsWith(
       { icon: 7, name: "Tom", target: LYNX, type: "raid_mark", who: 0x10n },
       { lookup: testLookup({ unitName: () => "Springpaw Lynx" }) },
@@ -241,22 +255,22 @@ describe("raid mark harness rules", () => {
       data: { icon: 7, name: "Tom", target: `${LYNX}` },
       event: "raid/mark",
     });
-    expect(row?.text).toContain("Tom");
     expect(row?.text).toContain("skull");
     expect(row?.text).toContain("Springpaw Lynx");
   });
 
-  test("a set by the agent names the agent", () => {
+  test("a set by the agent names the agent and the icon", () => {
     const [row] = rowsWith(
       { icon: 0, name: "", target: LYNX, type: "raid_mark", who: 1n },
       { selfGuid: 1n, selfName: "Fgk" },
     );
     expect(row).toMatchObject({ event: "raid/mark" });
+    expect(row?.data).toMatchObject({ icon: 0, name: "Fgk" });
     expect(row?.text).toContain("Fgk");
     expect(row?.text).toContain("star");
   });
 
-  test("an explicit clear by a named member writes a mark row", () => {
+  test("an explicit clear by a named member writes a cleared mark row", () => {
     const [row] = rows({
       icon: 7,
       name: "Tom",
@@ -266,10 +280,11 @@ describe("raid mark harness rules", () => {
     });
     expect(row).toMatchObject({
       class: "passive",
-      data: { icon: 7, name: "Tom" },
+      data: { icon: 7, name: "Tom", target: "0" },
       event: "raid/mark",
     });
     expect(row?.text).toContain("cleared");
+    expect(row?.text).toContain("skull");
   });
 
   test("the server's own clear before a move writes no row", () => {
@@ -294,7 +309,7 @@ describe("minimap ping harness rules", () => {
     y: 40,
   } as const;
 
-  test("a ping writes one passive row with distance and direction", () => {
+  test("with a known pose the row gives the computed distance and bearing", () => {
     const memo = createRuleMemo();
     memo.pose = { mapId: 0, x: 100, y: 40, z: 0 };
     const [row, ...rest] = rowsWith(ping, { memo });
@@ -304,15 +319,18 @@ describe("minimap ping harness rules", () => {
       data: { name: "Tom", x: 130, y: 40 },
       event: "raid/ping",
     });
-    expect(row?.text).toContain("Tom");
     expect(row?.text).toContain("30 yd");
     expect(row?.text).toMatch(/north/i);
   });
 
-  test("a ping before any pose is known still writes a row", () => {
+  test("before any pose is known the row carries the position only", () => {
     const [row] = rows(ping);
-    expect(row).toMatchObject({ class: "passive", event: "raid/ping" });
-    expect(row?.text).toContain("Tom");
+    expect(row).toMatchObject({
+      class: "passive",
+      data: { name: "Tom", x: 130, y: 40 },
+      event: "raid/ping",
+    });
+    expect(row?.text).not.toContain(" yd ");
   });
 });
 
@@ -325,22 +343,30 @@ describe("summon harness rules", () => {
     zoneId: 3430,
   } as const;
 
-  test("a request writes one wake row naming summoner, zone and seconds", () => {
-    const out = rows({ ...base, name: "Tom", zoneName: "Eversong Woods" });
+  test("a request writes one wake row with the window rounded to seconds", () => {
+    const out = rows({
+      ...base,
+      name: "Tom",
+      timeoutMs: 119_600,
+      zoneName: "Eversong Woods",
+    });
     expect(out).toHaveLength(1);
     expect(out[0]).toMatchObject({
       class: "wake",
-      data: { seconds: 120, summoner: "16", zone: "Eversong Woods" },
+      data: {
+        name: "Tom",
+        seconds: 120,
+        summoner: "16",
+        zone: "Eversong Woods",
+      },
       event: "raid/summon",
     });
-    const text = out[0]?.text ?? "";
-    expect(text).toContain("Tom");
-    expect(text).toContain("Eversong Woods");
-    expect(text).toContain("120");
+    expect(out[0]?.text).toContain("120 s");
   });
 
   test("without a zone name the row carries the zone id", () => {
     const [row] = rows({ ...base, name: "Tom", zoneName: undefined });
+    expect(row?.data).toMatchObject({ zone: "zone 3430" });
     expect(row?.text).toContain("zone 3430");
   });
 
@@ -353,14 +379,22 @@ describe("summon harness rules", () => {
       },
       testRuleInput({ lookup: testLookup({ unitName: () => "Ann" }) }),
     );
-    expect(named[0]?.text).toContain("Ann summons you");
+    expect(named[0]?.data).toMatchObject({ name: "Ann" });
+    expect(named[0]?.text).toContain("Ann");
     const [anon] = rows({ ...base, name: "", zoneName: undefined });
-    expect(anon?.text).toContain("Someone summons you");
+    expect(anon?.data).toMatchObject({ name: "Someone" });
+    expect(anon?.text).toContain("Someone");
   });
 
-  test("an expiry writes one passive row", () => {
+  test("an expiry writes one passive row naming the summoner", () => {
     expect(
       rows({ name: "Tom", summoner: 0x10n, type: "summon_expired" }),
-    ).toMatchObject([{ class: "passive", event: "raid/summon_expired" }]);
+    ).toMatchObject([
+      {
+        class: "passive",
+        data: { name: "Tom", summoner: "16" },
+        event: "raid/summon_expired",
+      },
+    ]);
   });
 });

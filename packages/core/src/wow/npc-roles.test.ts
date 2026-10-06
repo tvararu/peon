@@ -22,7 +22,32 @@ describe("npcRoles", () => {
     expect(npcRoles(0x4 | 0x8 | 0x2_00_00_00)).toEqual([]);
   });
 
-  test("names all 24 roles when every role bit is set", () => {
-    expect(npcRoles(0x5_ff_ff_f3)).toHaveLength(24);
+  test("names all 24 roles in table order when every role bit is set", () => {
+    expect(npcRoles(0x5_ff_ff_f3)).toEqual([
+      "gossip",
+      "questgiver",
+      "trainer",
+      "class_trainer",
+      "profession_trainer",
+      "vendor",
+      "vendor_ammo",
+      "vendor_food",
+      "vendor_poison",
+      "vendor_reagent",
+      "repair",
+      "flight_master",
+      "spirit_healer",
+      "spirit_guide",
+      "innkeeper",
+      "banker",
+      "petitioner",
+      "tabard_designer",
+      "battlemaster",
+      "auctioneer",
+      "stable_master",
+      "guild_banker",
+      "spellclick",
+      "mailbox",
+    ]);
   });
 });

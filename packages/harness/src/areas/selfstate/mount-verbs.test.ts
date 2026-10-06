@@ -8,6 +8,7 @@ import {
 } from "@peon/core/test-support/fake-time";
 import { spellSpec } from "#harness/areas/spells/tool";
 import { Refusal } from "#harness/ops/refusal";
+import { nextCall } from "#harness/tools/next-call";
 import { toolCtx } from "#test-support/ops-fixtures";
 import {
   combatEvent,
@@ -188,7 +189,7 @@ describe("spell do:mount", () => {
     const cast = answerCast(t);
     const refused = await refusal(spellSpec.run({ do: "mount" }, toolCtx(t)));
     expect(refused.reason).toBe("already_mounted");
-    expect(refused.next).toContain("dismount");
+    expect(refused.next).toBe(nextCall("spell", { do: "dismount" }));
     expect(cast).not.toHaveBeenCalled();
   });
 

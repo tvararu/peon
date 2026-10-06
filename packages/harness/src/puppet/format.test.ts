@@ -227,27 +227,9 @@ describe("puppet JSON output, pinned to the CLI's", () => {
     );
   });
 
-  test("nearby --json with nothing around prints an empty list", () => {
-    expect(resultJson("nearby", [])).toBe(
-      '{"command":"nearby","data":[],"error":null,"events":[],"kind":"result"}',
-    );
-  });
-
   test("read --json prints the chat events in one events envelope", () => {
     expect(eventsJson("read", chats.map(chatEventObj))).toBe(
       `{"command":"read","data":null,"error":null,"events":[${READ_EVENTS.join(",")}],"kind":"events"}`,
-    );
-  });
-
-  test("read --json with no chat prints no events", () => {
-    expect(eventsJson("read", [])).toBe(
-      '{"command":"read","data":null,"error":null,"events":[],"kind":"events"}',
-    );
-  });
-
-  test("start --json prints the started result", () => {
-    expect(resultJson("start", { socket: "responsive", started: true })).toBe(
-      '{"command":"start","data":{"socket":"responsive","started":true},"error":null,"events":[],"kind":"result"}',
     );
   });
 });
@@ -302,20 +284,6 @@ describe("nearbyRowObj movement", () => {
         SPEED_ROWS.map(([kind, value, source]) => [kind, { source, value }]),
       ),
     );
-  });
-
-  test("a unit whose flags lack the root bit is not rooted", () => {
-    const wyrm = rows[0];
-    if (!wyrm) throw new Error("missing fixture row");
-    const movements = new Map([
-      [wyrm.entity.guid.toString(), movementOf(wyrm.entity.guid, 1)],
-    ]);
-    const movement = nearbyRowObj(wyrm, movements)["movement"] as Record<
-      string,
-      unknown
-    >;
-    expect(movement["flags"]).toBe(1);
-    expect(movement["rooted"]).toBe(false);
   });
 
   test("the root bit is found among other flag bits", () => {

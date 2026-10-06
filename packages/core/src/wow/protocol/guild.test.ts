@@ -1,6 +1,5 @@
 import { describe, expect, test } from "bun:test";
 import {
-  guildadminCommandResultBody,
   guildadminEventBody,
   guildadminQueryResponseBody,
   guildadminRosterBody,
@@ -8,11 +7,8 @@ import {
 import { must } from "#test-support/must";
 import {
   buildGuildQuery,
-  GuildCommand,
-  GuildCommandResult,
   GuildEventCode,
   GuildMemberStatus,
-  parseGuildCommandResult,
   parseGuildEvent,
   parseGuildQueryResponse,
   parseGuildRoster,
@@ -373,12 +369,6 @@ describe("buildGuildQuery", () => {
     expect(r.remaining).toBe(0);
   });
 
-  test("encodes guild id 0", () => {
-    const body = buildGuildQuery(0);
-    const r = new PacketReader(body);
-    expect(r.uint32LE()).toBe(0);
-  });
-
   test("encodes large guild id", () => {
     const body = buildGuildQuery(0xde_ad_be_ef);
     const r = new PacketReader(body);
@@ -415,32 +405,5 @@ describe("parseGuildEvent", () => {
       params: ["0000000000000C80"],
     });
     expect(r.remaining).toBe(0);
-  });
-
-  test("consumes the trailing guid of a signed-on event", () => {
-    const r = new PacketReader(
-      guildadminEventBody({
-        code: GuildEventCode.SIGNED_ON,
-        params: ["Thrall"],
-        guid: 0x1234n,
-      }),
-    );
-    expect(parseGuildEvent(r).params).toEqual(["Thrall"]);
-    expect(r.remaining).toBe(0);
-  });
-});
-
-describe("parseGuildCommandResult with the builder", () => {
-  test("reads command, name and result", () => {
-    const body = guildadminCommandResultBody({
-      command: GuildCommand.ROSTER,
-      name: "",
-      result: GuildCommandResult.GUILD_PLAYER_NOT_IN_GUILD,
-    });
-    expect(parseGuildCommandResult(new PacketReader(body))).toEqual({
-      command: 5,
-      name: "",
-      result: 9,
-    });
   });
 });

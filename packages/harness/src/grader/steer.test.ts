@@ -8,9 +8,6 @@ import {
   type EndView,
   endAction,
   pendingAction,
-  RESCUE_NUDGE,
-  stuckAfterMs,
-  stuckStopMs,
 } from "#harness/grader/steer";
 import type { ProgressJson, TriggerRow } from "#harness/grader/watch";
 
@@ -156,15 +153,6 @@ describe("dueSteer", () => {
   });
 });
 
-describe("stuck thresholds", () => {
-  test("follow eval-suite step 11", () => {
-    expect([0, 1, 7, 8].map(stuckAfterMs)).toEqual([
-      90_000, 180_000, 180_000, 480_000,
-    ]);
-    expect([0, 1, 8].map(stuckStopMs)).toEqual([60_000, 120_000, 120_000]);
-  });
-});
-
 describe("endAction", () => {
   test("waits while the agent works", () => {
     const busy = progress({
@@ -242,6 +230,15 @@ describe("endAction", () => {
 
   test("tier 0 nudges after 90 s", () => {
     expect(endAction(view(TASK + 90_000, { tier: 0 }), memory())).toEqual({
+      kind: "nudge",
+    });
+  });
+
+  test("tier 8 nudges after 480 s, not 180 s", () => {
+    expect(endAction(view(TASK + 479_999, { tier: 8 }), memory())).toEqual({
+      kind: "wait",
+    });
+    expect(endAction(view(TASK + 480_000, { tier: 8 }), memory())).toEqual({
       kind: "nudge",
     });
   });
@@ -374,10 +371,4 @@ describe("pendingAction", () => {
     expect(pendingAction({ ...fired, windowEnd: 50_001 })).toBe(true);
     expect(pendingAction({ ...fired, windowEnd: 50_000 })).toBe(false);
   });
-});
-
-test("the rescue nudge asks for action, not a report", () => {
-  expect(RESCUE_NUDGE).toBe(
-    "You seem stuck. Try another way to finish the task.",
-  );
 });

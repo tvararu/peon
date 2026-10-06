@@ -70,6 +70,7 @@ describe("SMSG_SPELLLOGEXECUTE", () => {
         combatlogSpellExecuteBody({
           caster: ME,
           effects: [
+            { effect: 62, records: [] },
             { effect: 24, records: [{ entry: 5350 }] },
             { effect: 999, records: [{ raw: new Uint8Array([1, 2, 3, 4]) }] },
           ],

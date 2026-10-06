@@ -1,19 +1,13 @@
 import { describe, expect, jest, test } from "bun:test";
 import { validateToolArguments } from "@earendil-works/pi-ai";
 import { ObjectType, type UnitEntity } from "@peon/core";
-import {
-  talentParams,
-  talentsSpec,
-  talentsTool,
-  wantsOf,
-} from "#harness/areas/talents/tool";
+import { talentParams, talentsSpec } from "#harness/areas/talents/tool";
 import type {
   TalentsCatalog,
   TalentsSnapshot,
 } from "#harness/areas/talents/tool-types";
 import { contentOf, toolCtx } from "#test-support/ops-fixtures";
 import { createTestRuntime } from "#test-support/runtime-fixture";
-import { expectSendKind } from "#test-support/tool-harness";
 
 const CATALOG: TalentsCatalog = {
   glyph: (id) => (id === 21 ? { spellId: 58_366, typeFlags: 0 } : undefined),
@@ -149,20 +143,6 @@ describe("talents tool spec", () => {
         callOf(),
       ),
     ).toEqual(talentsSpec.minimalArgs);
-  });
-
-  test("wantsOf reads talent with rank and plan ranks", () => {
-    expect(wantsOf({ do: "learn", rank: 2, talent: "124" })).toEqual([
-      { rank: 2, talent: "124" },
-    ]);
-    expect(wantsOf({ do: "learn", plan: [{ rank: 1, talent: "a" }] })).toEqual([
-      { rank: 1, talent: "a" },
-    ]);
-    expect(wantsOf({ do: "learn" })).toEqual([]);
-  });
-
-  test("expectSendKind passes for show", async () => {
-    await expectSendKind(talentsTool, { do: "show" });
   });
 });
 
@@ -336,6 +316,14 @@ describe("talents learn", () => {
     expect(out.body.join("\n")).toContain(
       "Deflection not learned: a higher row in the same tab is locked. (Arms has 1 of 10 points)",
     );
+  });
+
+  test("learn with no talent and no plan is REFUSED missing_plan and sends nothing", async () => {
+    const { learn, t } = await rig();
+    await expect(
+      talentsSpec.run({ do: "learn" }, toolCtx(t)),
+    ).rejects.toMatchObject({ reason: "missing_plan" });
+    expect(learn).not.toHaveBeenCalled();
   });
 
   test("learn refuses an id past the uint32 wire range without sending", async () => {

@@ -141,6 +141,7 @@ describe("ControlRuntime", () => {
         runSpeed: 7,
       });
       tele.sent.length = 0;
+      expect(tele.runtime.snapshot().blockedReason).toBe("transport");
       expect(() => tele.runtime.move("forward", 500)).toThrow("transport");
       expect(() => tele.runtime.face(0.2)).toThrow("transport");
       expect(

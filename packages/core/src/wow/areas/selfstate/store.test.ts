@@ -361,9 +361,14 @@ describe("selfstate store", () => {
         GameOpcode.SMSG_START_MIRROR_TIMER,
         selfstateStartMirrorTimerBody(FATIGUE),
       );
+      rig.inject(
+        GameOpcode.SMSG_START_MIRROR_TIMER,
+        selfstateStartMirrorTimerBody({ ...FATIGUE, timer: 2 }),
+      );
       expect(Object.keys(rig.handle.state().timers).sort()).toEqual([
         "breath",
         "fatigue",
+        "fire",
       ]);
       for (const timer of [0, 1, 2])
         rig.inject(
@@ -375,7 +380,7 @@ describe("selfstate store", () => {
         events
           .filter((e) => e.type === "mirror_timer" && e.change === "stopped")
           .map((e) => e.type === "mirror_timer" && e.timer),
-      ).toEqual(["fatigue", "breath"]);
+      ).toEqual(["fatigue", "breath", "fire"]);
     } finally {
       rig.dispose();
     }

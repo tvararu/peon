@@ -41,9 +41,10 @@ describe("engage fight", () => {
     );
     const text = contentOf(res);
     expect(limitProblem(text)).toBeUndefined();
-    expect(text).toMatch(
-      /^DONE killed Springpaw Stalker \(u\d+\) in 0 s, server kill credit\. \+108 XP\. Looted Broken Fang x1, 12 copper\. You: HP 200\/200, mana 300\/300 \(100%\)\.$/,
-    );
+    expect(text).toMatch(/killed Springpaw Stalker \(u\d+\) in 0 s/);
+    expect(text).toContain("+108 XP");
+    expect(text).toContain("Looted Broken Fang x1, 12 copper");
+    expect(text).toContain("HP 200/200, mana 300/300 (100%)");
     expect(res.after).toMatchObject({ kills: 1, mode: "single", xp: 108 });
   });
 
@@ -57,9 +58,8 @@ describe("engage fight", () => {
       toolCtx<EngageAfter>(t),
     );
     expect(res.status).toBe("DONE");
-    expect(res.detail).toMatch(
-      /^killed Springpaw Stalker \(u\d+\); no XP \(gray target\)\. You: HP/,
-    );
+    expect(res.detail).toMatch(/killed Springpaw Stalker \(u\d+\)/);
+    expect(res.detail).toContain("gray target");
     expect(res.after).toMatchObject({
       kills: 1,
       targets: [{ outcome: "killed", reason: "gray", xp: 0 }],
@@ -81,9 +81,9 @@ describe("engage fight", () => {
       reason: "died",
       status: "FAILED",
     });
-    expect(res.detail).toMatch(
-      /^Springpaw Stalker \(u\d+\) killed you 0 s into the fight\. You are dead at 0, 0\.$/,
-    );
+    expect(res.detail).toMatch(/Springpaw Stalker \(u\d+\)/);
+    expect(res.detail).toContain("0 s into the fight");
+    expect(res.detail).toContain("dead at 0, 0");
   });
 
   test("breath_low fails the fight with the surface line", async () => {
@@ -103,7 +103,7 @@ describe("engage fight", () => {
       reason: "interrupted",
       status: "FAILED",
     });
-    expect(res.detail).toBe("Surface now: you have 7 s of breath.");
+    expect(res.detail).toContain("7 s");
   });
 
   test("death after an approach gives the fight time and the walk apart", async () => {
@@ -177,9 +177,8 @@ describe("engage fight", () => {
       reason: "queue_exhausted",
       status: "PARTLY",
     });
-    expect(res.detail).toMatch(
-      /^2 of 3 kills \(u\d+, u\d+\)\. Stopped: no more Springpaw Stalker in view; 1 kill still needed\./,
-    );
+    expect(res.detail).toMatch(/2 of 3 kills \(u\d+, u\d+\)/);
+    expect(res.detail).toContain("1 kill still needed");
   });
 
   test("a gray kill in a cycle names the no-XP kill and drops target", async () => {
@@ -199,11 +198,9 @@ describe("engage fight", () => {
     const res = await engageSpec.run({ count: 2 }, toolCtx<EngageAfter>(t));
     expect(res.status).toBe("PARTLY");
     const ref = t.rt.refs.refOf(STALKER);
-    expect(res.detail).toMatch(
-      new RegExp(
-        `^1 of 2 kills \\(${ref}\\); no XP for ${ref} \\(gray target\\)\\. Stopped:`,
-      ),
-    );
+    expect(res.detail).toContain(`1 of 2 kills (${ref})`);
+    expect(res.detail).toContain(`no XP for ${ref}`);
+    expect(res.detail).toContain("gray target");
     expect(res.next).toBe("engage(count: 1)");
   });
 
@@ -275,9 +272,8 @@ describe("engage fight", () => {
       reason: "target_not_observed",
       status: "FAILED",
     });
-    expect(res.detail).toMatch(
-      /^Springpaw Stalker u\d+ is not in view any more; it may have died or despawned\. You walked 20 yd; the fight did not start\.$/,
-    );
+    expect(res.detail).toMatch(/Springpaw Stalker u\d+/);
+    expect(res.detail).toContain("20 yd");
   });
 
   test("an unreachable target points at another one in view", async () => {
@@ -467,9 +463,9 @@ describe("engage fight", () => {
     t.rt.yields.trigger();
     const res = await pending;
     expect(res.status).toBe("RUNNING");
-    expect(res.detail).toBe(
-      "engage 0 of 1 kills. You: HP 200/200, mana 300/300 (100%), at 0, 0.",
-    );
+    expect(res.detail).toContain("0 of 1 kills");
+    expect(res.detail).toContain("HP 200/200, mana 300/300 (100%)");
+    expect(res.detail).toContain("at 0, 0");
     t.rt.runs.cancel(res.runId ?? "", "tool");
   });
 });

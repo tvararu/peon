@@ -54,12 +54,12 @@ export type PendingView = {
 
 const WAIT: EndAction = { kind: "wait" };
 
-export function stuckAfterMs(tier: number): number {
+function stuckAfterMs(tier: number): number {
   if (tier === 0) return 90_000;
   return tier === 8 ? 480_000 : 180_000;
 }
 
-export function stuckStopMs(tier: number): number {
+function stuckStopMs(tier: number): number {
   return tier === 0 ? 60_000 : 120_000;
 }
 

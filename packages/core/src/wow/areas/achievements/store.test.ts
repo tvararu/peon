@@ -8,7 +8,6 @@ import type { PackedTime } from "#wow/protocol/packed-time";
 import type { SessionDeps } from "#wow/session-stores";
 
 const ME = 0x2an;
-const OTHER = 0xdc5n;
 
 function day(date: number): PackedTime {
   return { year: 2026, month: 9, day: date, weekday: 0, hour: 10, minute: 0 };
@@ -29,15 +28,6 @@ function setup() {
 }
 
 describe("AchievementStore", () => {
-  test("starts empty", () => {
-    expect(setup().store.snapshot()).toEqual({
-      count: 0,
-      criteria: 0,
-      recent: [],
-      titles: { chosen: 0, known: [] },
-    });
-  });
-
   test("the login data replaces both sets and a criteria update sets one counter", () => {
     const { store, seen } = setup();
     store.replace({
@@ -97,35 +87,6 @@ describe("AchievementStore", () => {
     ]);
   });
 
-  test("another player's achievement emits self: false and leaves the set alone", () => {
-    const { store, seen } = setup();
-    store.earned({ at: day(9), guid: OTHER, id: 7 });
-    expect(store.snapshot().count).toBe(0);
-    expect(seen).toEqual([
-      { guid: OTHER, id: 7, self: false, type: "achievement_earned" },
-    ]);
-  });
-
-  test("deletions drop the achievement or the criterion and emit", () => {
-    const { store, seen } = setup();
-    store.replace({
-      criteria: [{ at: day(1), counter: 2n, id: 10 }],
-      done: [{ at: day(1), id: 6 }],
-    });
-    store.removeAchievement({ id: 6 });
-    store.removeCriteria({ id: 10 });
-    expect(store.snapshot()).toEqual({
-      count: 0,
-      criteria: 0,
-      recent: [],
-      titles: { chosen: 0, known: [] },
-    });
-    expect(seen).toEqual([
-      { id: 6, type: "achievement_removed" },
-      { id: 10, type: "criteria_removed" },
-    ]);
-  });
-
   test("an earned title joins the known bits and a lost title leaves it", () => {
     const { store, seen } = setup();
     store.titleEarned({ bit: 110, earned: true });
@@ -147,19 +108,5 @@ describe("AchievementStore", () => {
     expect(store.snapshot().titles).toEqual({ chosen: 110, known: [110] });
     expect(store.knows(110)).toBe(true);
     expect(store.knows(7)).toBe(false);
-  });
-
-  test("a realm first emits server_first and changes nothing", () => {
-    const { store, seen } = setup();
-    store.serverFirst({ guid: OTHER, id: 457, link: 1, name: "Firsty" });
-    expect(store.snapshot()).toEqual({
-      count: 0,
-      criteria: 0,
-      recent: [],
-      titles: { chosen: 0, known: [] },
-    });
-    expect(seen).toEqual([
-      { guid: OTHER, id: 457, name: "Firsty", type: "server_first" },
-    ]);
   });
 });

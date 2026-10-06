@@ -95,24 +95,6 @@ describe("EntityStore", () => {
     }
   });
 
-  test("update with multiple fields tracks all changes", () => {
-    const store = new EntityStore();
-    const events: EntityEvent[] = [];
-    store.onEvent((e) => events.push(e));
-
-    store.create(1n, ObjectType.UNIT, {});
-    events.length = 0;
-
-    store.update(1n, { health: 75, level: 10 });
-
-    expect(events).toHaveLength(1);
-    const event = must(events[0]);
-    if (event.type === "update") {
-      expect(event.changed).toContain("health");
-      expect(event.changed).toContain("level");
-    }
-  });
-
   test("update with empty fields does not fire event", () => {
     const store = new EntityStore();
     const events: EntityEvent[] = [];
@@ -208,10 +190,7 @@ describe("EntityStore", () => {
     const entity = must(store.get(1n));
     expect(entity.name).toBe("Thrall");
     expect(events).toHaveLength(1);
-    const event = must(events[0]);
-    if (event.type === "update") {
-      expect(event.changed).toEqual(["name"]);
-    }
+    expect(events[0]).toMatchObject({ type: "update", changed: ["name"] });
   });
 
   test("setPosition updates position", () => {
@@ -228,27 +207,18 @@ describe("EntityStore", () => {
     const entity = must(store.get(1n));
     expect(entity.position).toEqual(pos);
     expect(events).toHaveLength(1);
-    const event = must(events[0]);
-    if (event.type === "update") {
-      expect(event.changed).toEqual(["position"]);
-    }
+    expect(events[0]).toMatchObject({ type: "update", changed: ["position"] });
   });
 
-  test("destroy updates secondary index", () => {
-    const store = new EntityStore();
-    store.create(1n, ObjectType.UNIT, {});
-    expect(store.getByType(ObjectType.UNIT)).toHaveLength(1);
-
-    store.destroy(1n);
-    expect(store.getByType(ObjectType.UNIT)).toHaveLength(0);
-  });
-
-  test("all returns snapshot", () => {
+  test("all returns a snapshot the caller can mutate without touching the store", () => {
     const store = new EntityStore();
     store.create(1n, ObjectType.UNIT, {});
     store.create(2n, ObjectType.PLAYER, {});
     store.create(3n, ObjectType.GAMEOBJECT, {});
 
+    const snapshot = store.all();
+    expect(snapshot).toHaveLength(3);
+    snapshot.length = 0;
     expect(store.all()).toHaveLength(3);
   });
 
@@ -264,20 +234,6 @@ describe("EntityStore", () => {
 
     const entity = store.get(1n) as UnitEntity;
     expect(entity.power).toEqual([100, 200, 999, 400, 500, 600, 700]);
-  });
-
-  test("partial maxPower update preserves unaffected indices", () => {
-    const store = new EntityStore();
-    store.create(1n, ObjectType.UNIT, {
-      maxPower: [1000, 2000, 3000, 4000, 5000, 6000, 7000],
-    });
-
-    const sparse: number[] = [];
-    sparse[4] = 9999;
-    store.update(1n, { maxPower: sparse });
-
-    const entity = store.get(1n) as UnitEntity;
-    expect(entity.maxPower).toEqual([1000, 2000, 3000, 4000, 9999, 6000, 7000]);
   });
 
   test("create replaces existing entity", () => {

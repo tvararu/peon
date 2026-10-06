@@ -2,7 +2,6 @@ import { describe, expect, test } from "bun:test";
 import { realpath } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { bunExec, isRecord, parseJsonOutput } from "#harness/grader/exec";
-import { fakeExec, ok } from "#test-support/fake-exec";
 
 describe("bunExec", () => {
   test("returns stdout, stderr and the exit code", async () => {
@@ -43,14 +42,5 @@ describe("parseJsonOutput", () => {
     expect(isRecord({ a: 1 })).toBe(true);
     expect(isRecord([1])).toBe(false);
     expect(isRecord(null)).toBe(false);
-  });
-});
-
-describe("fakeExec", () => {
-  test("records argv and stdin and returns the scripted reply", async () => {
-    const { calls, exec } = fakeExec((argv) => ok(argv.join(" ")));
-    const result = await exec(["rg", "-f", "-"], { stdin: "x\n" });
-    expect(result.stdout).toBe("rg -f -");
-    expect(calls).toEqual([{ argv: ["rg", "-f", "-"], stdin: "x\n" }]);
   });
 });

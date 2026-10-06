@@ -113,12 +113,6 @@ test("navigationError stores refusal and navigate clears refusal", () => {
     remaining: undefined,
   });
 
-  runtime.navigationError(dest, "ambiguous ground column at destination");
-  expect(runtime.navigationState().refusal).toBe("pick_destination");
-
-  runtime.navigationError(dest, "pathfind_find_height failed (UNKNOWN_HEIGHT)");
-  expect(runtime.navigationState().refusal).toBe("stop");
-
   const start = must(runtime.snapshot().pose);
   const destMatching = { ...dest, z: start.z };
   const ground: NativeMap = {

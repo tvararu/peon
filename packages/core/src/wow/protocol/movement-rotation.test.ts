@@ -17,7 +17,9 @@ describe("packed object rotation (GameObject.cpp:2243-2254)", () => {
     w.floatLE(7);
     w.floatLE(0);
     w.uint64LE(514395574543411482n);
-    const m = parseMovementBlock(new PacketReader(w.finish()));
+    const r = new PacketReader(w.finish());
+    const m = parseMovementBlock(r);
+    expect(r.remaining).toBe(0);
     expect(must(m.point).x).toBeCloseTo(5);
     expect(m.rotation?.x).toBeCloseTo(0.0558, 3);
     expect(m.rotation?.y).toBeCloseTo(0.0248, 3);

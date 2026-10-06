@@ -1,10 +1,6 @@
 import { describe, expect, jest, test } from "bun:test";
 import type { RunEnd } from "#harness/contract/runs";
-import {
-  humanStop,
-  installInput,
-  isStopReflex,
-} from "#harness/extension/input";
+import { installInput, isStopReflex } from "#harness/extension/input";
 import { createYieldGate, YIELD_DELAY_MS } from "#harness/runtime/yield";
 import { admitAgent } from "#harness/tools/human-admission";
 import { createFakePi } from "#test-support/fake-pi";
@@ -281,17 +277,4 @@ describe("installInput", () => {
       text: "Human: F9",
     });
   });
-});
-
-test("humanStop returns the cancelled records", async () => {
-  const { rt } = await createTestRuntime();
-  rt.runs.start({
-    args: {},
-    kind: "travel",
-    launch: ({ signal }) => waitForAbort(signal),
-    toolCallId: "t1",
-  });
-  expect(
-    humanStop({ rt, text: "/stop", via: "command" }).map((run) => run.id),
-  ).toEqual(["r1"]);
 });

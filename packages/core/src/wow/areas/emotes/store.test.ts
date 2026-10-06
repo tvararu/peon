@@ -26,50 +26,6 @@ function setup() {
 }
 
 describe("EmoteStore", () => {
-  test("starts with no emote states", () => {
-    expect(setup().store.snapshot()).toEqual({ emoteStates: [] });
-  });
-
-  test("an animation emits emote", () => {
-    const { seen, store } = setup();
-    store.emote({ emote: 17, guid: CREATURE });
-    expect(seen).toEqual([{ emote: 17, guid: CREATURE, type: "emote" }]);
-  });
-
-  test("a text emote names the sender, whether it is the character, and the target", () => {
-    const { seen, store } = setup();
-    store.textEmote({
-      emoteNum: 0,
-      guid: OTHER,
-      target: "Tom",
-      textEmote: 101,
-    });
-    store.textEmote({
-      emoteNum: 0xff_ff_ff_ff,
-      guid: ME,
-      target: "",
-      textEmote: 34,
-    });
-    expect(seen).toEqual([
-      {
-        emoteNum: 0,
-        guid: OTHER,
-        self: false,
-        target: "Tom",
-        textEmote: 101,
-        type: "text_emote",
-      },
-      {
-        emoteNum: 0xff_ff_ff_ff,
-        guid: ME,
-        self: true,
-        target: undefined,
-        textEmote: 34,
-        type: "text_emote",
-      },
-    ]);
-  });
-
   test("emote states hold non-zero values and emit nothing", () => {
     const { seen, store } = setup();
     store.setEmoteState(CREATURE, DANCE_STATE);
@@ -83,13 +39,6 @@ describe("EmoteStore", () => {
     store.setEmoteState(ME, undefined);
     expect(store.snapshot().emoteStates).toEqual([]);
     expect(seen).toEqual([]);
-  });
-
-  test("forget drops a unit's emote state", () => {
-    const { store } = setup();
-    store.setEmoteState(CREATURE, DANCE_STATE);
-    store.forget(CREATURE);
-    expect(store.snapshot().emoteStates).toEqual([]);
   });
 });
 

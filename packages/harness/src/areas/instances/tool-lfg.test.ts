@@ -27,7 +27,8 @@ describe("dungeon lfg queue", () => {
       roles: 8,
     });
     expect(settled).toMatchObject({ status: "DONE" });
-    expect(settled.detail.toLowerCase()).toContain("queued");
+    expect(settled.detail).toContain("random dungeon");
+    expect(settled.detail).toContain("damage");
   });
 
   test("queue requests the dungeon list first when the list is empty", async () => {
@@ -81,7 +82,6 @@ describe("dungeon lfg queue", () => {
       roles: 6,
     });
     expect(settled).toMatchObject({ reason: "deserter", status: "REFUSED" });
-    expect(settled.detail.toLowerCase()).toContain("deserter");
   });
 
   test("queue with no unlocked random entry is refused", async () => {
@@ -189,6 +189,9 @@ describe("dungeon lfg auto answers", () => {
       roleCheck: false,
       status: "ok",
     });
+    const setRoles = jest
+      .spyOn(t.handle.lfg.act, "setRoles")
+      .mockResolvedValue({ roles: 8, status: "ok" });
     const answer = jest
       .spyOn(t.handle.lfg.act, "answerProposal")
       .mockResolvedValue({ state: 1, status: "ok" });
@@ -196,6 +199,13 @@ describe("dungeon lfg auto answers", () => {
       do: "queue",
       roles: ["damage"],
     });
+    t.handle.triggerAreaEvent("lfg", {
+      state: 2,
+      stateName: "initializing",
+      type: "role_check",
+    });
+    await withFakeTimers(() => elapse(0));
+    expect(setRoles).toHaveBeenCalledWith(8);
     t.handle.triggerAreaEvent("lfg", {
       deadline: NOW + 40_000,
       dungeon: 0x06_00_00_02,
@@ -213,50 +223,6 @@ describe("dungeon lfg auto answers", () => {
     expect(rows).toHaveLength(1);
     expect(rows[0]?.text.toLowerCase()).toContain("accepted");
   });
-  test("auto answers the next role check and the next proposal", async () => {
-    const t = await world({ lfg: queueAvailable() });
-    jest.spyOn(t.handle.lfg.act, "join").mockResolvedValue({
-      queued: [0x06_00_00_0c],
-      roleCheck: false,
-      status: "ok",
-    });
-    const setRoles = jest
-      .spyOn(t.handle.lfg.act, "setRoles")
-      .mockResolvedValue({ roles: 8, status: "ok" });
-    const answer = jest
-      .spyOn(t.handle.lfg.act, "answerProposal")
-      .mockResolvedValue({ state: 1, status: "ok" });
-    const { settled: _q } = await attempt(t, {
-      do: "queue",
-      roles: ["damage"],
-    });
-    t.handle.triggerAreaEvent("lfg", {
-      state: 2,
-      stateName: "initializing",
-      type: "role_check",
-    });
-    t.handle.triggerAreaEvent("lfg", {
-      deadline: NOW + 40_000,
-      dungeon: 0x06_00_00_02,
-      id: 5,
-      selfAccepted: false,
-      selfAnswered: false,
-      state: 0,
-      type: "proposal",
-    });
-    await withFakeTimers(() => elapse(0));
-    expect(setRoles).toHaveBeenCalledWith(8);
-    expect(answer).toHaveBeenCalledWith(true);
-    const roleRows = t.rt.log
-      .since(0)
-      .filter((row) => row.event === "lfg/role_answered");
-    expect(roleRows).toHaveLength(1);
-    const proposalRows = t.rt.log
-      .since(0)
-      .filter((row) => row.event === "lfg/proposal_answered");
-    expect(proposalRows).toHaveLength(1);
-  });
-
   test("auto answers an already-open role check at the join", async () => {
     const t = await world({ lfg: queueAvailable() });
     jest.spyOn(t.handle.lfg.act, "join").mockResolvedValue({

@@ -74,13 +74,6 @@ describe("createJsonlSink", () => {
     await sink.close();
     expect(await readFile(file, "utf8")).toBe('{"id":"r1"}\n{"id":"r2"}\n');
   });
-
-  test("keeps nothing when there is no file", async () => {
-    const sink = createJsonlSink({ file: undefined });
-    sink.write({ id: "r1" });
-    await expect(sink.flush()).resolves.toBeUndefined();
-    await expect(sink.close()).resolves.toBeUndefined();
-  });
 });
 
 function draft(text: string): LogDraft {

@@ -97,6 +97,3 @@ export const UnitFlag = {
 export const NpcFlag = {
   SPIRIT_HEALER: 0x00_00_40_00,
 } as const;
-
-export const OBJECT_END = 0x00_06;
-export const UNIT_END = 0x00_94;

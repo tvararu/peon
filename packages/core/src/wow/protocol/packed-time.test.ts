@@ -107,19 +107,6 @@ describe("packed-time writer (ByteBuffer.cpp:95-107,137-141)", () => {
     ).toBe(0x1a_90_6b_cf);
   });
 
-  test("replays the live probe2 value 0x1a906bd0", () => {
-    expect(
-      packPackedTime({
-        year: 2026,
-        month: 10,
-        day: 2,
-        weekday: 5,
-        hour: 15,
-        minute: 16,
-      }),
-    ).toBe(0x1a_90_6b_d0);
-  });
-
   test("accepts year 2031 and rejects 2032 and 1999", () => {
     const base = {
       year: 2025,

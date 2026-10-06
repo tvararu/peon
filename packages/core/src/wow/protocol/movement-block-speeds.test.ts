@@ -1,8 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import {
-  BASE_CREATE_SPEEDS,
-  unitmotionLivingBlock,
-} from "#test-support/areas/unitmotion";
+import { unitmotionLivingBlock } from "#test-support/areas/unitmotion";
 import {
   CREATE_SPEED_ORDER,
   parseMovementBlock,
@@ -25,8 +22,17 @@ describe("parseMovementBlock speeds", () => {
       "turn",
       "pitch",
     ]);
-    const speeds = CREATE_SPEED_ORDER.map((kind) => block.speeds?.[kind]);
-    expect(speeds).toEqual(BASE_CREATE_SPEEDS.map((v) => Math.fround(v)));
+    expect(block.speeds).toEqual({
+      walk: 2.5,
+      run: 7,
+      run_back: 4.5,
+      swim: Math.fround(4.722_222),
+      swim_back: 2.5,
+      flight: 7,
+      flight_back: 4.5,
+      turn: Math.fround(3.141_594),
+      pitch: Math.fround(3.14),
+    });
     expect(block.runSpeed).toBe(7);
     expect(block.runBackSpeed).toBe(4.5);
     expect(block.turnRate).toBe(Math.fround(3.141_594));

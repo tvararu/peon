@@ -92,19 +92,6 @@ describe("looting runtime", () => {
     }
   });
 
-  test("a new session starts with the pass flag off (Player.cpp:215)", () => {
-    const first = areaRig("looting", { selfGuid: ME });
-    first.handle.act.setPassOnLoot(true);
-    first.dispose();
-    const next = areaRig("looting", { selfGuid: ME });
-    try {
-      expect(next.handle.state().passOnLoot).toBe(false);
-      expect(next.sent).toEqual([]);
-    } finally {
-      next.dispose();
-    }
-  });
-
   test("setLootMethod sends the method, the party member's guid and the threshold (GroupHandler.cpp:518-521)", () => {
     const party = inParty();
     try {

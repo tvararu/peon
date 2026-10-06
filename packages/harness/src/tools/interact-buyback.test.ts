@@ -4,10 +4,9 @@ import type { InteractAfter } from "#harness/contract/details";
 
 type BuybackEvent = AreaEventOf<"buyback">;
 
-import { interactSpec, interactTool } from "#harness/tools/interact";
+import { interactSpec } from "#harness/tools/interact";
 import { contentOf, toolCtx } from "#test-support/ops-fixtures";
 import type { TestRuntime } from "#test-support/runtime-fixture";
-import { expectSendKind } from "#test-support/tool-harness";
 import { coinage, marniel } from "#test-support/vendor-fixtures";
 
 const SOLD = {
@@ -57,7 +56,8 @@ describe("interact buyback", () => {
     expect(slots).toEqual([74]);
     expect(res.status).toBe("DONE");
     const text = contentOf(res);
-    expect(text).toContain("Bought back Linen Cloth for 35 copper.");
+    expect(text).toContain("Linen Cloth");
+    expect(text).toContain("35 copper");
   });
 
   test("a name not in the list refuses and names what is there", async () => {
@@ -69,7 +69,10 @@ describe("interact buyback", () => {
         { do: "buyback", npc: "Marniel Amberlight", what: "bread" },
         toolCtx<InteractAfter>(t),
       ),
-    ).rejects.toMatchObject({ reason: "not_in_buyback" });
+    ).rejects.toMatchObject({
+      body: ['what: "Linen Cloth"'],
+      reason: "not_in_buyback",
+    });
     expect(buyback).not.toHaveBeenCalled();
   });
 
@@ -101,13 +104,5 @@ describe("interact buyback", () => {
       toolCtx<InteractAfter>(t),
     );
     expect(res).toMatchObject({ reason: "no_answer", status: "UNCONFIRMED" });
-  });
-
-  test("expectSendKind passes for buyback", async () => {
-    await expectSendKind(interactTool, {
-      do: "buyback",
-      npc: "Marniel Amberlight",
-      what: "linen",
-    });
   });
 });

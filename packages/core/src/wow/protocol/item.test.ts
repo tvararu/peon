@@ -119,17 +119,6 @@ describe("CMSG_USE_ITEM", () => {
     expect([...body.slice(15, 19)]).toEqual([3, 0, 0, 0]);
     expect(body.length).toBe(24);
   });
-
-  test("no glyphIndex keeps 0 so today's bytes do not change", () => {
-    const body = buildUseItem({
-      bag: 255,
-      castCount: 3,
-      itemGuid: 0x4000_0000_000f_17a9n,
-      slot: 29,
-      spellId: 5005,
-    });
-    expect([...body.slice(15, 19)]).toEqual([0, 0, 0, 0]);
-  });
 });
 
 describe("CMSG_USE_ITEM targets (Handlers/SpellHandler.cpp:193)", () => {

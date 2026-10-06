@@ -16,6 +16,7 @@ import { elapse, withFakeTimers } from "#test-support/fake-time";
 import { AUCTION_ANSWER_MS } from "#wow/areas/auction/commands";
 import {
   buildAuctionHello,
+  buildAuctionListItems,
   buildAuctionSellItem,
 } from "#wow/areas/auction/protocol";
 import { auctioneerKind } from "#wow/areas/auction/store";
@@ -87,7 +88,7 @@ describe("auction acts", () => {
     }
   });
 
-  test("searchAuctions pages from 50 and settles ok on the list", async () => {
+  test("searchAuctions sends the page offset and settles ok on the list", async () => {
     const rig = auctionRig();
     try {
       const opened = rig.handle.act.openAuctionHouse(AUCTIONEER);
@@ -111,6 +112,14 @@ describe("auction acts", () => {
         itemClassFilter: 0xff_ff_ff_ff,
       });
       await flush();
+      expect(rig.sent.at(-1)).toEqual({
+        body: buildAuctionListItems({
+          from: 50,
+          itemClassFilter: 0xff_ff_ff_ff,
+          npc: AUCTIONEER,
+        }),
+        opcode: GameOpcode.CMSG_AUCTION_LIST_ITEMS,
+      });
       rig.inject(
         GameOpcode.SMSG_AUCTION_LIST_RESULT,
         auctionListBody({ rows: [], total: 5 }),
@@ -282,7 +291,8 @@ describe("postAuction", () => {
           hours: 12,
           item: CLOTH,
         }),
-      ).rejects.toThrow();
+      ).rejects.toThrow("bid 0");
+      expect(sentOpcodes(rig)).not.toContain(GameOpcode.CMSG_AUCTION_SELL_ITEM);
     } finally {
       rig.dispose();
     }

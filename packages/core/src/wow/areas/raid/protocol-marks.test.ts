@@ -30,24 +30,8 @@ describe("raid target server forms", () => {
     });
   });
 
-  test("kind 0 with no who and no target is a clear", () => {
-    expect(read(raidTargetSetBody(0n, 7, 0n))).toEqual({
-      icon: 7,
-      kind: "set",
-      target: 0n,
-      who: 0n,
-    });
-  });
-
   test("kind 1 with no pairs is an empty list", () => {
     expect(read(raidTargetListBody([]))).toEqual({ entries: [], kind: "list" });
-  });
-
-  test("kind 1 reads one pair to the end of the packet", () => {
-    expect(read(raidTargetListBody([{ icon: 3, target: LYNX }]))).toEqual({
-      entries: [{ icon: 3, target: LYNX }],
-      kind: "list",
-    });
   });
 
   test("kind 1 reads all eight pairs", () => {

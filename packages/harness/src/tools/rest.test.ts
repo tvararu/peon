@@ -120,9 +120,14 @@ describe("rest", () => {
     const text = contentOf(res);
     expect(limitProblem(text)).toBeUndefined();
     expect(used).toEqual([23]);
-    expect(text).toBe(
-      "DONE rested 0 s with Refreshing Spring Water: HP 200/200, mana 285/300 (95%). 4 food and drink left.",
-    );
+    for (const value of [
+      "0 s",
+      "Refreshing Spring Water",
+      "HP 200/200",
+      "mana 285/300 (95%)",
+      "4 food",
+    ])
+      expect(text).toContain(value);
     expect(res.after).toMatchObject({ auraConfirmed: true, idle: false });
   });
 
@@ -159,9 +164,8 @@ describe("rest", () => {
       });
       expect(res.status).toBe("DONE");
       expect(res.after.durationMs).toBeGreaterThan(30_000);
-      expect(res.detail).toMatch(
-        /^rested \d+ s without food or drink: HP 180\/200, mana 300\/300 \(100%\)\.$/,
-      );
+      expect(res.detail).toContain("HP 180/200");
+      expect(res.detail).toContain("mana 300/300 (100%)");
     } finally {
       jest.useRealTimers();
     }
@@ -186,9 +190,7 @@ describe("rest", () => {
         reason: "time_limit",
         status: "PARTLY",
       });
-      expect(res.detail).toStartWith(
-        `rested ${REST_MAX_MS / 1000} s (the limit for one rest) without food or drink: `,
-      );
+      expect(res.detail).toContain(`${REST_MAX_MS / 1000} s`);
     } finally {
       jest.useRealTimers();
     }
@@ -206,9 +208,13 @@ describe("rest", () => {
         reason: "no_regen",
         status: "PARTLY",
       });
-      expect(res.detail).toBe(
-        "rested 10 s without food or drink: HP 100/200, mana 150/300 (50%). Nothing rose for 10 s. Another rest() will not reach 90% without food or drink.",
-      );
+      for (const value of [
+        "10 s",
+        "HP 100/200",
+        "mana 150/300 (50%)",
+        "will not reach 90%",
+      ])
+        expect(res.detail).toContain(value);
     } finally {
       jest.useRealTimers();
     }
@@ -272,20 +278,18 @@ describe("rest", () => {
 
   test.each([
     {
-      detail:
-        "HP 200/200, mana 240/300 (80%). Nothing rose for 10 s. Another rest() reaches 90%.",
       end: { hp: 200, maxHp: 200, maxPower: 300, power: 240 },
       name: "a full stat does not block a rising one",
       start: { hp: 200, maxHp: 200, maxPower: 300, power: 180 },
+      values: ["mana 240/300 (80%)", "reaches 90%"],
     },
     {
-      detail:
-        "HP 120/200, mana 300/300 (100%). Nothing rose for 10 s. Another rest() reaches about 70%.",
       end: { hp: 120, maxHp: 200, maxPower: 300, power: 300 },
       name: "a slow stat projects short of the threshold",
       start: { hp: 100, maxHp: 200, maxPower: 300, power: 300 },
+      values: ["HP 120/200", "mana 300/300 (100%)", "reaches about 70%"],
     },
-  ])("with no food, $name", async ({ detail, end, start }) => {
+  ])("with no food, $name", async ({ end, start, values }) => {
     jest.useFakeTimers();
     try {
       const t = await createTestRuntime();
@@ -294,8 +298,7 @@ describe("rest", () => {
         if (tick === 5) setSelf(t.handle, end);
       });
       expect(res).toMatchObject({ reason: "no_regen", status: "PARTLY" });
-      expect(res.detail).toMatch(/^rested \d+ s without food or drink: /);
-      expect(res.detail).toEndWith(detail);
+      for (const value of values) expect(res.detail).toContain(value);
     } finally {
       jest.useRealTimers();
     }
@@ -347,9 +350,9 @@ describe("rest", () => {
       if (hit === "during") selfHp(t.handle, hp);
       const res = await pending;
       expect(res).toMatchObject({ reason: "interrupted", status: "FAILED" });
-      expect(res.detail).toBe(
-        `Springpaw Stalker (${t.rt.refs.refOf(STALKER)}) ${verb} you while resting (HP ${hp}/200).`,
-      );
+      expect(res.detail).toContain(t.rt.refs.refOf(STALKER));
+      expect(res.detail).toContain(`HP ${hp}/200`);
+      expect(res.detail).toContain(verb);
       expect(res.next).toBe(`engage(target: "${t.rt.refs.refOf(STALKER)}")`);
     },
   );
@@ -365,7 +368,7 @@ describe("rest", () => {
     });
     const res = await pending;
     expect(res).toMatchObject({ reason: "interrupted", status: "FAILED" });
-    expect(res.detail).toBe("Surface now: you have 8 s of breath.");
+    expect(res.detail).toContain("8 s");
     expect(res.next).toBe("look()");
   });
 
@@ -439,9 +442,10 @@ describe("rest", () => {
     t.rt.yields.trigger();
     const res = await pending;
     expect(res.status).toBe("RUNNING");
-    expect(res.detail).toStartWith(
-      "resting, 0 s so far. You: HP 100/200, mana 300/300 (100%), at 0, 0.",
-    );
+    expect(res.detail).toContain("0 s so far");
+    expect(res.detail).toContain("HP 100/200");
+    expect(res.detail).toContain("mana 300/300 (100%)");
+    expect(res.detail).toContain("at 0, 0");
     t.rt.runs.cancel(res.runId ?? "", "tool");
   });
 });

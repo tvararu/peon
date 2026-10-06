@@ -454,16 +454,6 @@ describe("spells unit casts", () => {
     }
   });
 
-  test("an unrelated caster is not relevant", () => {
-    const { rig, seen, start } = setup();
-    try {
-      start({});
-      expect(seen[0]).toMatchObject({ relevant: 0 });
-    } finally {
-      rig.dispose();
-    }
-  });
-
   test("a second start of the same caster replaces its entry", () => {
     const { rig, start } = setup();
     try {
@@ -485,19 +475,6 @@ describe("spells unit casts", () => {
       expect(casts).toHaveLength(64);
       expect(casts.some((c) => c.guid === 1000n)).toBe(false);
       expect(casts.some((c) => c.guid === 1064n)).toBe(true);
-    } finally {
-      rig.dispose();
-    }
-  });
-
-  test("castOf gives the live entry of one caster", () => {
-    const { rig, start } = setup();
-    try {
-      start({ target: ME });
-      expect(rig.stores.areas.spells.castOf(MOB)).toMatchObject({
-        spellId: SHADOW_BOLT,
-      });
-      expect(rig.stores.areas.spells.castOf(OTHER)).toBeUndefined();
     } finally {
       rig.dispose();
     }

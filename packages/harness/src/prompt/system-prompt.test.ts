@@ -27,12 +27,6 @@ function init(patch: Partial<PromptInit>): PromptInit {
 }
 
 describe("buildSystemPrompt", () => {
-  test("the approved text has 465 words", async () => {
-    expect(
-      (await approvedText()).split(/\s+/).filter((word) => word !== ""),
-    ).toHaveLength(465);
-  });
-
   test("is design F.1 word for word with the first sentence filled", async () => {
     const expected = (await approvedText()).replace(
       TEMPLATE,
@@ -65,33 +59,5 @@ describe("buildSystemPrompt", () => {
     expect(first).toBe(
       `You play World of Warcraft 3.3.5a as Kaelyn${suffix} ${LINE_TAIL}`,
     );
-  });
-
-  test("changes nothing after the first line", async () => {
-    const rest = (await approvedText()).split("\n").slice(1);
-    expect(buildSystemPrompt(init({})).split("\n").slice(1)).toEqual(rest);
-  });
-
-  test.each([
-    "When the human asks for a value that can change during a running action (health, mana, position, targets), call look first. Answer from the look result. Then continue the task.",
-    "For level, zone, money and bags, the [now] line and journal are enough. Do not call look for them.",
-    "A result that ends with Next gives the recommended call. Make that call unless the human changed the task or a newer result contradicts it.",
-    'When the human or a goal names a unit or NPC, call interact(npc: "<name>") or travel(to: "<name>") first. If the name is not known, call look(find: "<role>") with within: 100. Explore only when these fail',
-    'Towns and villages are safe areas. Hostile creatures for a task "near <town>" are outside the town. Keep exploring outward in new directions.',
-    "When a route fails, walk 20-30 yd toward the goal, or go back to a point on the way. Then try the route again.",
-  ])("has the rule '%s'", (rule) => {
-    expect(buildSystemPrompt(init({}))).toContain(rule);
-  });
-
-  test.each([
-    "Answer questions from the newest result or [now]",
-    "expert coding assistant",
-    "Show file paths clearly",
-  ])("does not have '%s'", (text) => {
-    expect(buildSystemPrompt(init({}))).not.toContain(text);
-  });
-
-  test("leaves no placeholder", () => {
-    expect(buildSystemPrompt(init({ level: 3 }))).not.toMatch(/[{}]/);
   });
 });

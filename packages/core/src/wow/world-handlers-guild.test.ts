@@ -344,6 +344,17 @@ describe("world handler tests", () => {
         );
         expect(new PacketReader(invite.body).cString()).toBe("Thrall");
 
+        const named: [number, string][] = [
+          [GameOpcode.CMSG_GUILD_REMOVE, "Garrosh"],
+          [GameOpcode.CMSG_GUILD_PROMOTE, "Jaina"],
+          [GameOpcode.CMSG_GUILD_DEMOTE, "Arthas"],
+          [GameOpcode.CMSG_GUILD_LEADER, "Sylvanas"],
+        ];
+        for (const [opcode, name] of named) {
+          const packet = must(ws.captured.find((p) => p.opcode === opcode));
+          expect(new PacketReader(packet.body).cString()).toBe(name);
+        }
+
         const motd = must(
           ws.captured.find((p) => p.opcode === GameOpcode.CMSG_GUILD_MOTD),
         );

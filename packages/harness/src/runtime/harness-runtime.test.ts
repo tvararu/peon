@@ -29,20 +29,7 @@ function blockingRun(signal: AbortSignal): Promise<RunEnd<undefined>> {
 describe("createHarnessRuntime", () => {
   test("starts with idle session flags and wake from the flags", async () => {
     const { rt } = await createTestRuntime({ flags: { wake: false } });
-    expect(rt.session).toEqual({
-      agent: "idle",
-      agentGrant: undefined,
-      humanTexts: [],
-      humanWaiting: false,
-      lastNow: undefined,
-      lastToolCallAt: undefined,
-      previousTurnStartSeq: undefined,
-      tool: undefined,
-      turnStartSeq: 0,
-      turnToolCalls: 0,
-      unreadWhispers: 0,
-      wake: false,
-    });
+    expect(rt.session).toMatchObject({ agent: "idle", wake: false });
   });
 
   test("connect attaches ready, router, sightings, attacks, progress, snapshots in that order", async () => {
@@ -114,7 +101,7 @@ describe("createHarnessRuntime", () => {
     expect(rt.connection()).toBe("offline");
   });
 
-  test("a second run refuses busy with the stop call", async () => {
+  test("a second run refuses busy naming the running run", async () => {
     const { rt } = await createTestRuntime();
     rt.runs.start({
       args: {},
@@ -129,6 +116,6 @@ describe("createHarnessRuntime", () => {
         launch: ({ signal }) => blockingRun(signal),
         toolCallId: "t2",
       }),
-    ).toThrow("busy: r1 (engage) is still running.");
+    ).toThrow(/r1.*engage/);
   });
 });

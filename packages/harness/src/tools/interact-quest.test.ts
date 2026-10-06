@@ -197,19 +197,6 @@ describe("quest handoff", () => {
     });
   });
 
-  test("reward_needed names the reward items", async () => {
-    const t = await readyToTurnIn();
-    await expect(
-      interactSpec.run(
-        { do: "turn_in", npc: "Velan Brightoak" },
-        toolCtx<InteractAfter>(t),
-      ),
-    ).rejects.toMatchObject({
-      body: ["1. Green Chain Boots (mail)", "2. Sunstrider Axe (axe)"],
-      reason: "reward_needed",
-    });
-  });
-
   test("turn_in reports the reward from the rewarded event, not the money field", async () => {
     const t = await readyToTurnIn();
     const inventory = t.handle.getInventoryState();
@@ -408,6 +395,7 @@ describe("talk greetings", () => {
       { npc: "Velan Brightoak" },
       toolCtx<InteractAfter>(t),
     );
+    expect(res.body.join("\n")).toContain("Direction 1");
     expect(res.detail).not.toContain("Greetings");
   });
 

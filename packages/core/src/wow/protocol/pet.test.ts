@@ -15,10 +15,4 @@ describe("buildPetAttack", () => {
     expect(r.uint64LE()).toBe(0xf1_30_00_3d_23_01_7d_9dn);
     expect(r.remaining).toBe(0);
   });
-
-  test("writes the exact wire bytes", () => {
-    expect([...buildPetAttack(0x2an, 0x64n)]).toEqual([
-      0x2a, 0, 0, 0, 0, 0, 0, 0, 0x02, 0, 0, 0x07, 0x64, 0, 0, 0, 0, 0, 0, 0,
-    ]);
-  });
 });

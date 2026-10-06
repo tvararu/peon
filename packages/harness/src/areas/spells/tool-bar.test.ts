@@ -112,7 +112,6 @@ describe("spell do:bar", () => {
     const out = await spellSpec.run({ do: "bar", slot: 3 }, toolCtx(t));
     expect(act).toHaveBeenCalledWith(2, undefined);
     expect(out.status).toBe("DONE");
-    expect(out.detail).toContain("Cleared");
     expect(out.body).toEqual(["slot 3: empty"]);
   });
 

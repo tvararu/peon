@@ -106,16 +106,6 @@ describe("inspect parsers", () => {
     });
   });
 
-  test("empty slot mask reads no gear (Player.cpp:14851)", () => {
-    const body = inspectInspectTalentBody({
-      gear: [],
-      guid: GUID,
-      short: true,
-    });
-    const parsed = parseInspectTalent(new PacketReader(body));
-    expect(parsed.gear).toEqual([]);
-  });
-
   test("main hand gear reads entry, enchant, random property and creator (Player.cpp:14861)", () => {
     const body = inspectInspectTalentBody({
       gear: [
