@@ -71,7 +71,9 @@ at the baseline commit.
   around it. Whole-sentence pins, `toEqual` over a row's prose, names the
   rule copies unchanged from the event when `data` asserts them, and prose
   beside a code that already proves the branch are wording. Tool results
-  carry no `data`, so a name they render is never covered by one.
+  carry no `data`, so a name they render is never covered by one. A
+  next-call hint the agent acts on (`dungeon(do: "bind")`, a `look` call)
+  is a contract: assert the call, not the sentence around it.
 - `WorldHandle` spy assertions in harness tool tests are the harness-to-core
   boundary, unless the mock implements the behaviour under test or another
   test asserts the same call for the same branch.
@@ -110,7 +112,7 @@ at the baseline commit.
 | [area-looting](#area-looting) | 4 | 34 | 2 | 1 | 1 |
 | [area-mail](#area-mail) | 10 | 82 | 2 | 2 | 2 |
 | [area-objects](#area-objects) | 18 | 136 | 6 | 4 | 3 |
-| [area-pets](#area-pets) | 18 | 197 | 14 | 2 | 0 |
+| [area-pets](#area-pets) | 18 | 198 | 13 | 2 | 0 |
 | [area-quests](#area-quests) | 11 | 123 | 9 | 6 | 4 |
 | [area-raid](#area-raid) | 29 | 286 | 12 | 1 | 8 |
 | [area-reputation](#area-reputation) | 8 | 86 | 1 | 3 | 4 |
@@ -146,7 +148,7 @@ at the baseline commit.
 | [harness-navigation](#harness-navigation) | 22 | 150 | 12 | 2 | 0 |
 | [harness-ops](#harness-ops) | 26 | 225 | 13 | 1 | 1 |
 | [harness-runtime](#harness-runtime) | 36 | 226 | 10 | 8 | 8 |
-| [harness-tools-1](#harness-tools-1) | 22 | 146 | 41 | 2 | 7 |
+| [harness-tools-1](#harness-tools-1) | 22 | 145 | 42 | 2 | 7 |
 | [harness-tools-2](#harness-tools-2) | 29 | 181 | 11 | 10 | 1 |
 | [harness-tools-3](#harness-tools-3) | 19 | 128 | 56 | 2 | 1 |
 | **total** | | 7157 | 464 | 164 | 187 |
@@ -1569,7 +1571,7 @@ at the baseline commit.
 - 115 F: keep class/data/progress; drop toContain("36") (echoed mapId, data asserts it)
 - 127 F: keep wake class/data; drop "36"; assert the label mapped per code (0 inside, 1 offline, 2 zoning) not just 3 distinct texts
 - 142 F: keep wake and data; drop toContain("36") (echoed mapId, data asserts it)
-- 153 F: keep wake, data and toContain("60 s") (seconds from timeoutMs); drop "bind" call-hint prose
+- 153 F: keep wake, data, toContain("60 s") (seconds from timeoutMs) and a tight toContain("bind") for the next-call hint the agent acts on; drop the rest of the sentence
 - 170 R: bound is passive row
 - 176 F: keep added/removed data and quiet-when-unchanged; drop toContain("533") (echoed, data asserts it)
 - 203 R: saved_maps stays silent
@@ -3151,7 +3153,7 @@ at the baseline commit.
 - 222 R: cast/autocast/tame tool statuses, refusals and mutex abort; cast ignores a vehicle bar whose slots carry no spell ids
 - 254 R: cast/autocast/tame tool statuses, refusals and mutex abort; cast resolves a vehicle bar slot spell by id without a pet view
 - 313 R: cast/autocast/tame tool statuses, refusals and mutex abort; autocast off is DONE on the next bar showing type off
-- 335 F: toContain("already") is prose beside DONE and the not-called spy, which proves the branch; drop it
+- 335 R: toContain("already") is the only branch label between the no-op and confirmed autocast results (both DONE, no reason code); keep it with the not-called spy
 - 347 R: cast/autocast/tame tool statuses, refusals and mutex abort; autocast without on or off is REFUSED missing_state
 - 355 R: cast/autocast/tame tool statuses, refusals and mutex abort; autocast with no reply is UNCONFIRMED
 - 369 R: cast/autocast/tame tool statuses, refusals and mutex abort; an autocast aborted after queueing behind the mutex sends nothing
@@ -11550,7 +11552,7 @@ at the baseline commit.
 - 78 R: recheck-skip reasons map to plain words
 - 92 R: kills-still-needed arithmetic on loot denial
 - 104 R: empty queue names each target's outcome
-- 116 R: empty stopText queue says none left in view
+- 116 F: ruling A: assert toContain("1 kill still needed") (computed count) and "no more Springpaw Stalker in view" (queue_exhausted branch label); drop the whole-sentence toBe
 - 130 R: failText with no kills lists each target
 - 144 R: failText empty-queue branch
 - 158 R: single target failText

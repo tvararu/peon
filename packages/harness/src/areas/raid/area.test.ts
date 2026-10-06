@@ -343,8 +343,13 @@ describe("summon harness rules", () => {
     zoneId: 3430,
   } as const;
 
-  test("a request writes one wake row with the window in whole seconds", () => {
-    const out = rows({ ...base, name: "Tom", zoneName: "Eversong Woods" });
+  test("a request writes one wake row with the window rounded to seconds", () => {
+    const out = rows({
+      ...base,
+      name: "Tom",
+      timeoutMs: 119_600,
+      zoneName: "Eversong Woods",
+    });
     expect(out).toHaveLength(1);
     expect(out[0]).toMatchObject({
       class: "wake",
