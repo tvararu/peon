@@ -1,8 +1,8 @@
-import type { CharOperationResult } from "#wow/areas/character/store";
 import type {
   CharNameOutcome,
   CharStyleOutcome,
 } from "#wow/areas/character/runtime";
+import type { CharOperationResult } from "#wow/areas/character/store";
 
 export function styled(
   outcome: CharOperationResult,
