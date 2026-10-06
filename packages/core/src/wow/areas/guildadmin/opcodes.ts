@@ -18,8 +18,14 @@ export const GUILDADMIN_OPCODES = {
     "MSG_GUILD_PERMISSIONS",
     "MSG_GUILD_EVENT_LOG_QUERY",
   ],
-  uses: ["SMSG_GUILD_EVENT"],
+  uses: [
+    "SMSG_GUILD_EVENT",
+    "CMSG_GUILD_ROSTER",
+    "SMSG_GUILD_ROSTER",
+    "SMSG_GUILD_QUERY_RESPONSE",
+    "SMSG_GUILD_COMMAND_RESULT",
+  ],
   stubs: [],
-  dead: ["SMSG_GUILD_DECLINE"],
-  unseen: ["CMSG_GUILD_CREATE"],
+  dead: ["CMSG_GUILD_CREATE", "SMSG_GUILD_DECLINE"],
+  unseen: [],
 } as const satisfies AreaOpcodes;
