@@ -52,6 +52,6 @@
     }
   ],
   "steers": [],
-  "task": "You are not in a guild. Open the tabard designer of the guild master next to you, then try to save a guild emblem with style 3, color 2, border style 1, border color 4 and background 5. Tell me what the server said.",
+  "task": "You are not in a guild. Open the tabard designer of the guild master next to you, then try to save a guild emblem with style 3, color 2, border style 1, border color 4 and background 5, confirming the 10 gold cost. Tell me what the server said.",
   "tier": 9
 }
