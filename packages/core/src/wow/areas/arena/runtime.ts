@@ -6,16 +6,19 @@ import {
   buildJoinArena,
   buildTeamId,
   buildTeamName,
-  type ArenaEvent,
-  type ArenaInspectRow,
-  type ArenaQueue,
   type ArenaRosterMember,
-  type ArenaTeam,
   TEAM_EVENT_DISBANDED,
   TEAM_EVENT_JOIN,
   TEAM_EVENT_LEADER_CHANGED,
+  TEAM_EVENT_REMOVE,
 } from "#wow/areas/arena/protocol";
-import type { ArenaStore } from "#wow/areas/arena/store";
+import type {
+  ArenaEvent,
+  ArenaInspectRow,
+  ArenaQueue,
+  ArenaStore,
+  ArenaTeam,
+} from "#wow/areas/arena/store";
 import { GameOpcode } from "#wow/protocol/opcodes";
 import type { CoreStores } from "#wow/session-stores";
 
@@ -241,6 +244,7 @@ export function arenaRuntime(ctx: Ctx, store: ArenaStore, _core: CoreStores): Ar
       return event.arenaType === undefined
         ? { reason: "arena_error", status: "refused" }
         : { arenaType: event.arenaType, status: "no_teams" };
+    if (event.type !== "queue") return { status: "no_reply" };
     const queued = event.queue.find((row) => row.kind === "queued");
     if (!queued) return { status: "no_reply" };
     return { queue: [...event.queue], slot: queued.slot, status: "queued" };
