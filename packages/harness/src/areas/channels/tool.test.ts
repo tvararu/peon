@@ -109,10 +109,16 @@ describe("channel list", () => {
         })),
       }),
     );
-    setUnits(
-      t.handle,
-      [unitRow({ guid: 0xde1n, name: "Fgkabcdefg", player: true })],
-    );
+    setUnits(t.handle, [
+      unitRow({
+        distance: 4,
+        guid: 0xde1n,
+        name: "Fgkabcdefg",
+        player: true,
+        x: 1,
+        y: 1,
+      }),
+    ]);
     const out = await channelRun(
       { channel: "peonab12cd", do: "list" },
       toolCtx(t) as ChannelCtx,
@@ -122,4 +128,3 @@ describe("channel list", () => {
     expect(out.detail).toContain(`player ${(0xbeefn).toString(10)}`);
   });
 });
-
