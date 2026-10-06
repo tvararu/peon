@@ -17,6 +17,7 @@ export type ToolName =
   | "dungeon"
   | "group"
   | "trade"
+  | "character"
   | "talents"
   | "guildbank"
   | "mail"

@@ -78,6 +78,7 @@ or the page names one that does not exist.
 | Collect gold and items from mail | `t9-mail-collect` | Takes money then attachments in order at a mailbox. |
 | Send gold or items by mail | `t9-mail-send` | Postage is 30 copper per item, 30 with no item. |
 | Open the tabard designer and try to save a guild emblem | `t9-guild-tabard` | Run guildless: the server refuses the save with code 2 and takes no gold. A leader's save, ranks, notes, the info text and the event log are proven by probe flows, not a scenario: an eval cannot stage a guild. |
+| Read play time, draw weapons, hide helm and cloak | `t0-character-appearance` | Sheathe, helm and cloak sends get no server reply. |
 | Share a quest with the group and take one shared back | `t8-quests-share`, `t8-quests-accept-shared` | A share with no member answer is `UNCONFIRMED` after 3 s. |
 | Set loot rules and give master loot | `t9-raid-master-loot` | Needs a corpse that holds an item; the scenario allows three kills. `roll` and `pass_loot` are not shown: a group roll needs an uncommon drop and `pass_loot` has no server reply. |
 | Run and answer ready checks | `t9-raid-ready`, `t9-raid-answer` | Peon ends its own checks after 30 s. |

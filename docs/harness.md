@@ -196,6 +196,7 @@ A result that is not `DONE` ends with a `Next:` step.
 | `guild` | Reads the guild and its rank rights, changes ranks, member notes and the info text as leader, reads the event log, disbands on confirm, and opens the tabard designer to save an emblem for 10 gold. |
 | `vehicle` | Takes a seat on a vehicle by walking to a unit and clicking it (`board`), leaves the seat (`leave`), changes seats (`seat`), asks to ride with a player (`ride_with`) and removes a passenger (`eject`). When a board gives control of the vehicle, the result says `travel` drives it and Next names a `travel` call. A seat request the server does not answer is `UNCONFIRMED` with the reason `no_answer`. |
 | `channel` | Joins and leaves chat channels, lists their members, and runs admin actions on a channel it moderates: kick, ban, unban, announce, moderate, invite and the rest. |
+| `character` | Reads play time, draws or sheathes weapons, shows or hides helm and cloak, or changes hairstyle in a barber chair. |
 
 `travel`, `engage`, `pilot`, `rest` and `recover` start a run (`r1`, `r2`, …).
 Only one run can be active. The tool waits for the run to end and

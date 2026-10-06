@@ -5,25 +5,25 @@ columns are explained in [the index](../protocol-coverage.md).
 
 | Opcode | Name | Direction | Status | Live |
 |---|---|---|---|---|
-| `0x038` | `CMSG_CHAR_DELETE` | client | missing |  |
-| `0x03c` | `SMSG_CHAR_DELETE` | server | missing |  |
-| `0x064` | `CMSG_WHOIS` | client | missing |  |
-| `0x065` | `SMSG_WHOIS` | server | missing |  |
-| `0x1cc` | `CMSG_PLAYED_TIME` | client | missing |  |
-| `0x1cd` | `SMSG_PLAYED_TIME` | server | missing |  |
-| `0x1e0` | `CMSG_SET_SHEATHED` | client | missing |  |
-| `0x2b9` | `CMSG_TOGGLE_HELM` | client | missing |  |
-| `0x2ba` | `CMSG_TOGGLE_CLOAK` | client | missing |  |
-| `0x2c7` | `CMSG_CHAR_RENAME` | client | missing |  |
-| `0x2c8` | `SMSG_CHAR_RENAME` | server | missing |  |
-| `0x2f5` | `SMSG_PLAY_TIME_WARNING` | server | missing |  |
-| `0x419` | `CMSG_SET_PLAYER_DECLINED_NAMES` | client | missing |  |
-| `0x41a` | `SMSG_SET_PLAYER_DECLINED_NAMES_RESULT` | server | missing |  |
-| `0x426` | `CMSG_ALTER_APPEARANCE` | client | missing |  |
-| `0x427` | `SMSG_ENABLE_BARBER_SHOP` | server | missing |  |
-| `0x428` | `SMSG_BARBER_SHOP_RESULT` | server | missing |  |
-| `0x473` | `CMSG_CHAR_CUSTOMIZE` | client | missing |  |
-| `0x474` | `SMSG_CHAR_CUSTOMIZE` | server | missing |  |
-| `0x4d9` | `CMSG_CHAR_FACTION_CHANGE` | client | missing |  |
-| `0x4da` | `SMSG_CHAR_FACTION_CHANGE` | server | missing |  |
-| `0x4f8` | `CMSG_CHAR_RACE_CHANGE` | client | missing |  |
+| `0x038` | `CMSG_CHAR_DELETE` | client | handled |  |
+| `0x03c` | `SMSG_CHAR_DELETE` | server | handled |  |
+| `0x064` | `CMSG_WHOIS` | client | handled |  |
+| `0x065` | `SMSG_WHOIS` | server | handled |  |
+| `0x1cc` | `CMSG_PLAYED_TIME` | client | handled |  |
+| `0x1cd` | `SMSG_PLAYED_TIME` | server | handled |  |
+| `0x1e0` | `CMSG_SET_SHEATHED` | client | handled |  |
+| `0x2b9` | `CMSG_TOGGLE_HELM` | client | handled |  |
+| `0x2ba` | `CMSG_TOGGLE_CLOAK` | client | handled |  |
+| `0x2c7` | `CMSG_CHAR_RENAME` | client | handled |  |
+| `0x2c8` | `SMSG_CHAR_RENAME` | server | handled |  |
+| `0x2f5` | `SMSG_PLAY_TIME_WARNING` | server | handled | not seen live |
+| `0x419` | `CMSG_SET_PLAYER_DECLINED_NAMES` | client | dead |  |
+| `0x41a` | `SMSG_SET_PLAYER_DECLINED_NAMES_RESULT` | server | dead |  |
+| `0x426` | `CMSG_ALTER_APPEARANCE` | client | handled |  |
+| `0x427` | `SMSG_ENABLE_BARBER_SHOP` | server | handled |  |
+| `0x428` | `SMSG_BARBER_SHOP_RESULT` | server | handled |  |
+| `0x473` | `CMSG_CHAR_CUSTOMIZE` | client | handled |  |
+| `0x474` | `SMSG_CHAR_CUSTOMIZE` | server | handled |  |
+| `0x4d9` | `CMSG_CHAR_FACTION_CHANGE` | client | handled |  |
+| `0x4da` | `SMSG_CHAR_FACTION_CHANGE` | server | handled |  |
+| `0x4f8` | `CMSG_CHAR_RACE_CHANGE` | client | handled |  |
