@@ -65,7 +65,11 @@ function rosterBody(extra: boolean): Uint8Array {
   return w.finish();
 }
 
-function eventBody(event: number, strings: string[], guid?: bigint): Uint8Array {
+function eventBody(
+  event: number,
+  strings: string[],
+  guid?: bigint,
+): Uint8Array {
   const w = new PacketWriter();
   w.uint8(event);
   w.uint8(strings.length);
@@ -165,7 +169,12 @@ describe("arena protocol", () => {
     w.cString("");
     w.uint32LE(0);
     const parsed = parseTeamCommandResult(new PacketReader(w.finish()));
-    expect(parsed).toEqual({ action: 3, error: 0, player: "", team: "Faceless" });
+    expect(parsed).toEqual({
+      action: 3,
+      error: 0,
+      player: "",
+      team: "Faceless",
+    });
   });
 
   test("arena error reads the team type when the word is zero", () => {
