@@ -1,0 +1,50 @@
+{
+  "botRisk": "low",
+  "budget": {
+    "minutes": 8,
+    "tools": 16,
+    "turns": 8
+  },
+  "checks": [
+    {
+      "expect": "the session shows the agent calling the guildbank tool with do open next to the Orgrimmar guild vault",
+      "id": "open-called",
+      "source": "session"
+    },
+    {
+      "evidence": {
+        "events": ["guildbank/refused"]
+      },
+      "expect": "GL has a guildbank/refused row with reason not in a guild: the server refused the vault because the character has no guild",
+      "id": "refusal-row",
+      "source": "game_log"
+    },
+    {
+      "expect": "the agent's answer says the character is not in a guild so it cannot open the vault, and does not invent vault contents",
+      "id": "answer-not-in-guild",
+      "source": "session"
+    }
+  ],
+  "id": "t9-guildbank-guildless",
+  "navBound": false,
+  "needsWatcher": false,
+  "paneMinutes": 11,
+  "partner": null,
+  "preset": "max80",
+  "setup": [
+    {
+      "body": {
+        "map": 1,
+        "o": 0.6,
+        "x": 1636,
+        "y": -4379.5,
+        "z": 12.8,
+        "zone": 1637
+      },
+      "endpoint": "position"
+    }
+  ],
+  "steers": [],
+  "task": "You are standing next to a guild vault in Orgrimmar. Open it and tell me what it holds.",
+  "tier": 9
+}

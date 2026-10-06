@@ -21,6 +21,8 @@ The `guildbank` harness tool (`open`, `show`, `buy`, `rename`, `deposit_money`, 
 - The `CMSG_GUILD_BANK_BUY_TAB` handler ignores any tab id that is not exactly the purchased count (`Handlers/GuildHandler.cpp:369`); the store therefore settles `tab_bought` only when the full list grows.
 - `CMSG_GUILD_BANK_DEPOSIT_MONEY` and `CMSG_GUILD_BANK_WITHDRAW_MONEY` refuse an empty amount before touching the guild (`Handlers/GuildHandler.cpp:310`); bound items fail the swap with an equip error and no bank list follows, so the act settles `unanswered` on timeout.
 - `CMSG_SET_GUILD_BANK_TEXT` applies without a list reply (`Handlers/GuildHandler.cpp:405`), which is why `setTabText` settles on the text echo.
+- A guildless `CMSG_GUILD_BANKER_ACTIVATE` is answered with `SMSG_GUILD_COMMAND_RESULT` for `GuildCommand.VIEW_TAB` and `ERR_GUILD_PLAYER_NOT_IN_GUILD` and no bank list (`Handlers/GuildHandler.cpp:287`); the area reads it through `uses` and `peek`, settles the pending act `refused` with `not in a guild` and the game log gets a `guildbank/refused` row.
+- A vault deposit, withdraw and tab purchase are answered with `SMSG_GUILD_EVENT` (`BANK_MONEY_SET` with the new vault copper as a decimal string, `BANK_TAB_PURCHASED`) and no `SMSG_GUILD_BANK_LIST`; the area settles `money_moved` and `tab_bought` on those events.
 
 ## Left out
 
@@ -30,7 +32,7 @@ The `guildbank` harness tool (`open`, `show`, `buy`, `rename`, `deposit_money`, 
 
 ## Capabilities row
 
-Capabilities row: use the guild vault (open it, read and rename tabs, move copper and items, set tab text, read the log and limits), with no scenario: every verb needs a guild, which eval staging cannot create (see [capabilities.md](../capabilities.md)).
+Capabilities row: use the guild vault (open it, read and rename tabs, move copper and items, set tab text, read the log and limits). `t9-guildbank-guildless` covers the guildless refusal; the member verbs have no scenario because eval staging cannot create a guild (see [capabilities.md](../capabilities.md)).
 
 ## Proof
 
@@ -51,4 +53,17 @@ Live proof on a `max80` throwaway (`FAC6AC567BC04`, `Fgkmfghlmae`, guild `FacVau
 | `MSG_QUERY_GUILD_BANK_TEXT` | `live` | 1-byte send; 11/13-byte replies | `Handlers/GuildHandler.cpp:397` |
 | `CMSG_SET_GUILD_BANK_TEXT` | `live` | 10/12-byte sends; 13-byte text reply surfaced as `text_set` | `Handlers/GuildHandler.cpp:405` |
 
-Eval staging gap (escalation): no scenario is registered and none joins `ROUND_1`, because eval staging cannot create a guild or an arena team and `soap gm` is banned inside evals. A guild setup endpoint would unblock a real `guildbank` scenario; until then the verbs above are proven live through `soap gm` staging plus the puppet.
+Probe proof (`mise protocol:probe <ACCOUNT> --flow guildbank-vault`, flow `packages/devtools/src/probe-flows/guildbank-vault.ts`): a `max80` throwaway placed offline at 3.5 yards from the Orgrimmar vault `0xf11002db9c000363` (entry 187292, `1638.22, -4382.22, 12.54`, map 1) with `soap setup position` after `soap gm` staged guild `FacVaultSeven` (`guild-create` while online) and money. Run one bought tab 0, a second run bought tab 1 (needs 3000000 copper from `soap setup money`).
+
+| Verb | Result | Server reply |
+|---|---|---|
+| `openVault` | `ok` | 16-byte `SMSG_GUILD_BANK_LIST` (money, tab count) |
+| `buyTab` | `ok` | 2-byte `SMSG_GUILD_EVENT` (`BANK_TAB_PURCHASED`) plus `MSG_GUILD_PERMISSIONS` |
+| `queryTab(0)` | `ok` | 18-byte `SMSG_GUILD_BANK_LIST` |
+| `queryText(0)` | `ok` | 2-byte `MSG_QUERY_GUILD_BANK_TEXT` (empty text) |
+| `queryLog(0)` | `ok` | 2-byte `MSG_GUILD_BANK_LOG_QUERY` (no entries) |
+| `queryMoneyWithdrawn` | `ok` | 4-byte `MSG_GUILD_BANK_MONEY_WITHDRAWN` (`-1`, unlimited for the leader) |
+| `depositMoney(2000)` | `ok` | 19-byte `SMSG_GUILD_EVENT` (`BANK_MONEY_SET`) |
+| `withdrawMoney(500)` | `ok` | 19-byte `SMSG_GUILD_EVENT` (`BANK_MONEY_SET`); the vault held 1770 copper after the second run |
+
+Guildless proof: eval `t9-guildbank-guildless` (see [evals.md](../evals.md)) opens the Orgrimmar vault as a guildless character and the server answers `SMSG_GUILD_COMMAND_RESULT` `VIEW_TAB` / not in a guild.
