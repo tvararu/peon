@@ -34,7 +34,7 @@ Capabilities row: use the guild vault (open it, read and rename tabs, move coppe
 
 ## Proof
 
-Live proof on a `max80` throwaway (`FAC6AC567BC04`, `Fgkmfghlmae`, guild `FacVaultSix`, id 21, staged with `soap gm` on the online puppet: `guild-create` refuses while offline with "Player not found!", money and a Hearthstone arrived by mail, `tele stormwind`). The puppet walked to vault `0xf11002dbc1000211` (entry 187329, `-8902.25, 621.31, 100.92`) down to 6.91 yards with the new `walkToObject` call, then sent each verb with `puppet raw`; the trace is `tmp/factory-account-FAC6AC567BC04/state/peon/packets.jsonl` (uncommitted, like the trade probe runs). Guild truth moved 0 to 9 gold after a 100000-copper deposit minus a 1000-copper withdraw, then to 13 gold after a second deposit and the tab purchase.
+Live proof on a `max80` throwaway (`FAC6AC567BC04`, `Fgkmfghlmae`, guild `FacVaultSix`, id 21, staged with `soap gm` on the online puppet: `guild-create` refuses while offline with "Player not found!", money and a Hearthstone arrived by mail, `tele stormwind`). The puppet walked to vault `0xf11002dbc1000211` (entry 187329, `-8902.25, 621.31, 100.92`) down to 6.91 yards with the new `walkToObject` call, then sent each verb with `puppet raw`; the packet trace is not committed. Guild truth moved 0 to 9 gold after a 100000-copper deposit minus a 1000-copper withdraw, then to 13 gold after a second deposit and the tab purchase.
 
 | Opcode | Proof | Evidence | Source |
 |---|---|---|---|
