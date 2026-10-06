@@ -45,5 +45,5 @@ export const CALENDAR_OPCODES = {
     "SMSG_CALENDAR_EVENT_INVITE_NOTES",
     "SMSG_CALENDAR_EVENT_INVITE_NOTES_ALERT",
   ],
-  unseen: ["SMSG_CALENDAR_SEND_EVENT"],
+  unseen: [],
 } as const satisfies AreaOpcodes;

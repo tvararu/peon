@@ -76,6 +76,7 @@ or the page names one that does not exist.
 | Collect gold and items from mail | `t9-mail-collect` | Takes money then attachments in order at a mailbox. |
 | Send gold or items by mail | `t9-mail-send` | Postage is 30 copper per item, 30 with no item. |
 | Share a quest with the group and take one shared back | `t8-quests-share`, `t8-quests-accept-shared` | A share with no member answer is `UNCONFIRMED` after 3 s. |
+| Create and rename a personal calendar event | `t9-calendar-event` | Needs no guild. The server allows one create or copy every 5 s and 30 events per player. Invites, rsvp and status need a second player and are proven by tests only. |
 | Set loot rules and give master loot | `t9-raid-master-loot` | Needs a corpse that holds an item; the scenario allows three kills. `roll` and `pass_loot` are not shown: a group roll needs an uncommon drop and `pass_loot` has no server reply. |
 | Run and answer ready checks | `t9-raid-ready`, `t9-raid-answer` | Peon ends its own checks after 30 s. |
 | Answer a meeting-stone summon | `t9-raid-summon` | Two partners use the Stormwind stone 179595 and its summoning portal; the agent answers with `group` `summon`. The stone needs a group with both members at level 15. |

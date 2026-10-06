@@ -19,7 +19,7 @@ columns are explained in [the index](../protocol-coverage.md).
 | `0x434` | `CMSG_CALENDAR_EVENT_STATUS` | client | handled |  |
 | `0x435` | `CMSG_CALENDAR_EVENT_MODERATOR_STATUS` | client | handled |  |
 | `0x436` | `SMSG_CALENDAR_SEND_CALENDAR` | server | handled |  |
-| `0x437` | `SMSG_CALENDAR_SEND_EVENT` | server | handled | not seen live |
+| `0x437` | `SMSG_CALENDAR_SEND_EVENT` | server | handled |  |
 | `0x438` | `SMSG_CALENDAR_FILTER_GUILD` | server | handled |  |
 | `0x439` | `SMSG_CALENDAR_ARENA_TEAM` | server | handled |  |
 | `0x43a` | `SMSG_CALENDAR_EVENT_INVITE` | server | handled |  |

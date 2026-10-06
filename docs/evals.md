@@ -245,3 +245,4 @@ two scenarios closest to it. Every scenario appears in at least one row.
 | Vehicles (`vehicle`, `travel ride`) | `t8-vehicles-board`, `t8-vehicles-zeppelin`, `t8-vehicles-drive` |
 | Instances and dungeon finder (`dungeon`) | `t9-instances-difficulty`, `t9-lfg-queue`, `t9-lfg-run` |
 | Groups and raids (`group` tool) | `t9-raid-kick`, `t9-raid-convert`, `t9-raid-master-loot`, `t9-raid-ready`, `t9-raid-answer`, `t9-raid-summon`, `t9-raid-mark` |
+| Calendar (`calendar` tool create and update) | `t9-calendar-event` |
