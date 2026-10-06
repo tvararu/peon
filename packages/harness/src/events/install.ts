@@ -31,7 +31,7 @@ type StartInit = {
   rt: HarnessRuntime;
 };
 
-export function nowMessage(content: string): NowMessage {
+function nowMessage(content: string): NowMessage {
   return { content, customType: "wow-now", display: NOW_DISPLAY };
 }
 

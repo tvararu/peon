@@ -106,6 +106,15 @@ describe("partner calls that wait on the agent", () => {
     expect(result.rows[0]?.["agentSilent"]).toBeUndefined();
   });
 
+  test.each(["tradeAccept", "tradeAnswer", "tradeRequestQuiet"])(
+    "an answer after 45 s to %s is not a kill",
+    async (method) => {
+      const result = await runCall(method, 45_000, OK);
+      expect(result.rows[0]).toMatchObject({ code: 0 });
+      expect(result.rows[0]?.["agentSilent"]).toBeUndefined();
+    },
+  );
+
   test("tradeAcceptOffered with an offer at 20 s and an accept at 80 s is answered", async () => {
     const result = await runCall("tradeAcceptOffered", 80_000, OK);
     expect(result.rows[0]).toMatchObject({ code: 0 });

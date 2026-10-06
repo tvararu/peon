@@ -458,17 +458,20 @@ describe("ground destinations", () => {
   test("primes the destination tile before the line-of-sight query", () => {
     const calls: string[] = [];
     const map = native({
-      lineOfSight: () => {
+      lineOfSight: (from, to) => {
         calls.push("los");
-        return true;
+        return !(from.x < 5 && to.x >= 5);
       },
       loadAdtAt: (x, y) => {
         calls.push(`load ${x},${y}`);
       },
     });
     const nav = navigation(map);
-    expect(nav.clear(530, { x: 0, y: 0, z: 0 }, { x: 10, y: 0, z: 0 })).toBe(
+    expect(nav.clear(530, { x: 0, y: 0, z: 0 }, { x: 1, y: 0, z: 0 })).toBe(
       true,
+    );
+    expect(nav.clear(530, { x: 0, y: 0, z: 0 }, { x: 10, y: 0, z: 0 })).toBe(
+      false,
     );
     expect(calls.slice(-2)).toEqual(["load 10,0", "los"]);
   });

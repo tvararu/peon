@@ -122,6 +122,17 @@ describe("pilot units", () => {
     expect(units[0]?.marginYd).toBeLessThan(units[1]?.marginYd ?? 0);
   });
 
+  test("a creature inside its aggro radius reads inside, one beyond reads outside", () => {
+    const rows = [selfRow(), mob(2n, 10, 0, { level: 10 }), mob(3n, 31, 0)];
+    const units = buildPilotUnits(rows, pose());
+    const inside = units.find((unit) => unit.marginYd < 0);
+    const outside = units.find((unit) => unit.marginYd > 0);
+    expect(inside).toBeDefined();
+    expect(outside).toBeDefined();
+    expect(unitLine(inside as PilotUnit, pose())).toContain("yd inside it");
+    expect(unitLine(outside as PilotUnit, pose())).toContain("yd outside it");
+  });
+
   test("caps the list at five units", () => {
     const rows = [
       selfRow(),
