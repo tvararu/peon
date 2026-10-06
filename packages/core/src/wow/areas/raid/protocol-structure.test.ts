@@ -50,7 +50,13 @@ describe("raid structure builders", () => {
     expect(r.uint8()).toBe(1);
     expect(r.uint64LE()).toBe(GUID);
     expect(r.remaining).toBe(0);
-    expect(PARTY_ASSIGN_MAIN_TANK).toBe(0);
+    const tank = new PacketReader(
+      buildPartyAssignment(PARTY_ASSIGN_MAIN_TANK, false, GUID),
+    );
+    expect(tank.uint8()).toBe(0);
+    expect(tank.uint8()).toBe(0);
+    expect(tank.uint64LE()).toBe(GUID);
+    expect(tank.remaining).toBe(0);
   });
 
   test("uninvite by guid is guid then reason", () => {

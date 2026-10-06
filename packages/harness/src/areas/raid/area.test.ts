@@ -52,7 +52,11 @@ describe("raid harness rules", () => {
         type: "group_list",
       }),
     ).toMatchObject([
-      { class: "passive", event: "raid/roster", text: "Tom left the group." },
+      {
+        class: "passive",
+        data: { change: "left", name: "Tom" },
+        event: "raid/roster",
+      },
     ]);
   });
 
@@ -122,7 +126,11 @@ describe("raid harness rules", () => {
         type: "member_stats",
       }),
     ).toMatchObject([
-      { class: "passive", event: "raid/member", text: "Tom died." },
+      {
+        class: "passive",
+        data: { name: "Tom", transition: "died" },
+        event: "raid/member",
+      },
     ]);
   });
 
@@ -134,37 +142,30 @@ describe("raid harness rules", () => {
 });
 
 describe("raid roster row detail", () => {
-  test("a flag gained names the flag and carries it", () => {
+  test("a flag gained carries the flag and that it is on", () => {
     const [row] = rows({
       changes: [{ flag: "main_tank", kind: "flag", name: "Tom", on: true }],
       group: GROUP,
       type: "group_list",
     });
-    expect(row?.text).toContain("Tom");
-    expect(row?.text).toContain("main tank");
-    expect(row?.text).toContain("gained");
     expect(row?.data).toMatchObject({ flag: "main_tank", on: true });
   });
 
-  test("a flag removal says lost, not gained", () => {
+  test("a flag removal carries the flag and that it is off", () => {
     const [row] = rows({
       changes: [{ flag: "assistant", kind: "flag", on: false, self: true }],
       group: GROUP,
       type: "group_list",
     });
-    expect(row?.text).toContain("lost");
-    expect(row?.text).toContain("assistant");
-    expect(row?.text).not.toContain("gained");
     expect(row?.data).toMatchObject({ flag: "assistant", on: false });
   });
 
-  test("a subgroup move carries and names the destination group", () => {
+  test("a subgroup move carries the source and destination group", () => {
     const [row] = rows({
       changes: [{ from: 0, kind: "subgroup", name: "Tom", to: 2 }],
       group: GROUP,
       type: "group_list",
     });
-    expect(row?.text).toContain("group 3");
     expect(row?.data).toMatchObject({ from: 0, to: 2 });
   });
 });
@@ -176,14 +177,14 @@ describe("ready check harness rules", () => {
     ).toMatchObject([{ class: "wake", event: "raid/ready_check" }]);
   });
 
-  test("a check the agent starts names the agent", () => {
+  test("a check the agent starts carries an empty name", () => {
     const [row] = rows({
       initiator: 0x10n,
       name: "",
       type: "ready_check_started",
     });
     expect(row).toMatchObject({ class: "wake", event: "raid/ready_check" });
-    expect(row?.text).toContain("You start");
+    expect(row?.data).toMatchObject({ name: "" });
   });
 
   test("an answer writes one passive row carrying the answer", () => {
@@ -198,8 +199,6 @@ describe("ready check harness rules", () => {
       data: { answer: "not_ready", name: "Tom" },
       event: "raid/ready_answer",
     });
-    expect(row?.text).toContain("Tom");
-    expect(row?.text).toContain("not ready");
   });
 
   test("a finished check reports counts and the names not ready", () => {
@@ -215,7 +214,6 @@ describe("ready check harness rules", () => {
       data: { notReady: ["Tom"], offline: 1, pending: 0, ready: 1 },
       event: "raid/ready_done",
     });
-    expect(row?.text).toContain("Tom");
   });
 });
 
@@ -241,19 +239,15 @@ describe("raid mark harness rules", () => {
       data: { icon: 7, name: "Tom", target: `${LYNX}` },
       event: "raid/mark",
     });
-    expect(row?.text).toContain("Tom");
-    expect(row?.text).toContain("skull");
-    expect(row?.text).toContain("Springpaw Lynx");
   });
 
-  test("a set by the agent names the agent", () => {
+  test("a set by the agent carries the agent name and icon", () => {
     const [row] = rowsWith(
       { icon: 0, name: "", target: LYNX, type: "raid_mark", who: 1n },
       { selfGuid: 1n, selfName: "Fgk" },
     );
     expect(row).toMatchObject({ event: "raid/mark" });
-    expect(row?.text).toContain("Fgk");
-    expect(row?.text).toContain("star");
+    expect(row?.data).toMatchObject({ icon: 0, name: "Fgk" });
   });
 
   test("an explicit clear by a named member writes a mark row", () => {
@@ -269,7 +263,6 @@ describe("raid mark harness rules", () => {
       data: { icon: 7, name: "Tom" },
       event: "raid/mark",
     });
-    expect(row?.text).toContain("cleared");
   });
 
   test("the server's own clear before a move writes no row", () => {
@@ -294,7 +287,7 @@ describe("minimap ping harness rules", () => {
     y: 40,
   } as const;
 
-  test("a ping writes one passive row with distance and direction", () => {
+  test("a ping writes one passive row carrying the position", () => {
     const memo = createRuleMemo();
     memo.pose = { mapId: 0, x: 100, y: 40, z: 0 };
     const [row, ...rest] = rowsWith(ping, { memo });
@@ -304,15 +297,12 @@ describe("minimap ping harness rules", () => {
       data: { name: "Tom", x: 130, y: 40 },
       event: "raid/ping",
     });
-    expect(row?.text).toContain("Tom");
-    expect(row?.text).toContain("30 yd");
-    expect(row?.text).toMatch(/north/i);
   });
 
   test("a ping before any pose is known still writes a row", () => {
     const [row] = rows(ping);
     expect(row).toMatchObject({ class: "passive", event: "raid/ping" });
-    expect(row?.text).toContain("Tom");
+    expect(row?.data).toMatchObject({ name: "Tom", x: 130, y: 40 });
   });
 });
 
@@ -333,15 +323,11 @@ describe("summon harness rules", () => {
       data: { seconds: 120, summoner: "16", zone: "Eversong Woods" },
       event: "raid/summon",
     });
-    const text = out[0]?.text ?? "";
-    expect(text).toContain("Tom");
-    expect(text).toContain("Eversong Woods");
-    expect(text).toContain("120");
   });
 
   test("without a zone name the row carries the zone id", () => {
     const [row] = rows({ ...base, name: "Tom", zoneName: undefined });
-    expect(row?.text).toContain("zone 3430");
+    expect(row?.data).toMatchObject({ zone: "zone 3430" });
   });
 
   test("an unnamed summoner falls back to the lookup, then to Someone", () => {
@@ -353,9 +339,9 @@ describe("summon harness rules", () => {
       },
       testRuleInput({ lookup: testLookup({ unitName: () => "Ann" }) }),
     );
-    expect(named[0]?.text).toContain("Ann summons you");
+    expect(named[0]?.data).toMatchObject({ name: "Ann" });
     const [anon] = rows({ ...base, name: "", zoneName: undefined });
-    expect(anon?.text).toContain("Someone summons you");
+    expect(anon?.data).toMatchObject({ name: "Someone" });
   });
 
   test("an expiry writes one passive row", () => {

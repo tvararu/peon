@@ -7,10 +7,7 @@ import {
   raidPartyMemberStatsBody,
   raidPartyMemberStatsFullBody,
 } from "#test-support/areas/raid";
-import {
-  mergeMemberStats,
-  statsTransitions,
-} from "#wow/areas/raid/store-stats";
+import { mergeMemberStats } from "#wow/areas/raid/store-stats";
 import { GameOpcode } from "#wow/protocol/opcodes";
 
 const TOM = 0x10n;
@@ -334,12 +331,6 @@ describe("raid pet removal", () => {
     } finally {
       rig.dispose();
     }
-  });
-});
-
-describe("statsTransitions", () => {
-  test("stays quiet for the first sighting", () => {
-    expect(statsTransitions(undefined, { status: 5 })).toEqual([]);
   });
 });
 

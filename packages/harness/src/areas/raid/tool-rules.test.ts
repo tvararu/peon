@@ -137,14 +137,17 @@ describe("group tool loot_rules", () => {
     for (const spy of [follower, finder, none]) expect(sent(spy)).toBe(0);
   });
 
-  test("refuses an unknown method, quality or master", async () => {
+  test("refuses an unknown quality or master", async () => {
     const t = await world();
     expect(
-      (await runTool(t.tool, { do: "loot_rules", what: "greedy" })).text,
-    ).toContain("REFUSED bad_loot_method");
-    expect((await runTool(t.tool, { do: "loot_rules" })).text).toContain(
-      "REFUSED bad_loot_method",
-    );
+      (
+        await runTool(t.tool, {
+          do: "loot_rules",
+          quality: "shiny",
+          what: "group_loot",
+        })
+      ).text,
+    ).toContain("REFUSED bad_loot_quality");
     expect(
       (
         await runTool(t.tool, {

@@ -151,7 +151,7 @@ describe("group tool mark", () => {
     expect(out.details.result.after).toMatchObject({ do: "mark" });
   });
 
-  test("resolves a unit id and any case of the icon name", async () => {
+  test("resolves a creature by name and any case of the icon name", async () => {
     const t = await world();
     t.set.mockImplementation((icon, guid) => t.emit(echo(icon, guid)));
     const out = await runTool(t.tool, {
@@ -265,7 +265,7 @@ describe("group tool mark", () => {
   test("refuses bad input and a group-less character", async () => {
     const t = await world();
     const noTarget = await runTool(t.tool, { do: "mark", what: "skull" });
-    expect(noTarget.text).toContain("REFUSED");
+    expect(noTarget.text).toContain("REFUSED needs_target");
     const badIcon = await runTool(t.tool, {
       do: "mark",
       target: "Springpaw Lynx",
@@ -277,7 +277,7 @@ describe("group tool mark", () => {
       target: "Dragon",
       what: "skull",
     });
-    expect(missing.text).toContain("REFUSED");
+    expect(missing.text).toContain("REFUSED not_seen");
     const alone = await world({ inGroup: false });
     const none = await runTool(alone.tool, {
       do: "mark",
@@ -339,7 +339,7 @@ describe("group tool ping", () => {
     expect(none.text).toContain("REFUSED not_in_group");
     const t = await world();
     const missing = await runTool(t.tool, { do: "ping", target: "Dragon" });
-    expect(missing.text).toContain("REFUSED");
+    expect(missing.text).toContain("REFUSED not_seen");
     expect(alone.ping).not.toHaveBeenCalled();
     expect(t.ping).not.toHaveBeenCalled();
   });

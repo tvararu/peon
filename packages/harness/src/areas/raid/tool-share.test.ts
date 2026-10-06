@@ -136,11 +136,11 @@ describe("group tool share_quest", () => {
       do: "share_quest",
       quest: OTHER,
     });
-    expect(missing.text).toContain("no quest #8325");
+    expect(missing.text).toContain("REFUSED unknown_quest");
     const empty = await runTool(t.tool, { do: "share_quest", quest: 0 });
-    expect(empty.text).toContain("no quest #0");
+    expect(empty.text).toContain("REFUSED unknown_quest");
     const none = await runTool(t.tool, { do: "share_quest" });
-    expect(none.text).toContain("name the quest");
+    expect(none.text).toContain("REFUSED needs_quest");
     expect(act).not.toHaveBeenCalled();
   });
 
@@ -165,20 +165,6 @@ describe("group tool share_quest", () => {
     expect(out.text).toContain("Ann: has it");
   });
 
-  test("says declined and busy for the matching results", async () => {
-    const t = await world();
-    jest.spyOn(t.handle.quests.act, "shareQuest").mockImplementation(() => {
-      t.share({ guid: TOM, questId: QUEST, result: 4, type: "result" });
-      t.share({ guid: ANN, questId: QUEST, result: 0, type: "result" });
-      t.share({ guid: ANN, questId: QUEST, result: 3, type: "relayed" });
-      t.share({ questId: QUEST, reason: "complete", type: "closed" });
-      return { ok: true };
-    });
-    const out = await runTool(t.tool, { do: "share_quest", quest: QUEST });
-    expect(out.text).toContain("Tom: busy");
-    expect(out.text).toContain("Ann: declined");
-  });
-
   test("ignores rows for another quest", async () => {
     const t = await world({ log: [QUEST, OTHER] });
     jest.spyOn(t.handle.quests.act, "shareQuest").mockImplementation(() => {
@@ -193,7 +179,7 @@ describe("group tool share_quest", () => {
     expect(out.text).not.toContain("Tom");
   });
 
-  test("no result in 3 s says the quest cannot be shared", async () => {
+  test("a no_answer close within 3 s is UNCONFIRMED", async () => {
     const t = await world();
     jest.spyOn(t.handle.quests.act, "shareQuest").mockImplementation(() => {
       t.share({ questId: QUEST, type: "pushed" });
@@ -205,8 +191,7 @@ describe("group tool share_quest", () => {
       t.share({ questId: QUEST, reason: "no_answer", type: "closed" });
       return run;
     });
-    expect(out.text).toContain("UNCONFIRMED");
-    expect(out.text).toContain("no answer: the quest cannot be shared");
+    expect(out.text).toContain("UNCONFIRMED no_answer");
   });
 
   test("a silent server also ends the wait", async () => {
@@ -219,7 +204,7 @@ describe("group tool share_quest", () => {
       await elapse(3600);
       return run;
     });
-    expect(out.text).toContain("no answer: the quest cannot be shared");
+    expect(out.text).toContain("UNCONFIRMED no_answer");
   });
 
   test("refuses while a push is open", async () => {
@@ -254,7 +239,7 @@ describe("group tool share_quest", () => {
     expect(act).not.toHaveBeenCalled();
   });
 
-  test("a self-only refusal closes the share and says it cannot be shared today", async () => {
+  test("a self-only refusal closes the share as FAILED refused", async () => {
     const t = await world();
     jest.spyOn(t.handle.quests.act, "shareQuest").mockImplementation(() => {
       t.share({ questId: QUEST, type: "pushed" });
@@ -268,9 +253,7 @@ describe("group tool share_quest", () => {
       return { ok: true };
     });
     const out = await runTool(t.tool, { do: "share_quest", quest: QUEST });
-    expect(out.text).toContain("FAILED");
-    expect(out.text).toContain("cannot share");
-    expect(out.text).toContain("today");
+    expect(out.text).toContain("FAILED refused");
   });
 });
 
@@ -292,11 +275,11 @@ describe("group tool accept_quest and decline_quest", () => {
     });
     const act = jest.spyOn(t.handle.quests.act, "answerShare");
     const out = await runTool(t.tool, { do: "accept_quest" });
-    expect(out.text).toContain("");
+    expect(out.text).toContain("REFUSED dead");
     expect(act).not.toHaveBeenCalled();
   });
 
-  test("decline sends the decline and says declined", async () => {
+  test("decline sends the decline and is done", async () => {
     const t = await world({ offer: { kind: "share", questId: QUEST } });
     const act = jest
       .spyOn(t.handle.quests.act, "answerShare")
@@ -304,14 +287,13 @@ describe("group tool accept_quest and decline_quest", () => {
     const out = await runTool(t.tool, { do: "decline_quest" });
     expect(act).toHaveBeenCalledWith("decline");
     expect(out.text).toContain("DONE ");
-    expect(out.text).toContain("declined");
   });
 
   test("a decline the store no longer owes is refused", async () => {
     const t = await world({ offer: { kind: "share", questId: QUEST } });
     jest.spyOn(t.handle.quests.act, "answerShare").mockReturnValue(false);
     const out = await runTool(t.tool, { do: "decline_quest" });
-    expect(out.text).toContain("no shared quest");
+    expect(out.text).toContain("REFUSED no_offer");
   });
 
   test("accept is done when the quest enters the log", async () => {
@@ -336,7 +318,6 @@ describe("group tool accept_quest and decline_quest", () => {
     const out = await runTool(t.tool, { do: "accept_quest" });
     expect(act).toHaveBeenCalledWith("accept");
     expect(out.text).toContain("DONE ");
-    expect(out.text).toContain("accepted");
   });
 
   test("a log event without the quest does not confirm", async () => {

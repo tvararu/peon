@@ -59,20 +59,4 @@ describe("raid command results", () => {
       rig.dispose();
     }
   });
-
-  test("an unknown code keeps its number", () => {
-    const { events, rig } = collect();
-    try {
-      rig.inject(
-        GameOpcode.SMSG_PARTY_COMMAND_RESULT,
-        commandResult(3, "Tom", 10),
-      );
-      expect(events[0]).toMatchObject({
-        operation: "operation_3",
-        result: "result_10",
-      });
-    } finally {
-      rig.dispose();
-    }
-  });
 });

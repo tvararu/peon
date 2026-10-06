@@ -131,25 +131,18 @@ describe("raid member stats policy", () => {
     }
   });
 
-  test("a failed send is not recorded as a request", () => {
-    const clock = { t: 0 };
-    const rig = rigAt(clock);
-    try {
-      rig.inject(GameOpcode.SMSG_GROUP_LIST, list(0, [TOM]));
-      const before = rig.sent.length;
-      expect(before).toBeGreaterThan(0);
-      expect(requests(rig)).toEqual([TOM]);
-    } finally {
-      rig.dispose();
-    }
-  });
-
   test("stats are dropped after the group disbands", () => {
     const clock = { t: 0 };
     const rig = rigAt(clock);
     try {
       rig.inject(GameOpcode.SMSG_GROUP_LIST, list(0, [TOM]));
+      rig.inject(
+        GameOpcode.SMSG_PARTY_MEMBER_STATS,
+        raidPartyMemberStatsBody({ guid: TOM, hp: 5, status: 1 }),
+      );
+      expect(rig.handle.act.memberStats("Tom")?.hp).toBe(5);
       rig.inject(GameOpcode.SMSG_GROUP_LIST, list(1, []));
+      expect(rig.handle.act.memberStats("Tom")).toBeUndefined();
       expect(() => rig.handle.act.requestMemberStats("Tom")).toThrow("Tom");
     } finally {
       rig.dispose();

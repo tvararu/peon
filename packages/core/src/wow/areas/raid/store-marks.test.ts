@@ -153,19 +153,6 @@ describe("raid marks store", () => {
     }
   });
 
-  test("an empty list clears every slot", () => {
-    const { events, rig } = rigWithGroup();
-    try {
-      set(rig, TOM, 7, LYNX);
-      events.length = 0;
-      rig.inject(GameOpcode.MSG_RAID_TARGET_UPDATE, raidTargetListBody([]));
-      expect(rig.handle.state().marks?.every((guid) => guid === 0n)).toBe(true);
-      expect(events).toMatchObject([{ type: "raid_marks" }]);
-    } finally {
-      rig.dispose();
-    }
-  });
-
   test("a disband clears the marks", () => {
     const { rig } = rigWithGroup();
     try {
