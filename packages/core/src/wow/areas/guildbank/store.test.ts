@@ -1,14 +1,14 @@
 import { describe, expect, test } from "bun:test";
 import {
-  GUILD_BANK_VAULT,
   bankListBody,
   bankLogBody,
   bankTextBody,
+  GUILD_BANK_VAULT,
   guildbankRig,
   moneyWithdrawnBody,
 } from "#test-support/areas/guildbank";
-import type { GuildBankEvent } from "#wow/areas/guildbank/store";
 import { GUILD_BANK_LOG } from "#wow/areas/guildbank/protocol";
+import type { GuildBankEvent } from "#wow/areas/guildbank/store";
 import { GameOpcode } from "#wow/protocol/opcodes";
 
 function openList() {

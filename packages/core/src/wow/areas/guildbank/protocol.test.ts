@@ -1,25 +1,25 @@
 import { describe, expect, test } from "bun:test";
 import {
-  GUILD_BANK_VAULT,
   bankListBody,
   bankLogBody,
   bankTextBody,
+  GUILD_BANK_VAULT,
   moneyWithdrawnBody,
 } from "#test-support/areas/guildbank";
 import { bytes } from "#test-support/hex";
 import {
-  GUILD_BANK_LOG,
+  buildBankerActivate,
   buildBankLogQuery,
+  buildBankOnlySwap,
   buildBankQueryTab,
   buildBankTextQuery,
-  buildBankerActivate,
-  buildBankOnlySwap,
   buildBuyBankTab,
   buildDepositBankMoney,
   buildInventorySwap,
   buildSetBankText,
   buildUpdateBankTab,
   buildWithdrawBankMoney,
+  GUILD_BANK_LOG,
   guildBankLogName,
   parseBankList,
   parseBankLog,
@@ -60,7 +60,9 @@ describe("guildbank builders", () => {
         srcTab: 0,
       }),
     ).toEqual(
-      bytes("010c 0000 0000 20f1 01 01 03 1d0a 0000 00 04 0000 0000 00 0500 0000"),
+      bytes(
+        "010c 0000 0000 20f1 01 01 03 1d0a 0000 00 04 0000 0000 00 0500 0000",
+      ),
     );
   });
 
@@ -156,9 +158,7 @@ describe("SMSG_GUILD_BANK_LIST", () => {
       tab: 0,
       withdrawals: -1,
     });
-    expect(parsed?.tabs).toEqual([
-      { icon: "INV_Misc_Coin_01", name: "Loot" },
-    ]);
+    expect(parsed?.tabs).toEqual([{ icon: "INV_Misc_Coin_01", name: "Loot" }]);
     expect(parsed?.items).toEqual([
       expect.objectContaining({ count: 20, entry: 2589, slot: 4 }),
       expect.objectContaining({ entry: 0, slot: 5 }),
@@ -307,8 +307,8 @@ describe("MSG_GUILD_BANK_MONEY_WITHDRAWN", () => {
     expect(parseMoneyWithdrawn(new PacketReader(moneyWithdrawnBody(-1)))).toBe(
       -1,
     );
-    expect(parseMoneyWithdrawn(new PacketReader(moneyWithdrawnBody(5000)))).toBe(
-      5000,
-    );
+    expect(
+      parseMoneyWithdrawn(new PacketReader(moneyWithdrawnBody(5000))),
+    ).toBe(5000);
   });
 });

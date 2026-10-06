@@ -3,12 +3,12 @@ import type { AreaRuntime, AreaRuntimeCtx } from "#wow/areas/contract";
 import {
   buildBankerActivate,
   buildBankLogQuery,
+  buildBankOnlySwap,
   buildBankQueryTab,
   buildBankTextQuery,
   buildBuyBankTab,
   buildDepositBankMoney,
   buildInventorySwap,
-  buildBankOnlySwap,
   buildSetBankText,
   buildUpdateBankTab,
   buildWithdrawBankMoney,
@@ -145,36 +145,30 @@ function open(env: Env, vault: bigint): Promise<GuildBankResult> {
   requireWorld(env);
   requireVault(env, vault);
   env.store.noteVault(vault);
-  return send(
-    env,
-    { kind: "open", requestedAt: env.ctx.now(), vault },
-    [GameOpcode.CMSG_GUILD_BANKER_ACTIVATE, buildBankerActivate(vault, true)],
-  );
+  return send(env, { kind: "open", requestedAt: env.ctx.now(), vault }, [
+    GameOpcode.CMSG_GUILD_BANKER_ACTIVATE,
+    buildBankerActivate(vault, true),
+  ]);
 }
 
 function query(env: Env, tab: number): Promise<GuildBankResult> {
   requireWorld(env);
   const vault = openVaultOf(env);
   requireVault(env, vault);
-  return send(
-    env,
-    { kind: "query", requestedAt: env.ctx.now(), tab },
-    [
-      GameOpcode.CMSG_GUILD_BANK_QUERY_TAB,
-      buildBankQueryTab(vault, tab, true),
-    ],
-  );
+  return send(env, { kind: "query", requestedAt: env.ctx.now(), tab }, [
+    GameOpcode.CMSG_GUILD_BANK_QUERY_TAB,
+    buildBankQueryTab(vault, tab, true),
+  ]);
 }
 
 function buy(env: Env, tab: number): Promise<GuildBankResult> {
   requireWorld(env);
   const vault = openVaultOf(env);
   requireVault(env, vault);
-  return send(
-    env,
-    { kind: "buy", requestedAt: env.ctx.now(), tab },
-    [GameOpcode.CMSG_GUILD_BANK_BUY_TAB, buildBuyBankTab(vault, tab)],
-  );
+  return send(env, { kind: "buy", requestedAt: env.ctx.now(), tab }, [
+    GameOpcode.CMSG_GUILD_BANK_BUY_TAB,
+    buildBuyBankTab(vault, tab),
+  ]);
 }
 
 function rename(
@@ -188,14 +182,10 @@ function rename(
   requireVault(env, vault);
   if (name.length === 0) throw new Error("the tab name is empty");
   if (icon.length === 0) throw new Error("the tab icon is empty");
-  return send(
-    env,
-    { kind: "rename", requestedAt: env.ctx.now(), tab },
-    [
-      GameOpcode.CMSG_GUILD_BANK_UPDATE_TAB,
-      buildUpdateBankTab(vault, tab, name, icon),
-    ],
-  );
+  return send(env, { kind: "rename", requestedAt: env.ctx.now(), tab }, [
+    GameOpcode.CMSG_GUILD_BANK_UPDATE_TAB,
+    buildUpdateBankTab(vault, tab, name, icon),
+  ]);
 }
 
 function checkCopper(copper: number): void {
@@ -359,31 +349,28 @@ function setText(
 ): Promise<GuildBankResult> {
   requireWorld(env);
   openVaultOf(env);
-  return send(
-    env,
-    { kind: "set_text", requestedAt: env.ctx.now(), tab },
-    [GameOpcode.CMSG_SET_GUILD_BANK_TEXT, buildSetBankText(tab, text)],
-  );
+  return send(env, { kind: "set_text", requestedAt: env.ctx.now(), tab }, [
+    GameOpcode.CMSG_SET_GUILD_BANK_TEXT,
+    buildSetBankText(tab, text),
+  ]);
 }
 
 function queryLog(env: Env, tab: number): Promise<GuildBankResult> {
   requireWorld(env);
   openVaultOf(env);
-  return send(
-    env,
-    { kind: "log", requestedAt: env.ctx.now(), tab },
-    [GameOpcode.MSG_GUILD_BANK_LOG_QUERY, buildBankLogQuery(tab)],
-  );
+  return send(env, { kind: "log", requestedAt: env.ctx.now(), tab }, [
+    GameOpcode.MSG_GUILD_BANK_LOG_QUERY,
+    buildBankLogQuery(tab),
+  ]);
 }
 
 function queryText(env: Env, tab: number): Promise<GuildBankResult> {
   requireWorld(env);
   openVaultOf(env);
-  return send(
-    env,
-    { kind: "text", requestedAt: env.ctx.now(), tab },
-    [GameOpcode.MSG_QUERY_GUILD_BANK_TEXT, buildBankTextQuery(tab)],
-  );
+  return send(env, { kind: "text", requestedAt: env.ctx.now(), tab }, [
+    GameOpcode.MSG_QUERY_GUILD_BANK_TEXT,
+    buildBankTextQuery(tab),
+  ]);
 }
 
 function queryWithdrawn(env: Env): Promise<GuildBankResult> {

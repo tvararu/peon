@@ -72,7 +72,10 @@ function guildbankCall(args: unknown, theme: CallInit["theme"]): string {
   });
 }
 
-function guildbankBody({ expanded, result: out }: BodyInit<GuildBankAfter>): string[] {
+function guildbankBody({
+  expanded,
+  result: out,
+}: BodyInit<GuildBankAfter>): string[] {
   if (!expanded) return [];
   return out.after.lines;
 }

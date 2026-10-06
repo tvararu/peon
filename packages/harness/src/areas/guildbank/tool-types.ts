@@ -6,7 +6,7 @@ export const guildbankParams = Type.Object({
   bag: Type.Optional(
     Type.Integer({
       description:
-        'For deposit: the bag holding the item, as journal bags shows it. For withdraw: the bag the item lands in. Default 255 (the backpack).',
+        "For deposit: the bag holding the item, as journal bags shows it. For withdraw: the bag the item lands in. Default 255 (the backpack).",
     }),
   ),
   copper: Type.Optional(
@@ -37,8 +37,7 @@ export const guildbankParams = Type.Object({
   ),
   icon: Type.Optional(
     Type.String({
-      description:
-        'For rename: the tab icon, like "INV_Misc_Coin_01".',
+      description: 'For rename: the tab icon, like "INV_Misc_Coin_01".',
     }),
   ),
   item: Type.Optional(
@@ -65,8 +64,7 @@ export const guildbankParams = Type.Object({
   ),
   text: Type.Optional(
     Type.String({
-      description:
-        "For text: the new tab text. Omit to only read it.",
+      description: "For text: the new tab text. Omit to only read it.",
     }),
   ),
   to_slot: Type.Optional(

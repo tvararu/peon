@@ -1,9 +1,9 @@
 import { describe, expect, test } from "bun:test";
 import {
-  GUILD_BANK_VAULT,
   bankListBody,
   bankLogBody,
   bankTextBody,
+  GUILD_BANK_VAULT,
   guildbankRig,
   moneyWithdrawnBody,
 } from "#test-support/areas/guildbank";
@@ -105,9 +105,9 @@ describe("guildbank runtime", () => {
       );
       rig.inject(GameOpcode.SMSG_GUILD_BANK_LIST, openList());
       expect(await pending).toEqual({ status: "ok" });
-      expect(() =>
-        rig.handle.act.renameTab(0, "", "INV_Misc_Coin_02"),
-      ).toThrow("name is empty");
+      expect(() => rig.handle.act.renameTab(0, "", "INV_Misc_Coin_02")).toThrow(
+        "name is empty",
+      );
     } finally {
       rig.dispose();
     }
@@ -135,9 +135,7 @@ describe("guildbank runtime", () => {
         bankListBody({ money: 1_050_000n }),
       );
       expect(await withdraw).toEqual({ status: "ok" });
-      expect(() => rig.handle.act.depositMoney(0)).toThrow(
-        "positive amount",
-      );
+      expect(() => rig.handle.act.depositMoney(0)).toThrow("positive amount");
     } finally {
       rig.dispose();
     }
@@ -147,9 +145,7 @@ describe("guildbank runtime", () => {
     const rig = await opened();
     try {
       const pending = rig.handle.act.setTabText(0, "Tabs reset Sunday.");
-      expect(rig.sent.at(-1)?.opcode).toBe(
-        GameOpcode.CMSG_SET_GUILD_BANK_TEXT,
-      );
+      expect(rig.sent.at(-1)?.opcode).toBe(GameOpcode.CMSG_SET_GUILD_BANK_TEXT);
       rig.inject(
         GameOpcode.MSG_QUERY_GUILD_BANK_TEXT,
         bankTextBody(0, "Tabs reset Sunday."),
@@ -165,13 +161,13 @@ describe("guildbank runtime", () => {
     const rig = await opened();
     try {
       const log = rig.handle.act.queryLog(6);
-      expect(rig.sent.at(-1)?.opcode).toBe(
-        GameOpcode.MSG_GUILD_BANK_LOG_QUERY,
-      );
+      expect(rig.sent.at(-1)?.opcode).toBe(GameOpcode.MSG_GUILD_BANK_LOG_QUERY);
       rig.inject(
         GameOpcode.MSG_GUILD_BANK_LOG_QUERY,
         bankLogBody({
-          entries: [{ age: 5, money: 1000, type: GUILD_BANK_LOG.DEPOSIT_MONEY }],
+          entries: [
+            { age: 5, money: 1000, type: GUILD_BANK_LOG.DEPOSIT_MONEY },
+          ],
           tab: 6,
         }),
       );

@@ -285,13 +285,13 @@ export const PUPPET_CALLS: Readonly<Record<string, PuppetCall>> = {
     args: [["no", "yes"]],
     run: (h, a) => h.lfg.act.voteKick(a[0] === "yes"),
   },
-  walkToPlayer: {
-    args: ["string"],
-    run: (h, a) => walkToPlayer(h, text(a, 0)),
-  },
   walkToObject: {
     args: ["guid"],
     run: (h, a) => walkToObject(h, guid(a, 0)),
+  },
+  walkToPlayer: {
+    args: ["string"],
+    run: (h, a) => walkToPlayer(h, text(a, 0)),
   },
 };
 

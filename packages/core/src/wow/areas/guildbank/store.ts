@@ -1,5 +1,4 @@
 import { Emitter, type Unsubscribe } from "#lib/emitter";
-import { distance } from "#wow/geometry";
 import type {
   GuildBankList,
   GuildBankLog,
@@ -7,6 +6,7 @@ import type {
   GuildBankTabBrief,
   GuildBankText,
 } from "#wow/areas/guildbank/protocol";
+import { distance } from "#wow/geometry";
 import type { InventoryState } from "#wow/inventory";
 import { readInventory } from "#wow/inventory";
 import { ObjectType } from "#wow/protocol/entity-fields";
@@ -107,11 +107,11 @@ export class GuildBankStore {
   private vault: bigint | undefined;
   private money = 0n;
   private tabs: (GuildBankTabBrief | undefined)[] = [];
-  private items = new Map<number, Map<number, GuildBankItem>>();
-  private texts = new Map<number, string>();
-  private logs = new Map<number, GuildBankLog["entries"]>();
+  private readonly items = new Map<number, Map<number, GuildBankItem>>();
+  private readonly texts = new Map<number, string>();
+  private readonly logs = new Map<number, GuildBankLog["entries"]>();
   private moneyLeft: number | undefined;
-  private tabLeft = new Map<number, number>();
+  private readonly tabLeft = new Map<number, number>();
   private request: GuildBankRequest | undefined;
   private last: GuildBankOutcome | undefined;
 
@@ -188,7 +188,8 @@ export class GuildBankStore {
   }
 
   begin(request: GuildBankRequest): void {
-    if (this.request) throw new Error("a guild bank request is already pending");
+    if (this.request)
+      throw new Error("a guild bank request is already pending");
     this.request = request;
     this.last = undefined;
   }
@@ -197,7 +198,8 @@ export class GuildBankStore {
     this.money = list.money;
     if (list.tab === 0 && list.full && list.tabs.length > 0) {
       this.tabs = list.tabs.map(briefOf);
-      this.vault = this.request?.kind === "open" ? this.request.vault : this.vault;
+      this.vault =
+        this.request?.kind === "open" ? this.request.vault : this.vault;
     }
     if (list.tab < this.tabs.length || this.tabs.length === 0) {
       while (this.tabs.length <= list.tab) this.tabs.push(undefined);
@@ -210,7 +212,10 @@ export class GuildBankStore {
     this.items.set(list.tab, slots);
     this.tabLeft.set(list.tab, list.withdrawals);
     if (this.request?.kind === "open") {
-      this.settle({ status: "ok" }, { tabs: this.tabs.length, type: "opened", vault: this.vault ?? 0n });
+      this.settle(
+        { status: "ok" },
+        { tabs: this.tabs.length, type: "opened", vault: this.vault ?? 0n },
+      );
       return;
     }
     if (this.settleBuy(list)) return;
@@ -218,13 +223,19 @@ export class GuildBankStore {
     if (this.settleMoney(list)) return;
     const pending = this.request;
     if (pending?.kind === "query" && pending.tab === list.tab) {
-      this.settle({ status: "ok" }, { full: list.full, tab: list.tab, type: "tab" });
+      this.settle(
+        { status: "ok" },
+        { full: list.full, tab: list.tab, type: "tab" },
+      );
       return;
     }
     if (pending?.kind === "move" && pending.tab === list.tab) {
       const seen = slots.get(pending.slot);
       if (seen && seen.entry === pending.entry && seen.count === pending.count)
-        this.settle({ status: "ok" }, { slot: pending.slot, tab: pending.tab, type: "moved" });
+        this.settle(
+          { status: "ok" },
+          { slot: pending.slot, tab: pending.tab, type: "moved" },
+        );
       return;
     }
     this.events.emit({ full: list.full, tab: list.tab, type: "tab" });
@@ -235,7 +246,10 @@ export class GuildBankStore {
     if (pending?.kind !== "buy") return false;
     if (list.tab !== 0 || !list.full) return false;
     if (this.tabs.length > pending.tab) {
-      this.settle({ status: "ok" }, { tab: pending.tab, tabs: this.tabs.length, type: "tab_bought" });
+      this.settle(
+        { status: "ok" },
+        { tab: pending.tab, tabs: this.tabs.length, type: "tab_bought" },
+      );
       return true;
     }
     return false;
@@ -251,10 +265,7 @@ export class GuildBankStore {
 
   private settleMoney(list: GuildBankList): boolean {
     const pending = this.request;
-    if (
-      pending?.kind !== "deposit_money" &&
-      pending?.kind !== "withdraw_money"
-    )
+    if (pending?.kind !== "deposit_money" && pending?.kind !== "withdraw_money")
       return false;
     if (list.tab !== 0 || !list.full) return false;
     this.settle(
@@ -278,7 +289,10 @@ export class GuildBankStore {
       (pending?.kind === "set_text" || pending?.kind === "text") &&
       pending.tab === text.tab
     )
-      this.settle({ status: "ok" }, { tab: text.tab, text: text.text, type: "text_set" });
+      this.settle(
+        { status: "ok" },
+        { tab: text.tab, text: text.text, type: "text_set" },
+      );
     else this.events.emit({ tab: text.tab, text: text.text, type: "text_set" });
   }
 
@@ -305,7 +319,10 @@ export class GuildBankStore {
   noChange(): void {
     const request = this.request;
     if (!request) return;
-    this.settle({ status: "no_change" }, { kind: request.kind, type: "no_change" });
+    this.settle(
+      { status: "no_change" },
+      { kind: request.kind, type: "no_change" },
+    );
   }
 
   expire(): void {

@@ -29,7 +29,7 @@ export function guildbankVault(): Entity {
   return {
     bytes1: 34 << 8,
     displayId: 7606,
-    entry: 187290,
+    entry: 187_290,
     factionTemplate: 0,
     gameObjectType: 34,
     guid: GUILD_BANK_VAULT,
@@ -66,7 +66,6 @@ export function guildbankRig(): GuildBankRig {
     getEntity: (guid) => {
       if (guid === GUILD_BANK_SELF) return self;
       if (guid === GUILD_BANK_VAULT) return vault;
-      return undefined;
     },
     selfGuid: GUILD_BANK_SELF,
   });

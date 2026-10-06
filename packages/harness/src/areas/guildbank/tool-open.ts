@@ -1,10 +1,10 @@
 import { abortable } from "@peon/core/lib/abort";
-import { type ObjectRow, objectRows } from "#harness/areas/objects/reads";
 import type {
   GuildBankAfter,
   GuildBankArgs,
   GuildBankCtx,
 } from "#harness/areas/guildbank/tool-types";
+import { type ObjectRow, objectRows } from "#harness/areas/objects/reads";
 import type { ToolResult } from "#harness/contract/result";
 import { Refusal } from "#harness/ops/refusal";
 import { result } from "#harness/tools/define";
@@ -92,7 +92,9 @@ export function afterOf(
   return { do: verb, lines, money, tab };
 }
 
-async function openVault(ctx: GuildBankCtx): Promise<ToolResult<GuildBankAfter>> {
+async function openVault(
+  ctx: GuildBankCtx,
+): Promise<ToolResult<GuildBankAfter>> {
   const picked = pickVault(ctx);
   if (!picked.found) throw vaultRefusal("no_vault", noVaultText(picked.known));
   const act = ctx.handle.guildbank.act;
@@ -112,6 +114,8 @@ async function openVault(ctx: GuildBankCtx): Promise<ToolResult<GuildBankAfter>>
   });
 }
 
-export async function runOpen(ctx: GuildBankCtx): Promise<ToolResult<GuildBankAfter>> {
+export async function runOpen(
+  ctx: GuildBankCtx,
+): Promise<ToolResult<GuildBankAfter>> {
   return openVault(ctx);
 }

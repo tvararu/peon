@@ -10,10 +10,7 @@ function itemName(entry: number | undefined, rc: RuleInput): string {
   return rc.lookup.itemName(entry) ?? `item ${entry}`;
 }
 
-function onEvent(
-  event: GuildBankEvent,
-  rc: RuleInput,
-): readonly AreaDraft[] {
+function onEvent(event: GuildBankEvent, rc: RuleInput): readonly AreaDraft[] {
   if (event.type === "opened")
     return [
       {
@@ -122,7 +119,10 @@ function onEvent(
   ];
 }
 
-export function movedItemName(entry: number | undefined, rc: RuleInput): string {
+export function movedItemName(
+  entry: number | undefined,
+  rc: RuleInput,
+): string {
   return itemName(entry, rc);
 }
 

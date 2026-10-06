@@ -148,7 +148,10 @@ export function buildUpdateBankTab(
   return w.finish();
 }
 
-export function buildDepositBankMoney(vault: bigint, copper: number): Uint8Array {
+export function buildDepositBankMoney(
+  vault: bigint,
+  copper: number,
+): Uint8Array {
   if (!Number.isInteger(copper) || copper < 0 || copper > 0xff_ff_ff_ff)
     throw new Error(`copper ${copper} is not a u32`);
   const w = new PacketWriter();
@@ -233,7 +236,7 @@ function readSlot(reader: PacketReader): GuildBankSlot | undefined {
   if (reader.remaining < 18) return undefined;
   const flags = reader.int32LE();
   const randomProperty = reader.int32LE();
-  const randomSeed = randomProperty !== 0 ? reader.int32LE() : 0;
+  const randomSeed = randomProperty === 0 ? 0 : reader.int32LE();
   if (randomProperty !== 0 && reader.remaining < 14) return undefined;
   if (randomProperty === 0 && reader.remaining < 10) return undefined;
   const count = reader.int32LE();
@@ -316,7 +319,10 @@ export type GuildBankLogEntry =
       age: number;
     };
 
-export type GuildBankLog = { tab: number; entries: readonly GuildBankLogEntry[] };
+export type GuildBankLog = {
+  tab: number;
+  entries: readonly GuildBankLogEntry[];
+};
 
 export function parseBankLog(reader: PacketReader): GuildBankLog | undefined {
   if (reader.remaining < 2) return undefined;

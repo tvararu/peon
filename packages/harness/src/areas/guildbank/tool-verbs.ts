@@ -1,16 +1,12 @@
 import { abortable } from "@peon/core/lib/abort";
-import { named } from "#harness/areas/items/tool-resolve";
-import {
-  afterOf,
-  settledOf,
-  tabOf,
-} from "#harness/areas/guildbank/tool-open";
+import { afterOf, settledOf, tabOf } from "#harness/areas/guildbank/tool-open";
 import type {
   GuildBankAfter,
   GuildBankArgs,
   GuildBankCtx,
   GuildBankState,
 } from "#harness/areas/guildbank/tool-types";
+import { named } from "#harness/areas/items/tool-resolve";
 import type { ToolResult } from "#harness/contract/result";
 import { itemIdText } from "#harness/ops/item-names";
 import { Refusal } from "#harness/ops/refusal";
@@ -37,10 +33,7 @@ function requireOpen(ctx: GuildBankCtx): GuildBankState {
   return state;
 }
 
-function itemLabel(
-  ctx: GuildBankCtx,
-  entry: number | undefined,
-): string {
+function itemLabel(ctx: GuildBankCtx, entry: number | undefined): string {
   if (entry === undefined || entry === 0) return "an item";
   return ctx.handle.itemLabel(entry).name ?? itemIdText(entry);
 }
@@ -62,9 +55,7 @@ function tabLines(
     return lines;
   }
   for (const [slot, item] of [...slots].sort((a, b) => a[0] - b[0]))
-    lines.push(
-      `  slot ${slot}: ${item.count} ${itemLabel(ctx, item.entry)}`,
-    );
+    lines.push(`  slot ${slot}: ${item.count} ${itemLabel(ctx, item.entry)}`);
   return lines;
 }
 
@@ -127,10 +118,8 @@ export async function runRename(
   const tab = tabOf(args);
   const name = args.name?.trim() ?? "";
   const icon = args.icon?.trim() ?? "";
-  if (name === "")
-    throw refusal("missing_name", "Name the new tab name.");
-  if (icon === "")
-    throw refusal("missing_icon", "Name the new tab icon.");
+  if (name === "") throw refusal("missing_name", "Name the new tab name.");
+  if (icon === "") throw refusal("missing_icon", "Name the new tab icon.");
   const act = ctx.handle.guildbank.act;
   const renamed = await ctx.rt.mutex.run(async () => {
     ctx.signal.throwIfAborted();
@@ -385,21 +374,18 @@ export async function runText(
   if (tab >= state.tabs)
     throw refusal("no_such_tab", `Tab ${tab} is not bought yet.`);
   const act = ctx.handle.guildbank.act;
-  if (args.text !== undefined) {
-    const changed = await ctx.rt.mutex.run(async () => {
-      ctx.signal.throwIfAborted();
-      return await abortable(
-        act.setTabText(tab, args.text ?? ""),
-        ctx.signal,
-      );
-    });
-    settledOf(changed, "text");
-  } else {
+  if (args.text === undefined) {
     const queried = await ctx.rt.mutex.run(async () => {
       ctx.signal.throwIfAborted();
       return await abortable(act.queryText(tab), ctx.signal);
     });
     settledOf(queried, "text");
+  } else {
+    const changed = await ctx.rt.mutex.run(async () => {
+      ctx.signal.throwIfAborted();
+      return await abortable(act.setTabText(tab, args.text ?? ""), ctx.signal);
+    });
+    settledOf(changed, "text");
   }
   const text = ctx.handle.guildbank.state().texts[tab] ?? "";
   const lines = [`Tab ${tab} text: ${text === "" ? "(empty)" : text}`];
@@ -426,7 +412,9 @@ export async function runLimits(
       ? "Daily money withdrawals are unlimited."
       : `${state.moneyWithdrawn} copper left to withdraw today.`;
   const lines = [money];
-  for (const [tab, left] of [...state.tabWithdrawals].sort((a, b) => a[0] - b[0]))
+  for (const [tab, left] of [...state.tabWithdrawals].sort(
+    (a, b) => a[0] - b[0],
+  ))
     lines.push(
       left < 0
         ? `Tab ${tab}: unlimited withdrawals.`
