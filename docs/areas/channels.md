@@ -90,6 +90,8 @@ None yet.
 Join a channel it owns and kick another player off it (`t2-channels-kick`): kicking, banning and the other admin verbs need the channel moderated by the caller, usually as its owner.
 ## Proof
 
+`mise protocol:probe <ACCOUNT> --flow channels-admin --arg channel=peonw6q6941 --arg partner=<partner> --arg wait_ms=40000` ran on two `eversong10` throwaways (owner `Fgkmfhknnej`; the partner's puppet joined 12 s later; both deleted). The probe owned the channel and the server answered all thirteen actions with `SMSG_CHANNEL_NOTIFY`: `channel_owner`, `password_changed`, `mode_change` for moderator, unmoderator, mute and unmute, `already_member` for the invite, `announcements_off`, `moderation_off`, `player_banned` and `player_unbanned` naming the partner and the owner, then `player_not_found` for the kick and the owner handover because the ban had removed the partner.
+
 | Opcode | Proof | Evidence | Source |
 |---|---|---|---|
 | `CMSG_CHANNEL_PASSWORD` | `live` | probe flow `channels-admin` on channel `peoncccf6a` (Own `Fgklphdbdeo`, partner `Fgklphdbdbo`, both `eversong10`, deleted): 15-byte out body `channel + "abc"` answered by `not_moderator` | `Handlers/ChannelHandler.cpp:105` |
