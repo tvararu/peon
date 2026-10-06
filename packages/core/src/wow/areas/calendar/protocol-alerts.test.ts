@@ -1,6 +1,5 @@
 import { describe, expect, test } from "bun:test";
 import {
-  type CalendarSendCalendarInit,
   calendarArenaTeamBody,
   calendarEventInviteBody,
   calendarEventStatusBody,
@@ -13,7 +12,6 @@ import {
   calendarLockoutUpdatedBody,
   calendarModeratorAlertBody,
   calendarRemovedAlertBody,
-  calendarSendCalendarBody,
   calendarUpdatedAlertBody,
 } from "#test-support/areas/calendar";
 import {
@@ -49,10 +47,6 @@ const ZONE = {
   hour: 19,
   minute: 0,
 };
-
-function _minimal(init?: Partial<CalendarSendCalendarInit>) {
-  return calendarSendCalendarBody({ serverTime: 1, zoneTime: ZONE, ...init });
-}
 
 describe("calendar server alerts", () => {
   const creator = 0x0100_0000_0000_0001n;
