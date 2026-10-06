@@ -189,6 +189,9 @@ describe("dungeon lfg auto answers", () => {
       roleCheck: false,
       status: "ok",
     });
+    const setRoles = jest
+      .spyOn(t.handle.lfg.act, "setRoles")
+      .mockResolvedValue({ roles: 8, status: "ok" });
     const answer = jest
       .spyOn(t.handle.lfg.act, "answerProposal")
       .mockResolvedValue({ state: 1, status: "ok" });
@@ -196,6 +199,13 @@ describe("dungeon lfg auto answers", () => {
       do: "queue",
       roles: ["damage"],
     });
+    t.handle.triggerAreaEvent("lfg", {
+      state: 2,
+      stateName: "initializing",
+      type: "role_check",
+    });
+    await withFakeTimers(() => elapse(0));
+    expect(setRoles).toHaveBeenCalledWith(8);
     t.handle.triggerAreaEvent("lfg", {
       deadline: NOW + 40_000,
       dungeon: 0x06_00_00_02,

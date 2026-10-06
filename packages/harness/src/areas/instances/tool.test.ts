@@ -7,6 +7,7 @@ import {
   dungeonParams,
 } from "#harness/areas/instances/tool-params";
 import { Refusal } from "#harness/ops/refusal";
+import { nextCall } from "#harness/tools/next-call";
 import { toolCtx } from "#test-support/ops-fixtures";
 import {
   createTestRuntime,
@@ -113,6 +114,7 @@ async function attempt(t: TestRuntime, args: DungeonArgs) {
     return {
       settled: {
         detail: outcome.thrown.detail,
+        next: outcome.thrown.next,
         reason: outcome.thrown.reason,
         status: outcome.thrown.status,
       },
@@ -402,6 +404,7 @@ describe("dungeon tool verbs", () => {
       .mockResolvedValue({ failed: [43], reset: [], status: "ok" });
     const { settled } = await attempt(t, { do: "reset" });
     expect(settled).toMatchObject({
+      next: nextCall("travel", { to: "hearth" }),
       reason: "reset_failed",
       status: "REFUSED",
     });
@@ -508,11 +511,7 @@ describe("dungeon tool verbs", () => {
     });
     expect(setLockoutExtended).not.toHaveBeenCalled();
     setLockoutExtended.mockResolvedValue({ status: "ok" });
-    await attempt(t, {
-      do: "extend",
-      map: 533,
-      value: "25-normal",
-    });
+    await attempt(t, { do: "extend", map: 533, value: "25-normal" });
     expect(setLockoutExtended).toHaveBeenCalledWith({
       difficulty: 1,
       extended: true,

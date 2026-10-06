@@ -228,10 +228,15 @@ describe("lfg harness rules: prompts", () => {
       victim: 1n,
       votes: 3,
     } as const;
-    const open = rows({ ...base, deadline: 9, inProgress: true })[0];
+    const open = rows({
+      ...base,
+      agrees: 1,
+      deadline: 9,
+      inProgress: true,
+    })[0];
     const ended = rows({ ...base, inProgress: false })[0];
     expect(ended?.class).toBe("log");
-    expect(open?.text).toContain("3 of 3");
+    expect(open?.text).toContain("1 of 3");
   });
 });
 

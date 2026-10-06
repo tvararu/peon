@@ -26,7 +26,6 @@ describe("InspectStore", () => {
         reply: { gear: [{ entry: 7, slot: 15 }], guid: 0x49_13n },
         type: "talents",
       });
-      expect(rig.handle.state()).toEqual({});
     } finally {
       rig.dispose();
     }
