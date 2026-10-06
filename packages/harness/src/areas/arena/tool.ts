@@ -1,6 +1,7 @@
-import { StringEnum, Type, type Static } from "@earendil-works/pi-ai";
+import { type Static, StringEnum, Type } from "@earendil-works/pi-ai";
 import type { Theme } from "@earendil-works/pi-coding-agent";
 import type { AreaActsOf, AreaState } from "@peon/core";
+
 type Acts = AreaActsOf<"arena">;
 type ArenaInspectResult = Awaited<ReturnType<Acts["inspect"]>>;
 type ArenaJoinResult = Awaited<ReturnType<Acts["joinQueue"]>>;
@@ -9,20 +10,21 @@ type ArenaRosterResult = Awaited<ReturnType<Acts["roster"]>>;
 type ArenaTeam = AreaState<"arena">["teams"][string];
 type ArenaMember = ArenaTeam["members"][number];
 type ArenaInspectRow = ArenaInspectResult["rows"][number];
+
 import type { ToolResult } from "#harness/contract/result";
 import type { ToolCtx } from "#harness/contract/services";
+import { parseRef } from "#harness/ops/refs";
+import { Refusal } from "#harness/ops/refusal";
+import { knownUnits } from "#harness/ops/views";
 import { defineGameTool, result } from "#harness/tools/define";
-import { nextCall } from "#harness/tools/next-call";
 import type { GameToolSpec, ToolRenderers } from "#harness/tools/game-tool";
+import { nextCall } from "#harness/tools/next-call";
+import { argText } from "#harness/ui/draw";
 import {
   callLine,
   callRenderer,
   resultRenderer,
 } from "#harness/ui/renderers/line";
-import { argText } from "#harness/ui/draw";
-import { knownUnits } from "#harness/ops/views";
-import { parseRef } from "#harness/ops/refs";
-import { Refusal } from "#harness/ops/refusal";
 
 export const arenaParams = Type.Object({
   action: Type.Optional(
@@ -158,52 +160,57 @@ function rosterLines(query: ArenaRosterResult): string[] {
   );
 }
 
+const BRACKET_OF_SLOT = ["2v2", "3v3", "5v5"] as const;
+
 function inspectLines(query: ArenaInspectResult): string[] {
   return query.rows.map(
     (row: ArenaInspectRow) =>
-      `${row.slot === 0 ? "2v2" : row.slot === 1 ? "3v3" : "5v5"} team ${row.teamId}: rating ${row.rating}.`,
+      `${BRACKET_OF_SLOT[row.slot] ?? "5v5"} team ${row.teamId}: rating ${row.rating}.`,
   );
 }
+
+async function runInviteFree(
+  action: ArenaAction,
+  ctx: ArenaCtx,
+): Promise<ToolResult<ArenaAfter>> {
+  if (action === "decline") {
+    const declined = await ctx.rt.mutex.run(() =>
+      ctx.handle.arena.act.decline(),
+    );
+    if (declined.status === "no_invite")
+      return result("REFUSED", {
+        after: { action, do: "team", team: undefined },
+        detail: "No arena invite to decline.",
+        reason: "no_invite",
+      });
+    return result("DONE", {
+      after: { action, do: "team", team: undefined },
+      detail: "You declined the arena invite.",
+    });
+  }
+  const accepted = await ctx.rt.mutex.run(() =>
+    ctx.handle.arena.act.accept(),
+  );
+  if ("status" in accepted)
+    return result("REFUSED", {
+      after: { action, do: "team", team: undefined },
+      detail: `No arena invite to accept (${accepted.reason}).`,
+      reason: accepted.reason,
+    });
+  return result("DONE", {
+    after: { action, do: "team", team: undefined },
+    detail: `You joined ${accepted.team}.`,
+  });
+}
+
 
 async function runTeam(
   args: ArenaArgs,
   ctx: ArenaCtx,
 ): Promise<ToolResult<ArenaAfter>> {
   const action = (args.action ?? "info") as ArenaAction;
-  switch (action) {
-    case "accept": {
-      const accepted = await ctx.rt.mutex.run(() =>
-        ctx.handle.arena.act.accept(),
-      );
-      if ("status" in accepted)
-        return result("REFUSED", {
-          after: { action, do: "team", team: undefined },
-          detail: `No arena invite to accept (${accepted.reason}).`,
-          reason: accepted.reason,
-        });
-      return result("DONE", {
-        after: { action, do: "team", team: undefined },
-        detail: `You joined ${accepted.team}.`,
-      });
-    }
-    case "decline": {
-      const declined = await ctx.rt.mutex.run(() =>
-        ctx.handle.arena.act.decline(),
-      );
-      if (declined.status === "no_invite")
-        return result("REFUSED", {
-          after: { action, do: "team", team: undefined },
-          detail: "No arena invite to decline.",
-          reason: "no_invite",
-        });
-      return result("DONE", {
-        after: { action, do: "team", team: undefined },
-        detail: "You declined the arena invite.",
-      });
-    }
-    default:
-      break;
-  }
+  if (action === "accept" || action === "decline")
+    return runInviteFree(action, ctx);
   const id = teamIdOf(ctx, args);
   if (id === undefined)
     throw arenaRefusal(
@@ -257,37 +264,45 @@ async function runTeam(
     case "leave":
     case "kick":
     case "captain":
-    case "disband": {
-      const changed = await ctx.rt.mutex.run(() => {
-        if (action === "leave") return ctx.handle.arena.act.leave(id);
-        if (action === "disband") return ctx.handle.arena.act.disband(id);
-        const name = args.name?.trim() ?? "";
-        if (name === "")
-          throw arenaRefusal(
-            "missing_player",
-            `Name the player to ${action === "kick" ? "kick" : "make captain"}.`,
-            "call arena with a player name.",
-          );
-        if (action === "kick") return ctx.handle.arena.act.remove(id, name);
-        return ctx.handle.arena.act.setLeader(id, name);
-      });
-      if (changed.status === "refused")
-        return result("REFUSED", {
-          after: { action, do: "team", team: id },
-          detail: `Team ${id} ${action} was refused (${changed.reason}).`,
-          reason: changed.reason,
-        });
-      return result("DONE", {
-        after: { action, do: "team", team: id },
-        detail: `Team ${id} ${action} done.`,
-      });
-    }
+    case "disband":
+      return runTeamChange(action, args, ctx, id);
     default:
       throw arenaRefusal(
         "unknown_action",
         `Unknown team action ${action}. Use info, roster, invite, accept, decline, leave, kick, captain or disband.`,
       );
   }
+}
+
+async function runTeamChange(
+  action: ArenaAction,
+  args: ArenaArgs,
+  ctx: ArenaCtx,
+  id: number,
+): Promise<ToolResult<ArenaAfter>> {
+  const changed = await ctx.rt.mutex.run(() => {
+    if (action === "leave") return ctx.handle.arena.act.leave(id);
+    if (action === "disband") return ctx.handle.arena.act.disband(id);
+    const name = args.name?.trim() ?? "";
+    if (name === "")
+      throw arenaRefusal(
+        "missing_player",
+        `Name the player to ${action === "kick" ? "kick" : "make captain"}.`,
+        "call arena with a player name.",
+      );
+    if (action === "kick") return ctx.handle.arena.act.remove(id, name);
+    return ctx.handle.arena.act.setLeader(id, name);
+  });
+  if (changed.status === "refused")
+    return result("REFUSED", {
+      after: { action, do: "team", team: id },
+      detail: `Team ${id} ${action} was refused (${changed.reason}).`,
+      reason: changed.reason,
+    });
+  return result("DONE", {
+    after: { action, do: "team", team: id },
+    detail: `Team ${id} ${action} done.`,
+  });
 }
 
 function resolveUnit(ctx: ArenaCtx, wanted: string | undefined): bigint {
@@ -344,14 +359,19 @@ function resolveMaster(ctx: ArenaCtx, wanted: string | undefined): bigint {
   const masters = knownUnits(ctx).filter((unit) =>
     unit.roles.includes("battlemaster"),
   );
-  const found =
-    text === ""
-      ? masters[0]
-      : parseRef(text)
-        ? masters.find((unit) => unit.ref === text)
-        : masters.find(
-            (unit) => unit.name.toLowerCase() === text.toLowerCase(),
-          );
+  if (text === "") {
+    const first = masters[0];
+    if (!first)
+      throw arenaRefusal(
+        "no_battlemaster",
+        "No battlemaster is in view.",
+        nextCall("look"),
+      );
+    return BigInt(`0x${first.guid}`);
+  }
+  const found = parseRef(text)
+    ? masters.find((unit) => unit.ref === text)
+    : masters.find((unit) => unit.name.toLowerCase() === text.toLowerCase());
   if (!found)
     throw arenaRefusal(
       "no_battlemaster",

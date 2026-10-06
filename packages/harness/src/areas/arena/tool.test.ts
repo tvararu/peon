@@ -1,11 +1,13 @@
 import { describe, expect, jest, test } from "bun:test";
 import { validateToolArguments } from "@earendil-works/pi-ai";
 import type { AreaState } from "@peon/core";
+
 type ArenaTeam = AreaState<"arena">["teams"][string];
+
 import { arenaParams, arenaSpec, runArena } from "#harness/areas/arena/tool";
 import { setUnits, toolCtx, unitRow } from "#test-support/ops-fixtures";
-import { expectSendKind } from "#test-support/tool-harness";
 import { createTestRuntime } from "#test-support/runtime-fixture";
+import { expectSendKind } from "#test-support/tool-harness";
 
 const TEAM: ArenaTeam = {
   backgroundColor: 0,
@@ -195,7 +197,7 @@ describe("arena inspect and queue", () => {
       acts: {
         inspect: jest.fn(async () => ({
           guid: 0xaaaan,
-          rows: [{ teamId: 7, rating: 1500, slot: 0 }],
+          rows: [{ rating: 1500, slot: 0, teamId: 7 }],
         })),
       },
     });

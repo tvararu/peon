@@ -2,8 +2,8 @@ import { describe, expect, test } from "bun:test";
 import { areaRig } from "#test-support/area-rig";
 import {
   arenaEventBody,
-  arenaQueuedBody,
   arenaQueryBody,
+  arenaQueuedBody,
   arenaResultBody,
   arenaRosterBody,
   arenaStatsBody,

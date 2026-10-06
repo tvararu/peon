@@ -127,7 +127,7 @@ function onEvent(event: ArenaEvent, rc: RuleInput): readonly AreaDraft[] {
         data: { guid: guidText(event.guid) },
         guid: guidText(event.guid),
         name: "unit_destroyed",
-        text: `A unit fell in the arena.`,
+        text: "A unit fell in the arena.",
       },
     ];
   return [];

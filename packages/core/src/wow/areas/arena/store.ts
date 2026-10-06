@@ -1,7 +1,6 @@
 import { Emitter, type Unsubscribe } from "#lib/emitter";
 import {
   ACTION_NAMES,
-  ERROR_NAMES,
   type ArenaCommandResult,
   type ArenaInspect,
   type ArenaQueueStatus,
@@ -11,6 +10,7 @@ import {
   type ArenaTeamQuery,
   type ArenaTeamRoster,
   type ArenaTeamStats,
+  ERROR_NAMES,
   TEAM_EVENT_DISBANDED,
   TEAM_EVENT_JOIN,
   TEAM_EVENT_LEADER_CHANGED,
@@ -104,7 +104,7 @@ export class ArenaStore {
   private invite: ArenaInvite | undefined;
   private result: ArenaResult | undefined;
   private refused: number | undefined;
-  private destroyed: string[] = [];
+  private readonly destroyed: string[] = [];
 
   constructor(deps: SessionDeps) {
     this.deps = deps;
@@ -283,47 +283,47 @@ export class ArenaStore {
     this.events.emit({ guid, type: "unit_destroyed" });
   }
 
+  private dropTeam(name: string): void {
+    for (const [id, team] of this.teams)
+      if (team.name === name) this.teams.delete(id);
+  }
+
+  private dropMember(teamName: string, member: string): void {
+    for (const team of this.teams.values())
+      if (team.name === teamName)
+        team.members = team.members.filter((row) => row.name !== member);
+  }
+
+  private passCaptain(teamName: string, captain: string): void {
+    for (const team of this.teams.values())
+      if (team.name === teamName)
+        for (const member of team.members)
+          member.captain = member.name === captain;
+  }
+
+  private markStale(teamName: string): void {
+    for (const team of this.teams.values())
+      if (team.name === teamName) team.stale = true;
+  }
+
   private applyTeamEvent(packet: ArenaTeamEvent): void {
     const [first, second, third] = packet.strings;
-    if (packet.event === TEAM_EVENT_DISBANDED && second !== undefined) {
-      for (const [id, team] of this.teams)
-        if (team.name === second) this.teams.delete(id);
-      return;
-    }
-    if (
-      packet.event === TEAM_EVENT_LEAVE &&
+    if (packet.event === TEAM_EVENT_DISBANDED && second !== undefined)
+      this.dropTeam(second);
+    else if (
+      (packet.event === TEAM_EVENT_LEAVE ||
+        packet.event === TEAM_EVENT_REMOVE) &&
       first !== undefined &&
       second !== undefined
-    ) {
-      for (const team of this.teams.values())
-        if (team.name === second)
-          team.members = team.members.filter((member) => member.name !== first);
-      return;
-    }
-    if (
-      packet.event === TEAM_EVENT_REMOVE &&
-      first !== undefined &&
-      second !== undefined
-    ) {
-      for (const team of this.teams.values())
-        if (team.name === second)
-          team.members = team.members.filter((member) => member.name !== first);
-      return;
-    }
-    if (
+    )
+      this.dropMember(second, first);
+    else if (
       packet.event === TEAM_EVENT_LEADER_CHANGED &&
       second !== undefined &&
       third !== undefined
-    ) {
-      for (const team of this.teams.values())
-        if (team.name === third)
-          for (const member of team.members)
-            member.captain = member.name === second;
-      return;
-    }
-    if (packet.event === TEAM_EVENT_JOIN && second !== undefined) {
-      for (const team of this.teams.values())
-        if (team.name === second) team.stale = true;
-    }
+    )
+      this.passCaptain(third, second);
+    else if (packet.event === TEAM_EVENT_JOIN && second !== undefined)
+      this.markStale(second);
   }
 }
