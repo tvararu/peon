@@ -24,6 +24,24 @@ const text = (args: readonly unknown[], at: number) => args[at] as string;
 const guid = (args: readonly unknown[], at: number) => args[at] as bigint;
 const count = (args: readonly unknown[], at: number) => args[at] as number;
 
+async function walkToObject(
+  handle: WorldHandle,
+  target: bigint,
+): Promise<unknown> {
+  for (let i = 0; i < 8; i++) {
+    const row = handle.queryNearby().find((r) => r.entity.guid === target);
+    if (!row?.position || row.distance === null)
+      throw new Error("object is not nearby.");
+    if (row.distance <= CLOSE_YARDS) return { reached: true };
+    await handle.walkTowardPoint(
+      row.position,
+      Math.min(MAX_STEP_YARDS, row.distance - CLOSE_YARDS),
+    );
+  }
+  const row = handle.queryNearby().find((r) => r.entity.guid === target);
+  return { reached: (row?.distance ?? 999) <= CLOSE_YARDS };
+}
+
 export const PUPPET_CALLS: Readonly<Record<string, PuppetCall>> = {
   acceptGuildInvite: { args: [], run: (h) => h.acceptGuildInvite() },
   acceptInvite: { args: [], run: (h) => h.acceptInvite() },
@@ -266,6 +284,10 @@ export const PUPPET_CALLS: Readonly<Record<string, PuppetCall>> = {
   voteKick: {
     args: [["no", "yes"]],
     run: (h, a) => h.lfg.act.voteKick(a[0] === "yes"),
+  },
+  walkToObject: {
+    args: ["guid"],
+    run: (h, a) => walkToObject(h, guid(a, 0)),
   },
   walkToPlayer: {
     args: ["string"],

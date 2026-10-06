@@ -16,7 +16,7 @@ export const GUILDBANK_OPCODES = {
     "SMSG_GUILD_BANK_LIST",
   ],
   uses: [],
-  stubs: [["SMSG_GUILD_BANK_LIST", "Guild bank"]],
+  stubs: [],
   dead: [],
   unseen: [],
 } as const satisfies AreaOpcodes;

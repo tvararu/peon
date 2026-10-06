@@ -1,4 +1,5 @@
 import { guildTool } from "#harness/areas/guildadmin/tool";
+import { guildbankTool } from "#harness/areas/guildbank/tool";
 import { dungeonTool } from "#harness/areas/instances/tool";
 import { gearTool } from "#harness/areas/items/tool";
 import { mailTool } from "#harness/areas/mail/tool";
@@ -41,6 +42,7 @@ export const GAME_TOOLS = [
   dungeonTool,
   groupTool,
   tradeTool,
+  guildbankTool,
   talentsTool,
   mailTool,
   vehicleTool,

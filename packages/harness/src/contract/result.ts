@@ -18,6 +18,7 @@ export type ToolName =
   | "group"
   | "trade"
   | "talents"
+  | "guildbank"
   | "mail"
   | "vehicle"
   | "guild";
