@@ -6,7 +6,8 @@ import type { RuleInput } from "#harness/events/rules";
 type CharacterEvent = AreaEventOf<"character">;
 
 function playedRow(event: CharacterEvent): AreaDraft {
-  if (event.type !== "played_time") throw new Error("character_played_expected");
+  if (event.type !== "played_time")
+    throw new Error("character_played_expected");
   const total = event.state.played?.totalSeconds ?? 0;
   const hours = Math.floor(total / 3600);
   const minutes = Math.floor((total % 3600) / 60);

@@ -3,9 +3,8 @@ import { abortable } from "@peon/core/lib/abort";
 import type { ToolResult } from "#harness/contract/result";
 import type { ToolCtx } from "#harness/contract/services";
 import { Refusal } from "#harness/ops/refusal";
-import { defineGameTool } from "#harness/tools/define";
+import { defineGameTool, result } from "#harness/tools/define";
 import type { GameToolSpec, ToolRenderers } from "#harness/tools/game-tool";
-import { result } from "#harness/tools/define";
 import { argText } from "#harness/ui/draw";
 import {
   type BodyInit,
@@ -79,12 +78,12 @@ function afterOf(
 function playedBody(total: number, level: number): string[] {
   const hours = Math.floor(total / 3600);
   const minutes = Math.floor((total % 3600) / 60);
-  return [
-    `played: ${hours}h ${minutes}m total, ${level}s at this level`,
-  ];
+  return [`played: ${hours}h ${minutes}m total, ${level}s at this level`];
 }
 
-async function runPlayed(ctx: CharacterCtx): Promise<ToolResult<CharacterAfter>> {
+async function runPlayed(
+  ctx: CharacterCtx,
+): Promise<ToolResult<CharacterAfter>> {
   const act = ctx.handle.character.act;
   const played = await ctx.rt.mutex.run(async () => {
     ctx.signal.throwIfAborted();
@@ -106,7 +105,7 @@ async function runSheathe(
 ): Promise<ToolResult<CharacterAfter>> {
   const show = args.show ?? true;
   const act = ctx.handle.character.act;
-  await ctx.rt.mutex.run(async () => {
+  await ctx.rt.mutex.run(() => {
     ctx.signal.throwIfAborted();
     act.setSheathed(show ? "melee" : "unarmed");
   });
@@ -124,7 +123,7 @@ async function runVisibility(
 ): Promise<ToolResult<CharacterAfter>> {
   const show = args.show ?? true;
   const act = ctx.handle.character.act;
-  await ctx.rt.mutex.run(async () => {
+  await ctx.rt.mutex.run(() => {
     ctx.signal.throwIfAborted();
     if (verb === "helm") act.setHelmShown(show);
     else act.setCloakShown(show);
@@ -198,7 +197,10 @@ function characterCall(args: unknown, theme: CallInit["theme"]): string {
   });
 }
 
-function characterBody({ expanded, result: out }: BodyInit<CharacterAfter>): string[] {
+function characterBody({
+  expanded,
+  result: out,
+}: BodyInit<CharacterAfter>): string[] {
   if (!expanded) return [];
   if (out.after.do === "played" && out.after.totalSeconds !== undefined)
     return playedBody(out.after.totalSeconds, out.after.levelSeconds ?? 0);
@@ -223,12 +225,12 @@ export const characterSpec: GameToolSpec<
   renderers: characterRenderers,
   run: characterRun,
   text: {
-    label: "Character",
     description:
       "Read play time, draw or sheathe weapons, show or hide helm and cloak, or change hairstyle in a barber chair.",
     guidelines: [
       "Barber needs a barber chair seat first; the chair opens the shop.",
     ],
+    label: "Character",
   },
 };
 

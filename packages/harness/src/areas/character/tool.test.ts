@@ -15,9 +15,11 @@ describe("character tool", () => {
   test("played reports both counters", async () => {
     const t = await world();
     const ctx = toolCtx(t, new AbortController().signal);
-    jest
-      .spyOn(t.handle.character.act, "playedTime")
-      .mockResolvedValue({ levelSeconds: 20, totalSeconds: 100, trigger: false });
+    jest.spyOn(t.handle.character.act, "playedTime").mockResolvedValue({
+      levelSeconds: 20,
+      totalSeconds: 100,
+      trigger: false,
+    });
     const out = await characterRun({ do: "played" }, ctx);
     expect(out.status).toEqual("DONE");
     expect(out.after).toMatchObject({
