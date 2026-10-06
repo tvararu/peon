@@ -22,9 +22,7 @@ test("buildLogonChallenge writes the 3.3.5a layout with an uppercased account", 
   expect(pkt[0]).toBe(0x00);
   expect(pkt[1]).toBe(0x08);
   expect(view.getUint16(2, true)).toBe(30 + 4);
-  expect(text.decode(pkt.slice(4, 8))).toBe(
-    "\0WoW".split("").reverse().join(""),
-  );
+  expect(Array.from(pkt.slice(4, 8))).toEqual([0x57, 0x6f, 0x57, 0x00]);
   expect(Array.from(pkt.slice(8, 11))).toEqual([3, 3, 5]);
   expect(view.getUint16(11, true)).toBe(12_340);
   expect(pkt.at(-5)).toBe(4);

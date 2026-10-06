@@ -51,25 +51,29 @@ describe("parseChannelNotify", () => {
   });
 
   test.each([
-    ["WRONG_PASSWORD", ChannelNotify.WRONG_PASSWORD, "Secret"],
-    ["NOT_MEMBER", ChannelNotify.NOT_MEMBER, "Trade"],
-    ["BANNED", ChannelNotify.BANNED, "Trade"],
-    ["MUTED", ChannelNotify.MUTED, "General"],
-    ["ALREADY_MEMBER", ChannelNotify.ALREADY_MEMBER, "General"],
-    ["INVALID_NAME", ChannelNotify.INVALID_NAME, ""],
-    ["THROTTLED", ChannelNotify.THROTTLED, "General"],
-    ["WRONG_FACTION", ChannelNotify.WRONG_FACTION, "General"],
-    ["NOT_IN_AREA", ChannelNotify.NOT_IN_AREA, "LocalDefense"],
-  ])("maps %s to an error carrying the channel", (_name, code, channel) => {
-    const w = new PacketWriter();
-    w.uint8(code);
-    w.cString(channel);
+    ["WRONG_PASSWORD", ChannelNotify.WRONG_PASSWORD, "Secret", /wrong password/i],
+    ["NOT_MEMBER", ChannelNotify.NOT_MEMBER, "Trade", /not on channel/i],
+    ["BANNED", ChannelNotify.BANNED, "Trade", /banned/i],
+    ["MUTED", ChannelNotify.MUTED, "General", /permission to speak/i],
+    ["ALREADY_MEMBER", ChannelNotify.ALREADY_MEMBER, "General", /already in/i],
+    ["INVALID_NAME", ChannelNotify.INVALID_NAME, "", /invalid channel name/i],
+    ["THROTTLED", ChannelNotify.THROTTLED, "General", /throttled/i],
+    ["WRONG_FACTION", ChannelNotify.WRONG_FACTION, "General", /wrong faction/i],
+    ["NOT_IN_AREA", ChannelNotify.NOT_IN_AREA, "LocalDefense", /correct area/i],
+  ])(
+    "maps %s to an error carrying its label",
+    (_name, code, channel, label) => {
+      const w = new PacketWriter();
+      w.uint8(code);
+      w.cString(channel);
 
-    const result = parseChannelNotify(new PacketReader(w.finish()));
-    expect(result).toMatchObject({ type: "error", channel, code });
-    if (result.type !== "error") throw new Error("expected an error event");
-    expect(result.message).toContain(channel);
-  });
+      const result = parseChannelNotify(new PacketReader(w.finish()));
+      expect(result).toMatchObject({ type: "error", channel, code });
+      if (result.type !== "error") throw new Error("expected an error event");
+      expect(result.message).toMatch(label);
+      if (channel !== "") expect(result.message).toContain(channel);
+    },
+  );
 });
 
 describe("buildJoinChannel", () => {

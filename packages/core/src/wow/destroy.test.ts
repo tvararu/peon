@@ -112,9 +112,15 @@ describe("destroying a carried item", () => {
 
   test("empty, unknown, equipped and oversized requests are refused locally", () => {
     const f = fixture();
-    expect(() => f.runtime.destroy(255, 30)).toThrow("bag 255 slot 30");
-    expect(() => f.runtime.destroy(19, 0)).toThrow("bag 19 slot 0");
-    expect(() => f.runtime.destroy(255, 4)).toThrow("bag 255 slot 4");
+    expect(() => f.runtime.destroy(255, 30)).toThrow(
+      /No carried bag item.*bag 255 slot 30/,
+    );
+    expect(() => f.runtime.destroy(19, 0)).toThrow(
+      /No carried bag item.*bag 19 slot 0/,
+    );
+    expect(() => f.runtime.destroy(255, 4)).toThrow(
+      /No carried bag item.*bag 255 slot 4/,
+    );
     expect(() => f.runtime.destroy(255, 23, 2)).toThrow("exceeds the stack");
     expect(() => f.runtime.destroy(255, 24, 256)).toThrow("limited to 255");
     expect(f.sent).toEqual([]);

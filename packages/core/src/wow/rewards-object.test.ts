@@ -66,9 +66,7 @@ describe("game object loot windows", () => {
 
   test("an unseen object is not a loot source", () => {
     const { runtime } = world();
-    expect(() => runtime.open(stranger)).toThrow(
-      "Loot source is not an observed entity",
-    );
+    expect(() => runtime.open(stranger)).toThrow(/not an observed entity/);
     expect(runtime.snapshot().loot.phase).toBe("closed");
   });
 });
