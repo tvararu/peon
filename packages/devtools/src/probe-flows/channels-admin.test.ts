@@ -56,13 +56,13 @@ describe("channels-admin flow", () => {
       "unmoderator",
       "mute",
       "unmute",
-      "set_owner",
       "invite",
       "announcements",
       "moderate",
-      "kick",
       "ban",
       "unban",
+      "kick",
+      "set_owner",
     ]);
     expect(result.channel).toBe("peonab12cd");
     expect(result.notices).toHaveLength(13);
