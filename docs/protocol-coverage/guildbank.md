@@ -5,15 +5,15 @@ columns are explained in [the index](../protocol-coverage.md).
 
 | Opcode | Name | Direction | Status | Live |
 |---|---|---|---|---|
-| `0x3e6` | `CMSG_GUILD_BANKER_ACTIVATE` | client | missing |  |
-| `0x3e7` | `CMSG_GUILD_BANK_QUERY_TAB` | client | missing |  |
-| `0x3e8` | `SMSG_GUILD_BANK_LIST` | server | stub |  |
-| `0x3e9` | `CMSG_GUILD_BANK_SWAP_ITEMS` | client | missing |  |
-| `0x3ea` | `CMSG_GUILD_BANK_BUY_TAB` | client | missing |  |
-| `0x3eb` | `CMSG_GUILD_BANK_UPDATE_TAB` | client | missing |  |
-| `0x3ec` | `CMSG_GUILD_BANK_DEPOSIT_MONEY` | client | missing |  |
-| `0x3ed` | `CMSG_GUILD_BANK_WITHDRAW_MONEY` | client | missing |  |
-| `0x3ee` | `MSG_GUILD_BANK_LOG_QUERY` | both | missing |  |
-| `0x3fe` | `MSG_GUILD_BANK_MONEY_WITHDRAWN` | both | missing |  |
-| `0x40a` | `MSG_QUERY_GUILD_BANK_TEXT` | both | missing |  |
-| `0x40b` | `CMSG_SET_GUILD_BANK_TEXT` | client | missing |  |
+| `0x3e6` | `CMSG_GUILD_BANKER_ACTIVATE` | client | handled |  |
+| `0x3e7` | `CMSG_GUILD_BANK_QUERY_TAB` | client | handled |  |
+| `0x3e8` | `SMSG_GUILD_BANK_LIST` | server | handled |  |
+| `0x3e9` | `CMSG_GUILD_BANK_SWAP_ITEMS` | client | handled |  |
+| `0x3ea` | `CMSG_GUILD_BANK_BUY_TAB` | client | handled |  |
+| `0x3eb` | `CMSG_GUILD_BANK_UPDATE_TAB` | client | handled |  |
+| `0x3ec` | `CMSG_GUILD_BANK_DEPOSIT_MONEY` | client | handled |  |
+| `0x3ed` | `CMSG_GUILD_BANK_WITHDRAW_MONEY` | client | handled |  |
+| `0x3ee` | `MSG_GUILD_BANK_LOG_QUERY` | both | handled |  |
+| `0x3fe` | `MSG_GUILD_BANK_MONEY_WITHDRAWN` | both | handled |  |
+| `0x40a` | `MSG_QUERY_GUILD_BANK_TEXT` | both | handled |  |
+| `0x40b` | `CMSG_SET_GUILD_BANK_TEXT` | client | handled |  |
