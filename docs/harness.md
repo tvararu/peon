@@ -193,6 +193,7 @@ A result that is not `DONE` ends with a `Next:` step.
 | `group` | Shows the group roster, converts to a raid, moves members, promotes, sets loot rules from `what` (a method in `text` counts only when `what` is empty), runs ready checks, marks, gives master loot, rolls, shares quests and answers summons. |
 | `trade` | Gives items and gold to another player, answers a trade request, changes the offer, accepts, cancels or reads both offers. |
 | `mail` | Reads the letters waiting in the inbox, collects copper and items from them, or sends a letter with copper or items at a mailbox within 10 yards. |
+| `character` | Reads play time, draws or sheathes weapons, shows or hides helm and cloak, or changes hairstyle in a barber chair. |
 
 `travel`, `engage`, `pilot`, `rest` and `recover` start a run (`r1`, `r2`, …).
 Only one run can be active. The tool waits for the run to end and

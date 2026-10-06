@@ -229,6 +229,7 @@ two scenarios closest to it. Every scenario appears in at least one row.
 | Social verbs (`social` emote, channels, inspect) | `t2-emotes-partner` |
 | Nearby units and relations (`look`, entity state) | `t0-who-is-near`, `t0-hostiles` |
 | Self state (level, money, bags, `journal`) | `t0-self-state` |
+| Play time and appearance (`character`) | `t0-character-appearance` |
 | Death and recovery (`recover`) | `t6-die-and-recover` |
 | Self-state (recover how:self; spell mount/dismount) | `t6-selfstate-res`, `t9-selfstate-mount` |
 | Stopping and steering (`stop`, the stop reflex, human messages while a tool runs) | `t7-halt-resume`, `t7-question-while-acting` |
