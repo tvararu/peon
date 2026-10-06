@@ -166,7 +166,7 @@ describe("arena acts", () => {
       const pending = rig.handle.act.leaveQueue(0);
       await Promise.resolve();
       const sent = rig.sent.map((packet) => packet.opcode);
-      expect(sent[sent.length - 1]).toBe(GameOpcode.CMSG_BATTLEFIELD_PORT);
+      expect(sent.at(-1)).toBe(GameOpcode.CMSG_BATTLEFIELD_PORT);
       const empty = new PacketWriter();
       empty.uint32LE(0);
       empty.uint64LE(0n);

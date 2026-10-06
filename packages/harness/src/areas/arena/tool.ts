@@ -188,9 +188,7 @@ async function runInviteFree(
       detail: "You declined the arena invite.",
     });
   }
-  const accepted = await ctx.rt.mutex.run(() =>
-    ctx.handle.arena.act.accept(),
-  );
+  const accepted = await ctx.rt.mutex.run(() => ctx.handle.arena.act.accept());
   if ("status" in accepted)
     return result("REFUSED", {
       after: { action, do: "team", team: undefined },
@@ -203,8 +201,58 @@ async function runInviteFree(
   });
 }
 
+async function runTeamRead(
+  action: ArenaAction,
+  ctx: ArenaCtx,
+  id: number,
+): Promise<ToolResult<ArenaAfter>> {
+  if (action === "roster") {
+    const roster = await ctx.rt.mutex.run(() =>
+      ctx.handle.arena.act.roster(id),
+    );
+    return result("DONE", {
+      after: { action, do: "team", team: id },
+      body: rosterLines(roster),
+      detail: `Arena team ${id} has ${roster.members.length} members.`,
+    });
+  }
+  const query = await ctx.rt.mutex.run(() => ctx.handle.arena.act.query(id));
+  return result("DONE", {
+    after: { action, do: "team", team: id },
+    body: queryLines(query),
+    detail: `Arena team ${query.team.name}.`,
+  });
+}
 
-async function runTeam(
+async function runTeamInvite(
+  args: ArenaArgs,
+  ctx: ArenaCtx,
+  id: number,
+): Promise<ToolResult<ArenaAfter>> {
+  const action = (args.action ?? "info") as ArenaAction;
+  const name = args.name?.trim() ?? "";
+  if (name === "")
+    throw arenaRefusal(
+      "missing_player",
+      "Name the player to invite.",
+      "call arena with a player name.",
+    );
+  const invited = await ctx.rt.mutex.run(() =>
+    ctx.handle.arena.act.invite(id, name),
+  );
+  if (invited.status === "refused")
+    return result("REFUSED", {
+      after: { action, do: "team", team: id },
+      detail: `The invite to ${name} was refused (${invited.reason}).`,
+      reason: invited.reason,
+    });
+  return result("DONE", {
+    after: { action, do: "team", team: id },
+    detail: `You invited ${name} to team ${id}.`,
+  });
+}
+
+function runTeam(
   args: ArenaArgs,
   ctx: ArenaCtx,
 ): Promise<ToolResult<ArenaAfter>> {
@@ -219,48 +267,11 @@ async function runTeam(
       "call arena and read your teams.",
     );
   switch (action) {
-    case "info": {
-      const query = await ctx.rt.mutex.run(() =>
-        ctx.handle.arena.act.query(id),
-      );
-      return result("DONE", {
-        after: { action, do: "team", team: id },
-        body: queryLines(query),
-        detail: `Arena team ${query.team.name}.`,
-      });
-    }
-    case "roster": {
-      const roster = await ctx.rt.mutex.run(() =>
-        ctx.handle.arena.act.roster(id),
-      );
-      return result("DONE", {
-        after: { action, do: "team", team: id },
-        body: rosterLines(roster),
-        detail: `Arena team ${id} has ${roster.members.length} members.`,
-      });
-    }
-    case "invite": {
-      const name = args.name?.trim() ?? "";
-      if (name === "")
-        throw arenaRefusal(
-          "missing_player",
-          "Name the player to invite.",
-          "call arena with a player name.",
-        );
-      const invited = await ctx.rt.mutex.run(() =>
-        ctx.handle.arena.act.invite(id, name),
-      );
-      if (invited.status === "refused")
-        return result("REFUSED", {
-          after: { action, do: "team", team: id },
-          detail: `The invite to ${name} was refused (${invited.reason}).`,
-          reason: invited.reason,
-        });
-      return result("DONE", {
-        after: { action, do: "team", team: id },
-        detail: `You invited ${name} to team ${id}.`,
-      });
-    }
+    case "info":
+    case "roster":
+      return runTeamRead(action, ctx, id);
+    case "invite":
+      return runTeamInvite(args, ctx, id);
     case "leave":
     case "kick":
     case "captain":

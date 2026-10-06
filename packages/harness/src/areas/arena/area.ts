@@ -65,6 +65,22 @@ function inspectRow(event: Inspect, rc: RuleInput): AreaDraft {
   };
 }
 
+type Queue = Extract<ArenaEvent, { type: "queue" }>;
+
+function queueDrafts(event: Queue): readonly AreaDraft[] {
+  const queued = event.queue.filter((row) => row.kind === "queued");
+  if (queued.length === 0) return [];
+  return [
+    {
+      class: "log",
+      data: { slots: queued.map((row) => row.slot) },
+      name: "queue",
+      progress: true,
+      text: `Queued for an arena skirmish (slot ${queued.map((row) => row.slot).join(", ")}).`,
+    },
+  ];
+}
+
 function onEvent(event: ArenaEvent, rc: RuleInput): readonly AreaDraft[] {
   if (event.type === "invited")
     return [
@@ -98,19 +114,7 @@ function onEvent(event: ArenaEvent, rc: RuleInput): readonly AreaDraft[] {
             : `You are not in a ${event.arenaType}v${event.arenaType} arena team.`,
       },
     ];
-  if (event.type === "queue") {
-    const queued = event.queue.filter((row) => row.kind === "queued");
-    if (queued.length === 0) return [];
-    return [
-      {
-        class: "log",
-        data: { slots: queued.map((row) => row.slot) },
-        name: "queue",
-        progress: true,
-        text: `Queued for an arena skirmish (slot ${queued.map((row) => row.slot).join(", ")}).`,
-      },
-    ];
-  }
+  if (event.type === "queue") return queueDrafts(event);
   if (event.type === "queue_refused")
     return [
       {

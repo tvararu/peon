@@ -74,6 +74,9 @@ The acts:
 
 ## Left out
 
+- `t9-arena-inspect` stays out of ROUND_1: the server sends no inspect
+  reply for teamless targets, so the scenario is unpassable until an
+  arena setup endpoint exists.
 - `SMSG_ARENA_UNIT_DESTROYED` is `unseen`: it fires only when a unit
   despawns for a player inside an arena instance
   (`Entities/Object/Object.cpp:282`), which needs a real match. The
