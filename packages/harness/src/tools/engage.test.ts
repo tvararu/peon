@@ -100,8 +100,9 @@ describe("engage", () => {
     const spy = jest
       .spyOn(t.handle.selfstate.act, "dismount")
       .mockResolvedValue({ status: "ok" });
-    await engageSpec.run({}, toolCtx<EngageAfter>(t));
+    const res = await engageSpec.run({}, toolCtx<EngageAfter>(t));
     expect(spy).toHaveBeenCalledTimes(1);
+    expect(res.detail.startsWith("Dismounted first. ")).toBe(true);
   });
 
   test("a taxi mount stops the engage with in_flight", async () => {

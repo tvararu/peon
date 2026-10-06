@@ -289,6 +289,7 @@ describe("recover", () => {
     t.rt.yields.trigger();
     const res = await pending;
     expect(res.status).toBe("RUNNING");
+    expect(res.body.join(" ")).toContain("human wrote");
     expect(t.rt.runs.active()?.id).toBe(res.runId);
     t.rt.runs.cancel(res.runId ?? "", "tool");
   });

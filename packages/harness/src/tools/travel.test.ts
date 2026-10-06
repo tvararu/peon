@@ -329,6 +329,7 @@ describe("travel", () => {
     const res = await pending;
     const id = res.runId ?? "";
     expect(res.status).toBe("RUNNING");
+    expect(res.body.join(" ")).toContain("human wrote");
     for (const value of ["HP 200/200", "mana 300/300 (100%)", "at 0, 0"])
       expect(res.detail).toContain(value);
     expect(res.next).toContain(`stop(run: "${id}")`);

@@ -256,6 +256,27 @@ describe("journal bags marks", () => {
         );
   });
 
+  test("bags ends with a buyback line when the vendor holds sold items", async () => {
+    const { handle, tool } = await world();
+    const sold = {
+      ...handle.buyback.state(),
+      list: [
+        { count: 1, entry: 2589, guid: 0x77n, price: 35, slot: 74, soldAt: 10 },
+      ],
+    };
+    Object.assign(handle, {
+      buyback: { ...handle.buyback, state: () => sold },
+    });
+    handle.itemLabel = (() => ({
+      name: "Linen Cloth",
+      quality: 1,
+    })) as typeof handle.itemLabel;
+    const out = await runTool(tool, { about: "bags" });
+    expect(out.text.split("\n").at(-1)).toBe(
+      "Buyback: Linen Cloth x1 for 35 copper.",
+    );
+  });
+
   test("bags keeps the buyback line when more than 21 item rows trigger compact", async () => {
     const { handle, tool } = await world();
     const inventory = handle.getInventoryState();
