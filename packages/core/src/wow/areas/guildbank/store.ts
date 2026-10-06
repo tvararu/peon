@@ -19,6 +19,7 @@ import type { SessionDeps } from "#wow/session-stores";
 
 export const GUILD_BANK_OBJECT_TYPE = 34;
 export const GUILD_BANK_YARDS = 10;
+const COPPER_TEXT = /^\d+$/;
 
 export type GuildBankItem = {
   entry: number;
@@ -333,7 +334,7 @@ export class GuildBankStore {
     const pending = this.request;
     if (
       eventType === GuildEventCode.BANK_MONEY_SET &&
-      /^\d+$/.test(params[0] ?? "")
+      COPPER_TEXT.test(params[0] ?? "")
     ) {
       this.money = BigInt(params[0] ?? "0");
       if (
