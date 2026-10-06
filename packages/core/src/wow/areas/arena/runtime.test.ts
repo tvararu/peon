@@ -159,6 +159,20 @@ describe("arena acts", () => {
     }
   });
 
+  test("leaveQueue sends the port packet with leave action", async () => {
+    const rig = areaRig("arena");
+    try {
+      rig.inject(GameOpcode.SMSG_BATTLEFIELD_STATUS, arenaQueuedBody());
+      const pending = rig.handle.act.leaveQueue(0);
+      await Promise.resolve();
+      const sent = rig.sent.map((packet) => packet.opcode);
+      expect(sent[sent.length - 1]).toBe(GameOpcode.CMSG_BATTLEFIELD_PORT);
+      expect(await pending).toEqual({ status: "left" });
+    } finally {
+      rig.dispose();
+    }
+  });
+
   test("inspect returns empty rows when nobody answers", async () => {
     const rig = areaRig("arena");
     try {

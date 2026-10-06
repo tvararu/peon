@@ -1,6 +1,7 @@
 import { ignoreFailure } from "#lib/ignore-failure";
 import type { AreaRuntime, AreaRuntimeCtx } from "#wow/areas/contract";
 import {
+  buildBattlefieldPort,
   buildInspectArenaTeams,
   buildJoinArena,
   buildTeamId,
@@ -20,6 +21,7 @@ import type { CoreStores } from "#wow/session-stores";
 
 export const ARENA_ANSWER_MS = 5000;
 export const ARENA_INSPECT_MS = 3000;
+export const BG_TYPE_ARENA = 6;
 
 export type ArenaQueryResult = { team: ArenaTeam };
 export type ArenaRosterResult = { id: number; members: ArenaRosterMember[] };
@@ -247,15 +249,13 @@ export function arenaRuntime(ctx: Ctx, store: ArenaStore, _core: CoreStores): Ar
   async function leaveQueue(slot: number): Promise<{ status: "left" } | { status: "no_slot" }> {
     const current = store.snapshot().queue.find((row) => row.slot === slot);
     if (!current || current.kind === "none") return { status: "no_slot" };
-    const event = await noReply(
+    await noReply(
       ctx,
       (event) =>
-        (event.type === "queue" && !event.queue.some((row) => row.slot === slot && row.kind !== "none")) ||
-        event.type === "queue_refused",
+        event.type === "queue" && !event.queue.some((row) => row.slot === slot && row.kind !== "none"),
       ARENA_ANSWER_MS,
-      () => ctx.send(GameOpcode.CMSG_BATTLEFIELD_STATUS, buildTeamId(slot)),
+      () => ctx.send(GameOpcode.CMSG_BATTLEFIELD_PORT, buildBattlefieldPort(current.arenaType, BG_TYPE_ARENA, false)),
     );
-    if (!event) return { status: "left" };
     return { status: "left" };
   }
 

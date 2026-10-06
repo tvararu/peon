@@ -240,6 +240,19 @@ export function parseQueueStatus(r: PacketReader): ArenaQueueStatus {
   return { arenaType, kind, rated, slot };
 }
 
+export function buildBattlefieldPort(
+  arenaType: number,
+  bgType: number,
+  accept: boolean,
+): Uint8Array {
+  const w = new PacketWriter();
+  w.uint8(arenaType);
+  w.uint8(0);
+  w.uint32LE(bgType);
+  w.uint16LE(0x1f_90);
+  w.uint8(accept ? 1 : 0);
+  return w.finish();
+}
 
 export function buildTeamId(id: number): Uint8Array {
   const w = new PacketWriter();
