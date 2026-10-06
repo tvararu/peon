@@ -1,18 +1,21 @@
 import { accountArea } from "#wow/areas/account/area";
 import { achievementsArea } from "#wow/areas/achievements/area";
 import { ambienceArea } from "#wow/areas/ambience/area";
+import { arenaArea } from "#wow/areas/arena/area";
 import { auctionArea } from "#wow/areas/auction/area";
 import { bankArea } from "#wow/areas/bank/area";
 import { battlegroundsArea } from "#wow/areas/battlegrounds/area";
 import { buybackArea } from "#wow/areas/buyback/area";
 import { calendarArea } from "#wow/areas/calendar/area";
 import { channelsArea } from "#wow/areas/channels/area";
+import { characterArea } from "#wow/areas/character/area";
 import { chartersArea } from "#wow/areas/charters/area";
 import { combatlogArea } from "#wow/areas/combatlog/area";
 import { complaintsArea } from "#wow/areas/complaints/area";
 import { contactsArea } from "#wow/areas/contacts/area";
 import { emotesArea } from "#wow/areas/emotes/area";
 import { guildadminArea } from "#wow/areas/guildadmin/area";
+import { guildbankArea } from "#wow/areas/guildbank/area";
 import { inspectArea } from "#wow/areas/inspect/area";
 import { instancesArea } from "#wow/areas/instances/area";
 import { itemsArea } from "#wow/areas/items/area";
@@ -40,18 +43,21 @@ export const AREAS = {
   account: accountArea,
   achievements: achievementsArea,
   ambience: ambienceArea,
+  arena: arenaArea,
   auction: auctionArea,
   bank: bankArea,
   battlegrounds: battlegroundsArea,
   buyback: buybackArea,
   calendar: calendarArea,
   channels: channelsArea,
+  character: characterArea,
   charters: chartersArea,
   combatlog: combatlogArea,
   complaints: complaintsArea,
   contacts: contactsArea,
   emotes: emotesArea,
   guildadmin: guildadminArea,
+  guildbank: guildbankArea,
   inspect: inspectArea,
   instances: instancesArea,
   items: itemsArea,

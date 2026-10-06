@@ -1,0 +1,34 @@
+import type { AreaOpcodes } from "#wow/areas/contract";
+
+export const ARENA_OPCODES = {
+  owns: [
+    "CMSG_ARENA_TEAM_CREATE",
+    "CMSG_ARENA_TEAM_QUERY",
+    "SMSG_ARENA_TEAM_QUERY_RESPONSE",
+    "CMSG_ARENA_TEAM_ROSTER",
+    "SMSG_ARENA_TEAM_ROSTER",
+    "CMSG_ARENA_TEAM_INVITE",
+    "SMSG_ARENA_TEAM_INVITE",
+    "CMSG_ARENA_TEAM_ACCEPT",
+    "CMSG_ARENA_TEAM_DECLINE",
+    "CMSG_ARENA_TEAM_LEAVE",
+    "CMSG_ARENA_TEAM_REMOVE",
+    "CMSG_ARENA_TEAM_DISBAND",
+    "CMSG_ARENA_TEAM_LEADER",
+    "CMSG_BATTLEMASTER_JOIN_ARENA",
+    "SMSG_ARENA_TEAM_STATS",
+    "SMSG_ARENA_ERROR",
+    "MSG_INSPECT_ARENA_TEAMS",
+    "SMSG_ARENA_UNIT_DESTROYED",
+    "SMSG_ARENA_TEAM_CHANGE_FAILED_QUEUED",
+    "SMSG_ARENA_TEAM_COMMAND_RESULT",
+    "SMSG_ARENA_TEAM_EVENT",
+  ],
+  uses: [],
+  stubs: [
+    ["SMSG_ARENA_TEAM_EVENT", "Arena team event"],
+    ["SMSG_ARENA_TEAM_COMMAND_RESULT", "Arena command result"],
+  ],
+  dead: [],
+  unseen: [],
+} as const satisfies AreaOpcodes;

@@ -2,9 +2,6 @@ import { GameOpcode } from "#wow/protocol/opcodes";
 import type { OpcodeDispatch } from "#wow/protocol/world";
 
 export const STUBS: [opcode: number, label: string][] = [
-  [GameOpcode.SMSG_GUILD_BANK_LIST, "Guild bank"],
-  [GameOpcode.SMSG_ARENA_TEAM_EVENT, "Arena team event"],
-  [GameOpcode.SMSG_ARENA_TEAM_COMMAND_RESULT, "Arena command result"],
   [GameOpcode.SMSG_WARDEN_DATA, "Warden anti-cheat"],
 ];
 
