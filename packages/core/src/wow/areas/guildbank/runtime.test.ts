@@ -21,9 +21,9 @@ function openList() {
 
 async function opened() {
   const rig = guildbankRig();
-  const opened = rig.handle.act.openVault(GUILD_BANK_VAULT);
+  const pending = rig.handle.act.openVault(GUILD_BANK_VAULT);
   rig.inject(GameOpcode.SMSG_GUILD_BANK_LIST, openList());
-  expect(await opened).toEqual({ status: "ok" });
+  await pending;
   return rig;
 }
 

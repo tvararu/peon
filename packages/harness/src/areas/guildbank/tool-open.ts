@@ -114,7 +114,7 @@ async function openVault(
   });
 }
 
-export async function runOpen(
+export function runOpen(
   ctx: GuildBankCtx,
 ): Promise<ToolResult<GuildBankAfter>> {
   return openVault(ctx);

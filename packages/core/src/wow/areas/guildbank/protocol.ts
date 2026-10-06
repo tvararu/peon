@@ -262,24 +262,27 @@ function readSlot(reader: PacketReader): GuildBankSlot | undefined {
   };
 }
 
+function readBriefs(reader: PacketReader): GuildBankTabBrief[] | undefined {
+  if (reader.remaining < 1) return undefined;
+  const count = reader.uint8();
+  const tabs: GuildBankTabBrief[] = [];
+  for (let i = 0; i < count; i++) {
+    if (reader.remaining < 2) return undefined;
+    const name = reader.cString();
+    const icon = reader.cString();
+    tabs.push({ icon, name });
+  }
+  return tabs;
+}
+
 export function parseBankList(reader: PacketReader): GuildBankList | undefined {
   if (reader.remaining < 14) return undefined;
   const money = reader.uint64LE();
-  const tab = reader.uint8();
+  const tabId = reader.uint8();
   const withdrawals = reader.int32LE();
   const full = reader.uint8() !== 0;
-  const tabs: GuildBankTabBrief[] = [];
-  if (tab === 0 && full) {
-    if (reader.remaining < 1) return undefined;
-    const count = reader.uint8();
-    for (let i = 0; i < count; i++) {
-      if (reader.remaining < 2) return undefined;
-      const name = reader.cString();
-      const icon = reader.cString();
-      tabs.push({ icon, name });
-    }
-  }
-  if (reader.remaining < 1) return undefined;
+  const tabs = tabId === 0 && full ? readBriefs(reader) : [];
+  if (!tabs || reader.remaining < 1) return undefined;
   const slots = reader.uint8();
   const items: GuildBankSlot[] = [];
   for (let i = 0; i < slots; i++) {
@@ -287,7 +290,7 @@ export function parseBankList(reader: PacketReader): GuildBankList | undefined {
     if (!item) return undefined;
     items.push(item);
   }
-  return { full, items, money, tab, tabs, withdrawals };
+  return { full, items, money, tab: tabId, tabs, withdrawals };
 }
 
 export type GuildBankLogEntry =
@@ -324,58 +327,44 @@ export type GuildBankLog = {
   entries: readonly GuildBankLogEntry[];
 };
 
+function readLogEntry(reader: PacketReader): GuildBankLogEntry | undefined {
+  if (reader.remaining < 9) return undefined;
+  const type = reader.uint8();
+  const player = reader.uint64LE();
+  const name = guildBankLogName(type);
+  if (
+    type === GUILD_BANK_LOG.DEPOSIT_ITEM ||
+    type === GUILD_BANK_LOG.WITHDRAW_ITEM
+  ) {
+    if (reader.remaining < 12) return undefined;
+    const entry = reader.uint32LE();
+    const count = reader.uint32LE();
+    const age = reader.uint32LE();
+    return { age, count, entry, kind: "item", name, player, type };
+  }
+  if (type === GUILD_BANK_LOG.MOVE_ITEM || type === GUILD_BANK_LOG.MOVE_ITEM2) {
+    if (reader.remaining < 13) return undefined;
+    const entry = reader.uint32LE();
+    const count = reader.uint32LE();
+    const otherTab = reader.uint8();
+    const age = reader.uint32LE();
+    return { age, count, entry, kind: "move", name, otherTab, player, type };
+  }
+  if (reader.remaining < 8) return undefined;
+  const money = reader.uint32LE();
+  const age = reader.uint32LE();
+  return { age, kind: "money", money, name, player, type };
+}
+
 export function parseBankLog(reader: PacketReader): GuildBankLog | undefined {
   if (reader.remaining < 2) return undefined;
   const tabId = reader.uint8();
   const count = reader.uint8();
   const entries: GuildBankLogEntry[] = [];
   for (let i = 0; i < count; i++) {
-    if (reader.remaining < 10) return undefined;
-    const type = reader.uint8();
-    const player = reader.uint64LE();
-    const name = guildBankLogName(type);
-    if (
-      type === GUILD_BANK_LOG.DEPOSIT_ITEM ||
-      type === GUILD_BANK_LOG.WITHDRAW_ITEM
-    ) {
-      if (reader.remaining < 12) return undefined;
-      const entry = reader.uint32LE();
-      const stack = reader.uint32LE();
-      const age = reader.uint32LE();
-      entries.push({
-        age,
-        count: stack,
-        entry,
-        kind: "item",
-        name,
-        player,
-        type,
-      });
-    } else if (
-      type === GUILD_BANK_LOG.MOVE_ITEM ||
-      type === GUILD_BANK_LOG.MOVE_ITEM2
-    ) {
-      if (reader.remaining < 13) return undefined;
-      const entry = reader.uint32LE();
-      const stack = reader.uint32LE();
-      const otherTab = reader.uint8();
-      const age = reader.uint32LE();
-      entries.push({
-        age,
-        count: stack,
-        entry,
-        kind: "move",
-        name,
-        otherTab,
-        player,
-        type,
-      });
-    } else {
-      if (reader.remaining < 8) return undefined;
-      const money = reader.uint32LE();
-      const age = reader.uint32LE();
-      entries.push({ age, kind: "money", money, name, player, type });
-    }
+    const entry = readLogEntry(reader);
+    if (!entry) return undefined;
+    entries.push(entry);
   }
   return { entries, tab: tabId };
 }

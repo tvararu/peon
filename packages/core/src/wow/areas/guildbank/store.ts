@@ -195,50 +195,62 @@ export class GuildBankStore {
   }
 
   receiveList(list: GuildBankList): void {
+    this.applyList(list);
+    if (this.settleOpen()) return;
+    if (this.settleBuy(list)) return;
+    if (this.settleRename(list)) return;
+    if (this.settleMoney(list)) return;
+    if (this.settleQuery(list)) return;
+    if (this.settleMove(list)) return;
+    this.events.emit({ full: list.full, tab: list.tab, type: "tab" });
+  }
+
+  private applyList(list: GuildBankList): void {
     this.money = list.money;
     if (list.tab === 0 && list.full && list.tabs.length > 0) {
       this.tabs = list.tabs.map(briefOf);
       this.vault =
         this.request?.kind === "open" ? this.request.vault : this.vault;
     }
-    if (list.tab < this.tabs.length || this.tabs.length === 0) {
+    if (this.tabs.length === 0)
       while (this.tabs.length <= list.tab) this.tabs.push(undefined);
-    }
     const slots = new Map<number, GuildBankItem>();
     for (const item of list.items) {
-      if (item.entry === 0) continue;
-      slots.set(item.slot, slotOf(item));
+      if (item.entry !== 0) slots.set(item.slot, slotOf(item));
     }
     this.items.set(list.tab, slots);
     this.tabLeft.set(list.tab, list.withdrawals);
-    if (this.request?.kind === "open") {
-      this.settle(
-        { status: "ok" },
-        { tabs: this.tabs.length, type: "opened", vault: this.vault ?? 0n },
-      );
-      return;
-    }
-    if (this.settleBuy(list)) return;
-    if (this.settleRename(list)) return;
-    if (this.settleMoney(list)) return;
+  }
+
+  private settleOpen(): boolean {
+    if (this.request?.kind !== "open") return false;
+    this.settle(
+      { status: "ok" },
+      { tabs: this.tabs.length, type: "opened", vault: this.vault ?? 0n },
+    );
+    return true;
+  }
+
+  private settleQuery(list: GuildBankList): boolean {
     const pending = this.request;
-    if (pending?.kind === "query" && pending.tab === list.tab) {
+    if (pending?.kind !== "query" || pending.tab !== list.tab) return false;
+    this.settle(
+      { status: "ok" },
+      { full: list.full, tab: list.tab, type: "tab" },
+    );
+    return true;
+  }
+
+  private settleMove(list: GuildBankList): boolean {
+    const pending = this.request;
+    if (pending?.kind !== "move" || pending.tab !== list.tab) return false;
+    const seen = this.items.get(list.tab)?.get(pending.slot);
+    if (seen?.entry === pending.entry && seen.count === pending.count)
       this.settle(
         { status: "ok" },
-        { full: list.full, tab: list.tab, type: "tab" },
+        { slot: pending.slot, tab: pending.tab, type: "moved" },
       );
-      return;
-    }
-    if (pending?.kind === "move" && pending.tab === list.tab) {
-      const seen = slots.get(pending.slot);
-      if (seen && seen.entry === pending.entry && seen.count === pending.count)
-        this.settle(
-          { status: "ok" },
-          { slot: pending.slot, tab: pending.tab, type: "moved" },
-        );
-      return;
-    }
-    this.events.emit({ full: list.full, tab: list.tab, type: "tab" });
+    return true;
   }
 
   private settleBuy(list: GuildBankList): boolean {

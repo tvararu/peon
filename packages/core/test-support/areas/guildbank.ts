@@ -72,23 +72,44 @@ export function guildbankRig(): GuildBankRig {
   return { ...rig };
 }
 
+type BankItemInit = {
+  slot: number;
+  entry: number;
+  count?: number;
+  charges?: number;
+  enchant?: number;
+  flags?: number;
+  randomProperty?: number;
+  randomSeed?: number;
+  sockets?: readonly { index: number; enchant: number }[];
+};
+
+function writeBankItem(w: PacketWriter, item: BankItemInit): void {
+  w.uint8(item.slot);
+  w.uint32LE(item.entry);
+  if (item.entry === 0) return;
+  w.uint32LE((item.flags ?? 0) >>> 0);
+  w.uint32LE((item.randomProperty ?? 0) >>> 0);
+  if ((item.randomProperty ?? 0) !== 0)
+    w.uint32LE((item.randomSeed ?? 0) >>> 0);
+  w.uint32LE((item.count ?? 1) >>> 0);
+  w.uint32LE((item.enchant ?? 0) >>> 0);
+  w.uint8(item.charges ?? 0);
+  const sockets = item.sockets ?? [];
+  w.uint8(sockets.length);
+  for (const socket of sockets) {
+    w.uint8(socket.index);
+    w.uint32LE(socket.enchant >>> 0);
+  }
+}
+
 export function bankListBody(init: {
   money?: bigint;
   tab?: number;
   withdrawals?: number;
   full?: boolean;
   tabs?: readonly { name: string; icon: string }[];
-  items?: readonly {
-    slot: number;
-    entry: number;
-    count?: number;
-    charges?: number;
-    enchant?: number;
-    flags?: number;
-    randomProperty?: number;
-    randomSeed?: number;
-    sockets?: readonly { index: number; enchant: number }[];
-  }[];
+  items?: readonly BankItemInit[];
 }): Uint8Array {
   const w = new PacketWriter();
   w.uint64LE(init.money ?? 0n);
@@ -105,24 +126,7 @@ export function bankListBody(init: {
   }
   const items = init.items ?? [];
   w.uint8(items.length);
-  for (const item of items) {
-    w.uint8(item.slot);
-    w.uint32LE(item.entry);
-    if (item.entry === 0) continue;
-    w.uint32LE((item.flags ?? 0) >>> 0);
-    w.uint32LE((item.randomProperty ?? 0) >>> 0);
-    if ((item.randomProperty ?? 0) !== 0)
-      w.uint32LE((item.randomSeed ?? 0) >>> 0);
-    w.uint32LE((item.count ?? 1) >>> 0);
-    w.uint32LE((item.enchant ?? 0) >>> 0);
-    w.uint8(item.charges ?? 0);
-    const sockets = item.sockets ?? [];
-    w.uint8(sockets.length);
-    for (const socket of sockets) {
-      w.uint8(socket.index);
-      w.uint32LE(socket.enchant >>> 0);
-    }
-  }
+  for (const item of items) writeBankItem(w, item);
   return w.finish();
 }
 

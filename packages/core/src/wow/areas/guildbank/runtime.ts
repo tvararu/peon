@@ -223,12 +223,11 @@ function withdrawMoney(env: Env, copper: number): Promise<GuildBankResult> {
   );
 }
 
+type Place = { bag: number; slot: number; tab: number; bankSlot: number };
+
 function deposit(
   env: Env,
-  bag: number,
-  slot: number,
-  tab: number,
-  bankSlot: number,
+  { bag, slot, tab, bankSlot }: Place,
 ): Promise<GuildBankResult> {
   requireWorld(env);
   const vault = openVaultOf(env);
@@ -266,10 +265,7 @@ function deposit(
 
 function withdraw(
   env: Env,
-  tab: number,
-  bankSlot: number,
-  bag: number,
-  bagSlot: number,
+  { tab, bankSlot, bag, slot: bagSlot }: Place,
 ): Promise<GuildBankResult> {
   requireWorld(env);
   const vault = openVaultOf(env);
@@ -303,12 +299,16 @@ function withdraw(
   );
 }
 
+type Shift = {
+  srcTab: number;
+  srcSlot: number;
+  destTab: number;
+  destSlot: number;
+};
+
 function moveWithin(
   env: Env,
-  srcTab: number,
-  srcSlot: number,
-  destTab: number,
-  destSlot: number,
+  { srcTab, srcSlot, destTab, destSlot }: Shift,
 ): Promise<GuildBankResult> {
   requireWorld(env);
   const vault = openVaultOf(env);
@@ -392,10 +392,10 @@ export function guildbankRuntime(
     act: {
       buyTab: (tab) => buy(env, tab),
       depositItem: (bag, slot, tab, bankSlot) =>
-        deposit(env, bag, slot, tab, bankSlot),
+        deposit(env, { bag, bankSlot, slot, tab }),
       depositMoney: (copper) => depositMoney(env, copper),
       moveWithinBank: (srcTab, srcSlot, destTab, destSlot) =>
-        moveWithin(env, srcTab, srcSlot, destTab, destSlot),
+        moveWithin(env, { destSlot, destTab, srcSlot, srcTab }),
       openVault: (vault) => open(env, vault),
       queryLog: (tab) => queryLog(env, tab),
       queryMoneyWithdrawn: () => queryWithdrawn(env),
@@ -404,7 +404,7 @@ export function guildbankRuntime(
       renameTab: (tab, name, icon) => rename(env, tab, name, icon),
       setTabText: (tab, text) => setText(env, tab, text),
       withdrawItem: (tab, bankSlot, bag, bagSlot) =>
-        withdraw(env, tab, bankSlot, bag, bagSlot),
+        withdraw(env, { bag, bankSlot, slot: bagSlot, tab }),
       withdrawMoney: (copper) => withdrawMoney(env, copper),
     },
     dispose: () => undefined,
