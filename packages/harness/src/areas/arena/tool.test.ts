@@ -240,6 +240,13 @@ describe("arena inspect and queue", () => {
     });
   });
 
+  test("queue leave with only a slot leaves", async () => {
+    const t = await rig();
+    const out = await runArena({ do: "queue", slot: 1 }, toolCtx(t));
+    expect(out.status).toBe("DONE");
+    expect(t.handle.arena.act.leaveQueue).toHaveBeenCalledWith(1);
+  });
+
   test("queue leave reports the slot", async () => {
     const t = await rig();
     const out = await runArena(
