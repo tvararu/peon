@@ -17,7 +17,6 @@ import {
   TEAM_EVENT_LEAVE,
   TEAM_EVENT_REMOVE,
 } from "#wow/areas/arena/protocol";
-import { fieldOf } from "#wow/entity-store";
 import { PLAYER_FIELDS } from "#wow/protocol/update-fields";
 import type { SessionDeps } from "#wow/session-stores";
 
@@ -139,7 +138,9 @@ export class ArenaStore {
     const self = this.deps.getEntity(this.deps.selfGuid());
     const ids: number[] = [];
     for (let slot = 0; slot < 3; slot++) {
-      const id = fieldOf(self, PLAYER_FIELDS.ARENA_TEAM_INFO_1_1.offset + slot * 7);
+      const id =
+        self?.rawFields.get(PLAYER_FIELDS.ARENA_TEAM_INFO_1_1.offset + slot * 7) ??
+        (self?.createComplete ? 0 : undefined);
       if (id !== undefined && id !== 0) ids.push(id);
     }
     return ids;
