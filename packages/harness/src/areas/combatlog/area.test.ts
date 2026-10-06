@@ -117,8 +117,9 @@ describe("combatlog harness rules", () => {
       data: { entry: 3098, name: "Mottled Boar", spellId: 122 },
       domain: "combatlog",
       event: "combatlog/immune",
-      text: expect.stringContaining(`Mottled Boar u${BOAR}`),
     });
+    expect(first?.text).toContain(`Mottled Boar u${BOAR}`);
+    expect(first?.text).toContain("is immune to");
     expect(rows({ ...immuneSpell, spellId: 116 } as CombatlogEvent)).toEqual([
       expect.objectContaining({ event: "combatlog/immune" }),
     ]);
@@ -140,6 +141,7 @@ describe("combatlog harness rules", () => {
       expect.objectContaining({ event: "combatlog/immune" }),
     ]);
     expect(missRows[0]?.text).toContain(`Mottled Boar u${BOAR}`);
+    expect(missRows[0]?.text).toContain("is immune to");
     expect(missRows[0]?.text).toContain("spell 5143");
     const swingRows = [...rows(swing), ...rows(swing)];
     expect(swingRows).toEqual([
@@ -149,6 +151,7 @@ describe("combatlog harness rules", () => {
       }),
     ]);
     expect(swingRows[0]?.text).toContain(`Mottled Boar u${BOAR}`);
+    expect(swingRows[0]?.text).toContain("is immune to");
     expect(swingRows[0]?.text).toContain("your attacks");
   });
 
@@ -184,6 +187,7 @@ describe("combatlog harness rules", () => {
       text: expect.any(String),
     });
     expect(drafts[0]?.text).toContain(`Mate u${MATE}`);
+    expect(drafts[0]?.text).toContain("killed your target");
     expect(drafts[0]?.text).toContain(`Mottled Boar u${BOAR}`);
   });
 

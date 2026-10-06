@@ -49,6 +49,7 @@ describe("combatlog heal_in rule", () => {
       event: "combatlog/heal_in",
     });
     expect(row?.text).toContain("Mate");
+    expect(row?.text).toContain("heals you");
   });
 
   test("later heals from the same healer within 10 s write nothing, then one row after", () => {

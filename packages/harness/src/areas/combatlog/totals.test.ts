@@ -103,6 +103,7 @@ describe("fightText", () => {
       misses: { dodge: 1, resist: 1 },
       taken: 145,
     });
+    expect(text).toContain("Fight over");
     expect(text).toContain("dealt 312");
     expect(text).toContain("took 145");
     expect(text).toContain("1 dodge");

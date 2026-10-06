@@ -41,4 +41,14 @@ describe("harness area registry", () => {
       registryProblems(HARNESS_AREAS, AREA_NAMES, createMockGame()),
     ).toEqual([]);
   });
+
+  test("a harness area keyed as a core log domain is reported", () => {
+    expect(
+      registryProblems(
+        { loot: { area: "loot", worldActs: [] } },
+        [],
+        createMockGame(),
+      ),
+    ).toEqual(["loot: not an area name", "loot: a core log domain"]);
+  });
 });
