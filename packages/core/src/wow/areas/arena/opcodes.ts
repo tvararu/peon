@@ -24,11 +24,8 @@ export const ARENA_OPCODES = {
     "SMSG_ARENA_TEAM_COMMAND_RESULT",
     "SMSG_ARENA_TEAM_EVENT",
   ],
-  uses: [],
-  stubs: [
-    ["SMSG_ARENA_TEAM_EVENT", "Arena team event"],
-    ["SMSG_ARENA_TEAM_COMMAND_RESULT", "Arena command result"],
-  ],
-  dead: [],
+  uses: ["SMSG_BATTLEFIELD_STATUS", "SMSG_GROUP_JOINED_BATTLEGROUND"],
+  stubs: [],
+  dead: ["CMSG_ARENA_TEAM_CREATE", "SMSG_ARENA_TEAM_CHANGE_FAILED_QUEUED"],
   unseen: [],
 } as const satisfies AreaOpcodes;
