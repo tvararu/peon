@@ -39,6 +39,18 @@ export function needText(args: CalendarArgs, field: "name" | "title"): string {
   return value;
 }
 
+const ERROR_TEXT: Record<number, string> = {
+  2: "you already hold the maximum of 30 events",
+  5: "you may not change that event",
+  6: "no such event",
+  9: "guild events need a guild",
+  11: "no such player",
+  16: "the date is invalid",
+  17: "the time is invalid",
+  19: "the event needs a title",
+  20: "the event time is in the past; give a date after the server time shown by list, or leave day, month and year out for tomorrow",
+};
+
 export function refusedOf(
   verb: CalendarDo,
   error: number,
@@ -46,7 +58,7 @@ export function refusedOf(
 ): ToolResult<CalendarAfter> {
   return result("REFUSED", {
     after: afterOf(verb, target),
-    detail: `The server refused with error ${error}.`,
+    detail: `The server refused with error ${error}${ERROR_TEXT[error] === undefined ? "" : `: ${ERROR_TEXT[error]}`}.`,
     next: nextCall("calendar", { do: "list" }),
     reason: `error_${error}`,
   });

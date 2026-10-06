@@ -89,7 +89,7 @@ export async function runList(
     body: state.events.map(
       (event) => `event ${event.id} "${event.title}" on ${stamp(event.time)}`,
     ),
-    detail: `The calendar holds ${state.events.length} events and ${state.invites.length} invites.`,
+    detail: `The calendar holds ${state.events.length} events and ${state.invites.length} invites. Server time now ${state.zoneTime === undefined ? "unknown" : stamp(state.zoneTime)}.`,
   });
 }
 

@@ -17,7 +17,7 @@ export const calendarParams = Type.Object({
   day: Type.Optional(
     Type.Integer({
       description:
-        "For create, update and copy: the day of the month. Default tomorrow.",
+        "For create, update and copy: the day of the month on the server clock shown by list. Leave out for tomorrow.",
       maximum: 31,
       minimum: 1,
     }),
@@ -59,7 +59,7 @@ export const calendarParams = Type.Object({
   month: Type.Optional(
     Type.Integer({
       description:
-        "For create, update and copy: the month number. Default tomorrow's.",
+        "For create, update and copy: the month number on the server clock shown by list. Leave out for tomorrow.",
       maximum: 12,
       minimum: 1,
     }),
@@ -82,7 +82,8 @@ export const calendarParams = Type.Object({
   ),
   year: Type.Optional(
     Type.Integer({
-      description: "For create, update and copy: the year. Default tomorrow's.",
+      description:
+        "For create, update and copy: the year on the server clock shown by list. Leave out for tomorrow.",
       maximum: 2031,
       minimum: 2000,
     }),
