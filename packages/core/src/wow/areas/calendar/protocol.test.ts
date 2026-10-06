@@ -1,10 +1,24 @@
 import { describe, expect, test } from "bun:test";
 import {
   type CalendarSendCalendarInit,
+  calendarArenaTeamBody,
   calendarCommandResultBody,
+  calendarEventInviteBody,
+  calendarEventStatusBody,
+  calendarFilterGuildBody,
+  calendarInviteAlertBody,
+  calendarInviteRemovedAlertBody,
+  calendarInviteRemovedBody,
+  calendarLockoutAddedBody,
+  calendarLockoutRemovedBody,
+  calendarLockoutUpdatedBody,
+  calendarModeratorAlertBody,
   calendarNumPendingBody,
+  calendarRemovedAlertBody,
   calendarSendCalendarBody,
   calendarSendEventBody,
+  calendarUpdatedAlertBody,
+  packCalendarTime,
 } from "#test-support/areas/calendar";
 import {
   CALENDAR_HOLIDAY_DATES,
@@ -15,6 +29,37 @@ import {
   parseCalendarSendEvent,
   parseCalendarSendNumPending,
 } from "#wow/areas/calendar/protocol-read";
+import {
+  CalendarFlag,
+  buildAddEvent,
+  buildArenaTeam,
+  buildComplain,
+  buildCopyEvent,
+  buildEventInvite,
+  buildEventRsvp,
+  buildEventSignup,
+  buildEventStatus,
+  buildGuildFilter,
+  buildModeratorStatus,
+  buildRemoveEvent,
+  buildRemoveInvite,
+  buildUpdateEvent,
+} from "#wow/areas/calendar/protocol";
+import {
+  parseCalendarArenaTeam,
+  parseCalendarEventInvite,
+  parseCalendarEventInviteAlert,
+  parseCalendarEventInviteRemoved,
+  parseCalendarEventInviteRemovedAlert,
+  parseCalendarEventRemovedAlert,
+  parseCalendarEventStatus,
+  parseCalendarEventUpdatedAlert,
+  parseCalendarFilterGuild,
+  parseCalendarLockoutAdded,
+  parseCalendarLockoutRemoved,
+  parseCalendarLockoutUpdated,
+  parseCalendarModeratorAlert,
+} from "#wow/areas/calendar/protocol-server";
 import { PacketReader } from "#wow/protocol/packet";
 
 const JULY = {
@@ -219,5 +264,366 @@ describe("calendar read parsers", () => {
         new PacketReader(calendarCommandResultBody({ error: 6 })),
       ),
     ).toEqual({ error: 6, name: "" });
+  });
+});
+
+describe("calendar client builders", () => {
+  const spec = {
+    description: "details",
+    dungeonId: -1,
+    flags: 0,
+    maxInvites: 100,
+    repeat: 0,
+    time: JULY,
+    title: "Raid",
+    type: 0,
+    zoneTime: ZONE,
+  };
+
+  test("add writes the spec then the packed invites (Handlers/CalendarHandler.cpp:249-252,331-337)", () => {
+    const body = buildAddEvent(spec, [
+      { guid: 0x0100_0000_0000_0001n, rank: 2, status: 3 },
+    ]);
+    const reader = new PacketReader(body);
+    expect(reader.cString()).toBe("Raid");
+    expect(reader.cString()).toBe("details");
+    expect(reader.uint8()).toBe(0);
+    expect(reader.uint8()).toBe(0);
+    expect(reader.uint32LE()).toBe(100);
+    expect(reader.int32LE()).toBe(-1);
+    expect(reader.uint32LE()).toBe(packCalendarTime(JULY));
+    expect(reader.uint32LE()).toBe(packCalendarTime(ZONE));
+    expect(reader.uint32LE()).toBe(0);
+    expect(reader.uint32LE()).toBe(1);
+    expect(reader.packedGuidBig()).toBe(0x0100_0000_0000_0001n);
+    expect(reader.uint8()).toBe(3);
+    expect(reader.uint8()).toBe(2);
+  });
+
+  test("add for a guild announcement omits the invite list (Handlers/CalendarHandler.cpp:319-340)", () => {
+    const body = buildAddEvent(
+      { ...spec, flags: CalendarFlag.WithoutInvites },
+      [{ guid: 1n, rank: 0, status: 0 }],
+    );
+    expect(new PacketReader(body).cString()).toBe("Raid");
+    expect(body[body.length - 4]).toBe(CalendarFlag.WithoutInvites);
+  });
+
+  test("update writes the ids then the spec (Handlers/CalendarHandler.cpp:381-384)", () => {
+    const reader = new PacketReader(buildUpdateEvent(7n, 9n, spec));
+    expect(reader.uint64LE()).toBe(7n);
+    expect(reader.uint64LE()).toBe(9n);
+    expect(reader.cString()).toBe("Raid");
+  });
+
+  test("remove sends the event id first (Handlers/CalendarHandler.cpp:421-430)", () => {
+    const reader = new PacketReader(buildRemoveEvent(7n, 9n, 0));
+    expect(reader.uint64LE()).toBe(7n);
+    expect(reader.uint64LE()).toBe(9n);
+    expect(reader.uint32LE()).toBe(0);
+  });
+
+  test("copy sends the ids and the packed time (Handlers/CalendarHandler.cpp:435-440)", () => {
+    const reader = new PacketReader(buildCopyEvent(7n, 9n, JULY));
+    expect(reader.uint64LE()).toBe(7n);
+    expect(reader.uint64LE()).toBe(9n);
+    expect(reader.uint32LE()).toBe(packCalendarTime(JULY));
+  });
+
+  test("invite sends the name and the pre-invite flags (Handlers/CalendarHandler.cpp:517-533)", () => {
+    const reader = new PacketReader(
+      buildEventInvite(7n, 0n, "Thrall", true, false),
+    );
+    expect(reader.uint64LE()).toBe(7n);
+    expect(reader.uint64LE()).toBe(0n);
+    expect(reader.cString()).toBe("Thrall");
+    expect(reader.uint8()).toBe(1);
+    expect(reader.uint8()).toBe(0);
+  });
+
+  test("rsvp sends the two ids and the u32 status (Handlers/CalendarHandler.cpp:637-644)", () => {
+    const reader = new PacketReader(buildEventRsvp(7n, 9n, 1));
+    expect(reader.uint64LE()).toBe(7n);
+    expect(reader.uint64LE()).toBe(9n);
+    expect(reader.uint32LE()).toBe(1);
+  });
+
+  test("sign-up sends the event id and the tentative byte (Handlers/CalendarHandler.cpp:611-618)", () => {
+    const reader = new PacketReader(buildEventSignup(7n, true));
+    expect(reader.uint64LE()).toBe(7n);
+    expect(reader.uint8()).toBe(1);
+  });
+
+  test("remove invite uses the packed guid first (Handlers/CalendarHandler.cpp:681-682)", () => {
+    const guid = 0x0100_0000_0000_0001n;
+    const reader = new PacketReader(buildRemoveInvite(guid, 9n, 11n, 7n));
+    expect(reader.packedGuidBig()).toBe(guid);
+    expect(reader.uint64LE()).toBe(9n);
+    expect(reader.uint64LE()).toBe(11n);
+    expect(reader.uint64LE()).toBe(7n);
+  });
+
+  test("status and moderator status use the same form with a u8 tail (Handlers/CalendarHandler.cpp:710-711,742-743)", () => {
+    const guid = 0x0100_0000_0000_0001n;
+    const status = new PacketReader(buildEventStatus(guid, 7n, 9n, 11n, 1));
+    expect(status.packedGuidBig()).toBe(guid);
+    expect(status.uint64LE()).toBe(7n);
+    expect(status.uint64LE()).toBe(9n);
+    expect(status.uint64LE()).toBe(11n);
+    expect(status.uint8()).toBe(1);
+    const rank = new PacketReader(buildModeratorStatus(guid, 7n, 9n, 11n, 1));
+    expect(rank.packedGuidBig()).toBe(guid);
+    expect(rank.uint64LE()).toBe(7n);
+    expect(rank.uint64LE()).toBe(9n);
+    expect(rank.uint64LE()).toBe(11n);
+    expect(rank.uint8()).toBe(1);
+  });
+
+  test("guild filter sends three u32 levels and rank (Server/Packets/CalendarPackets.cpp:26-31)", () => {
+    const reader = new PacketReader(buildGuildFilter(1, 80, 3));
+    expect(reader.uint32LE()).toBe(1);
+    expect(reader.uint32LE()).toBe(80);
+    expect(reader.uint32LE()).toBe(3);
+  });
+
+  test("arena team sends the team id (Server/Packets/CalendarPackets.cpp:33-36)", () => {
+    expect(
+      new PacketReader(buildArenaTeam(12)).uint32LE(),
+    ).toBe(12);
+  });
+
+  test("complain sends the event id and the packed guid (Server/Packets/CalendarPackets.cpp:38-42)", () => {
+    const reader = new PacketReader(
+      buildComplain(7n, 0x0100_0000_0000_0001n),
+    );
+    expect(reader.uint64LE()).toBe(7n);
+    expect(reader.packedGuidBig()).toBe(0x0100_0000_0000_0001n);
+  });
+});
+
+describe("calendar server alerts", () => {
+  const creator = 0x0100_0000_0000_0001n;
+  const sender = 0x0100_0000_0000_0002n;
+
+  test("filter guild lists packed guids (Guilds/Guild.cpp:2200-2231)", () => {
+    const parsed = parseCalendarFilterGuild(
+      new PacketReader(calendarFilterGuildBody({ members: [{ guid: creator }] })),
+    );
+    expect(parsed.members).toEqual([{ guid: creator, level: 0 }]);
+  });
+
+  test("arena team lists packed guids (Battlegrounds/ArenaTeam.cpp:613-628)", () => {
+    const parsed = parseCalendarArenaTeam(
+      new PacketReader(calendarArenaTeamBody({ members: [{ guid: creator }] })),
+    );
+    expect(parsed.members).toEqual([{ guid: creator, unk: 0 }]);
+  });
+
+  test("event invite distinguishes sign-ups by the sender flag (Calendar/CalendarMgr.cpp:503-535)", () => {
+    const parsed = parseCalendarEventInvite(
+      new PacketReader(
+        calendarEventInviteBody({
+          eventId: 7n,
+          invited: false,
+          invitee: creator,
+          inviteId: 9n,
+          level: 80,
+          status: 0,
+        }),
+      ),
+    );
+    expect(parsed.invited).toBe(false);
+    expect(parsed.hasStatusTime).toBe(false);
+    expect(parsed.statusTime).toBeUndefined();
+    const timed = parseCalendarEventInvite(
+      new PacketReader(
+        calendarEventInviteBody({
+          eventId: 7n,
+          invitee: creator,
+          inviteId: 9n,
+          level: 80,
+          status: 1,
+          statusTime: JULY,
+        }),
+      ),
+    );
+    expect(timed.statusTime).toEqual(JULY);
+  });
+
+  test("invite removed keeps flags (Calendar/CalendarMgr.cpp:581-590)", () => {
+    expect(
+      parseCalendarEventInviteRemoved(
+        new PacketReader(
+          calendarInviteRemovedBody({ eventId: 7n, flags: 1, invitee: creator }),
+        ),
+      ),
+    ).toMatchObject({ eventId: 7n, flags: 1, invitee: creator, unk: 1 });
+  });
+
+  test("event status reads the packed invitee and times (Calendar/CalendarMgr.cpp:557-569)", () => {
+    expect(
+      parseCalendarEventStatus(
+        new PacketReader(
+          calendarEventStatusBody({
+            eventId: 7n,
+            flags: 1,
+            invitee: creator,
+            rank: 1,
+            status: 1,
+            statusTime: ZONE,
+            time: JULY,
+          }),
+        ),
+      ),
+    ).toMatchObject({
+      eventId: 7n,
+      flags: 1,
+      invitee: creator,
+      rank: 1,
+      status: 1,
+      statusTime: ZONE,
+      time: JULY,
+    });
+  });
+
+  test("invite alert reads both guids (Calendar/CalendarMgr.cpp:603-625)", () => {
+    expect(
+      parseCalendarEventInviteAlert(
+        new PacketReader(
+          calendarInviteAlertBody({
+            creator,
+            dungeonId: -1,
+            eventId: 7n,
+            flags: 0,
+            inviteId: 9n,
+            rank: 0,
+            sender,
+            status: 0,
+            time: JULY,
+            title: "Raid",
+            type: 0,
+          }),
+        ),
+      ),
+    ).toMatchObject({
+      creator,
+      dungeonId: -1,
+      eventId: 7n,
+      inviteId: 9n,
+      sender,
+      title: "Raid",
+    });
+  });
+
+  test("invite-removed alert reads the status (Calendar/CalendarMgr.cpp:673-685)", () => {
+    expect(
+      parseCalendarEventInviteRemovedAlert(
+        new PacketReader(
+          calendarInviteRemovedAlertBody({
+            eventId: 7n,
+            flags: 0,
+            status: 9,
+            time: JULY,
+          }),
+        ),
+      ),
+    ).toMatchObject({ eventId: 7n, status: 9, time: JULY });
+  });
+
+  test("removed alert reads the flag byte (Calendar/CalendarMgr.cpp:571-579)", () => {
+    expect(
+      parseCalendarEventRemovedAlert(
+        new PacketReader(calendarRemovedAlertBody({ eventId: 7n, time: JULY })),
+      ),
+    ).toMatchObject({ eventId: 7n, time: JULY, unk: 1 });
+  });
+
+  test("updated alert keeps the description and the old time (Calendar/CalendarMgr.cpp:537-555)", () => {
+    expect(
+      parseCalendarEventUpdatedAlert(
+        new PacketReader(
+          calendarUpdatedAlertBody({
+            description: "details",
+            dungeonId: -1,
+            eventId: 7n,
+            flags: 1,
+            oldTime: ZONE,
+            time: JULY,
+            title: "Raid",
+            type: 0,
+          }),
+        ),
+      ),
+    ).toMatchObject({
+      description: "details",
+      dungeonId: -1,
+      eventId: 7n,
+      flags: 1,
+      maxInvites: 100,
+      oldTime: ZONE,
+      repeat: 0,
+      time: JULY,
+      title: "Raid",
+    });
+  });
+
+  test("moderator alert reads the rank (Calendar/CalendarMgr.cpp:592-601)", () => {
+    expect(
+      parseCalendarModeratorAlert(
+        new PacketReader(
+          calendarModeratorAlertBody({ eventId: 7n, invitee: creator, rank: 1 }),
+        ),
+      ),
+    ).toMatchObject({ eventId: 7n, invitee: creator, rank: 1, unk: 1 });
+  });
+
+  test("lockout added has the time but removed does not (Handlers/CalendarHandler.cpp:821-838)", () => {
+    const added = parseCalendarLockoutAdded(
+      new PacketReader(
+        calendarLockoutAddedBody({
+          difficulty: 1,
+          instanceGuid: 99n,
+          mapId: 631,
+          secondsLeft: 3600,
+          time: JULY,
+        }),
+      ),
+    );
+    expect(added.time).toEqual(JULY);
+    expect(added.mapId).toBe(631);
+    const removed = parseCalendarLockoutRemoved(
+      new PacketReader(
+        calendarLockoutRemovedBody({
+          difficulty: 1,
+          instanceGuid: 99n,
+          mapId: 631,
+          secondsLeft: 0,
+        }),
+      ),
+    );
+    expect(removed.time).toBeUndefined();
+    expect(removed.instanceGuid).toBe(99n);
+  });
+
+  test("lockout updated keeps both second counts (Handlers/CalendarHandler.cpp:840-852)", () => {
+    expect(
+      parseCalendarLockoutUpdated(
+        new PacketReader(
+          calendarLockoutUpdatedBody({
+            difficulty: 1,
+            mapId: 631,
+            newSeconds: 7200,
+            oldSeconds: 3600,
+            time: JULY,
+          }),
+        ),
+      ),
+    ).toMatchObject({
+      difficulty: 1,
+      mapId: 631,
+      newSeconds: 7200,
+      oldSeconds: 3600,
+      time: JULY,
+    });
   });
 });
