@@ -27,6 +27,9 @@ export const CHARACTER_OPCODES = {
   ],
   uses: [],
   stubs: [],
-  dead: [],
-  unseen: [],
+  dead: [
+    "CMSG_SET_PLAYER_DECLINED_NAMES",
+    "SMSG_SET_PLAYER_DECLINED_NAMES_RESULT",
+  ],
+  unseen: ["SMSG_PLAY_TIME_WARNING"],
 } as const satisfies AreaOpcodes;
