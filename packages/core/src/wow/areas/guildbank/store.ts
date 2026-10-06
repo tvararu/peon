@@ -35,6 +35,7 @@ export type GuildBankState = {
   items: ReadonlyMap<number, ReadonlyMap<number, GuildBankItem>>;
   briefs: readonly (GuildBankTabBrief | undefined)[];
   texts: readonly (string | undefined)[];
+  logs: ReadonlyMap<number, GuildBankLog["entries"]>;
   moneyWithdrawn: number | undefined;
   tabWithdrawals: ReadonlyMap<number, number>;
   pending: GuildBankRequest | undefined;
@@ -128,6 +129,7 @@ export class GuildBankStore {
         ]),
       ),
       lastOutcome: this.last,
+      logs: new Map(this.logs),
       money: this.money,
       moneyWithdrawn: this.moneyLeft,
       pending: this.request,
@@ -151,10 +153,14 @@ export class GuildBankStore {
     const from = self?.position;
     const to = object?.position;
     if (!(object && from && to)) return undefined;
-    if (object.objectType !== ObjectType.GAMEOBJECT) return undefined;
+    if (
+      object.objectType !== ObjectType.GAMEOBJECT ||
+      !("gameObjectType" in object)
+    )
+      return undefined;
     if (
       object.gameObjectType !== GUILD_BANK_OBJECT_TYPE &&
-      (object.bytes1 === undefined ||
+      (!("bytes1" in object) ||
         ((object.bytes1 >> 8) & 0xff) !== GUILD_BANK_OBJECT_TYPE)
     )
       return undefined;
