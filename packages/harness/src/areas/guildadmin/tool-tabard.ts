@@ -48,7 +48,7 @@ export async function runTabard(
   return result("DONE", {
     after: afterOf("tabard", ref),
     detail: `Opened the tabard designer ${ref}.`,
-    next: nextCall("guild", { do: "emblem", npc: ref, confirm: true }),
+    next: nextCall("guild", { confirm: true, do: "emblem", npc: ref }),
   });
 }
 

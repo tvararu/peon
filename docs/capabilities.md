@@ -75,6 +75,7 @@ or the page names one that does not exist.
 | Read mail | `t9-mail-read` | The letter is staged by an offline quest reward; the answer quotes its fixed body. |
 | Collect gold and items from mail | `t9-mail-collect` | Takes money then attachments in order at a mailbox. |
 | Send gold or items by mail | `t9-mail-send` | Postage is 30 copper per item, 30 with no item. |
+| Open the tabard designer and try to save a guild emblem | `t9-guild-tabard` | Run guildless: the server refuses the save with code 2 and takes no gold. A leader's save, ranks, notes, the info text and the event log are proven by probe flows, not a scenario: an eval cannot stage a guild. |
 | Share a quest with the group and take one shared back | `t8-quests-share`, `t8-quests-accept-shared` | A share with no member answer is `UNCONFIRMED` after 3 s. |
 | Set loot rules and give master loot | `t9-raid-master-loot` | Needs a corpse that holds an item; the scenario allows three kills. `roll` and `pass_loot` are not shown: a group roll needs an uncommon drop and `pass_loot` has no server reply. |
 | Run and answer ready checks | `t9-raid-ready`, `t9-raid-answer` | Peon ends its own checks after 30 s. |
@@ -85,6 +86,14 @@ or the page names one that does not exist.
 ## Not shown by any scenario
 
 These have tools or code but no scenario that checks them live:
+- Changing ranks, member notes and the info text, and reading permissions and
+  the event log (`guild` `rank`, `note`, `officer_note`, `info_text`,
+  `permissions`, `log`), and saving an emblem as a leader: a scenario needs
+  a guild, and neither the realm setup nor an eval may create one (`soap gm`
+  is banned in evals). The probe flows `guildadmin-ranks` and
+  `guildadmin-tabard` prove the server replies on a staged guild
+  ([guildadmin.md](areas/guildadmin.md#proof)). Needs a guild setup endpoint.
+
 - Resetting its own dungeons (`dungeon` `reset`): offline setup cannot place
   the character inside a dungeon (the realm position setup accepts only
   maps 0, 1, 530 and 571, and evals may not teleport with a GM command).

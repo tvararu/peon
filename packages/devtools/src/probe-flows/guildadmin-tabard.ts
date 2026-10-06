@@ -28,7 +28,14 @@ async function run({ handle, settle }: FlowContext): Promise<Json> {
     style: 3,
   });
   const state = handle.guildadmin.state();
-  return json({ at: row.position, distance: row.distance, npc, opened, saved, emblem: state.emblem });
+  return json({
+    at: row.position,
+    distance: row.distance,
+    emblem: state.emblem,
+    npc,
+    opened,
+    saved,
+  });
 }
 
 export const flow: ProbeFlow = {

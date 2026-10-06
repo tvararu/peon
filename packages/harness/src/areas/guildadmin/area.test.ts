@@ -9,8 +9,6 @@ const INFO: AreaState<"guildadmin"> = {
   disbanded: false,
   emblem: undefined,
   eventLog: undefined,
-  permissions: undefined,
-  roster: undefined,
   info: {
     accounts: 1,
     created: {
@@ -24,6 +22,8 @@ const INFO: AreaState<"guildadmin"> = {
     members: 1,
     name: "FacSeedAlpha",
   },
+  permissions: undefined,
+  roster: undefined,
 };
 
 function guildadminEvent(type: "info" | "disbanded"): AreaEvent {
@@ -70,7 +70,7 @@ describe("guildadmin harness rules", () => {
   test("the tabard designer opening writes a log row", () => {
     const drafts = areaDrafts(
       areaRuleSet(),
-      { area: "guildadmin", event: { type: "tabard_vendor", npc: 7n } },
+      { area: "guildadmin", event: { npc: 7n, type: "tabard_vendor" } },
       testRuleInput(),
     );
     expect(drafts).toHaveLength(1);
@@ -83,7 +83,7 @@ describe("guildadmin harness rules", () => {
   test("an emblem result writes a log row with its code", () => {
     const drafts = areaDrafts(
       areaRuleSet(),
-      { area: "guildadmin", event: { type: "emblem_result", code: 2 } },
+      { area: "guildadmin", event: { code: 2, type: "emblem_result" } },
       testRuleInput(),
     );
     expect(drafts[0]).toMatchObject({

@@ -53,8 +53,8 @@ export const guildParams = Type.Object({
   ),
   rank: Type.Optional(
     Type.Integer({
-      minimum: 0,
       description: "For rank rename: the rank number from status, 0 is leader.",
+      minimum: 0,
     }),
   ),
   step: Type.Optional(

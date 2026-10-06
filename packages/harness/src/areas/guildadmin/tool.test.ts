@@ -99,7 +99,7 @@ describe("guild tool", () => {
 
   test("rank remove needs confirm and passes it on", async () => {
     const t = await world();
-    t.acts.removeLowestRank.mockResolvedValue({ status: "removed", count: 5 });
+    t.acts.removeLowestRank.mockResolvedValue({ count: 5, status: "removed" });
     await guildSpec.run(
       { confirm: true, do: "rank", step: "remove" },
       toolCtx(t),
@@ -272,7 +272,7 @@ describe("guild tool", () => {
       reason: "needs_confirm",
     });
     await expect(
-      guildSpec.run({ do: "emblem", confirm: true }, toolCtx(t)),
+      guildSpec.run({ confirm: true, do: "emblem" }, toolCtx(t)),
     ).rejects.toMatchObject({
       reason: "missing_arg",
     });

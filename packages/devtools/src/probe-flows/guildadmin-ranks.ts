@@ -16,7 +16,7 @@ async function run({ handle, args }: FlowContext): Promise<Json> {
   const renamed = await act.setRank(5, {
     goldPerDay: 0,
     name: "Raiders",
-    rights: 0x4_1,
+    rights: 0x41,
     tabs: [],
   });
   const publicNote = await act.setNote(me, "tank", { officer: false });

@@ -1,7 +1,7 @@
 import { afterOf, refuse, silent } from "#harness/areas/guildadmin/tool-run";
 import type {
-  GuildCtx,
   GuildAfter,
+  GuildCtx,
 } from "#harness/areas/guildadmin/tool-types";
 import type { ToolResult } from "#harness/contract/result";
 import { result } from "#harness/tools/define";
