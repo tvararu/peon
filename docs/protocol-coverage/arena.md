@@ -24,5 +24,4 @@ columns are explained in [the index](../protocol-coverage.md).
 | `0x35b` | `SMSG_ARENA_TEAM_STATS` | server | handled |  |
 | `0x376` | `SMSG_ARENA_ERROR` | server | handled |  |
 | `0x377` | `MSG_INSPECT_ARENA_TEAMS` | both | handled |  |
-| `0x4c7` | `SMSG_ARENA_UNIT_DESTROYED` | server | handled |  |
 | `0x4c8` | `SMSG_ARENA_TEAM_CHANGE_FAILED_QUEUED` | server | dead |  |

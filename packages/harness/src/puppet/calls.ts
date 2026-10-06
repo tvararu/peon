@@ -48,6 +48,24 @@ export const PUPPET_CALLS: Readonly<Record<string, PuppetCall>> = {
     args: [["decline", "accept"]],
     run: (h, a) => h.raid.act.answerSummon(a[0] === "accept"),
   },
+  arenaAccept: { args: [], run: (h) => h.arena.act.accept() },
+  arenaDecline: { args: [], run: (h) => h.arena.act.decline() },
+  arenaDisband: {
+    args: ["number"],
+    run: (h, a) => h.arena.act.disband(count(a, 0)),
+  },
+  arenaInfo: {
+    args: ["number"],
+    run: (h, a) => h.arena.act.query(count(a, 0)),
+  },
+  arenaInvite: {
+    args: ["number", "string"],
+    run: (h, a) => h.arena.act.invite(count(a, 0), text(a, 1)),
+  },
+  arenaLeave: {
+    args: ["number"],
+    run: (h, a) => h.arena.act.leave(count(a, 0)),
+  },
   convertToRaid: { args: [], run: (h) => h.raid.act.convertToRaid() },
   declineGuildInvite: { args: [], run: (h) => h.declineGuildInvite() },
   declineInvite: { args: [], run: (h) => h.declineInvite() },

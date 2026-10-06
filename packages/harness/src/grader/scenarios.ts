@@ -241,6 +241,7 @@ export const ROUND_1: readonly string[] = [
   "t3-pilot-camp-holdout-travel",
   "t3-pilot-camp-greedy",
   "t3-pilot-camp-holdout-greedy",
+  "t9-arena-inspect",
 ];
 const DIR = `${import.meta.dir}/scenarios`;
 const JSON_FILE = /\.json$/;

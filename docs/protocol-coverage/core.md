@@ -303,6 +303,7 @@ columns are explained in [the index](../protocol-coverage.md).
 | `0x495` | `SMSG_AURA_UPDATE_ALL` | server | handled |  |
 | `0x496` | `SMSG_AURA_UPDATE` | server | handled |  |
 | `0x49c` | `CMSG_HEARTH_AND_RESURRECT` | client | missing |  |
+| `0x4c7` | `SMSG_ARENA_UNIT_DESTROYED` | server | handled |  |
 | `0x4d2` | `MSG_MOVE_GRAVITY_CHNG` | both | handled |  |
 | `0x4de` | `SMSG_BATTLEFIELD_MGR_ENTRY_INVITE` | server | missing |  |
 | `0x4df` | `CMSG_BATTLEFIELD_MGR_ENTRY_INVITE_RESPONSE` | client | missing |  |
