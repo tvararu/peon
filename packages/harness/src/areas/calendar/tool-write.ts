@@ -3,8 +3,8 @@ import { findEvent, ownInviteId } from "#harness/areas/calendar/tool-read";
 import {
   afterOf,
   needText,
-  refusedOf,
   refuse,
+  refusedOf,
 } from "#harness/areas/calendar/tool-run";
 import type {
   CalendarAfter,
@@ -105,21 +105,17 @@ export async function runUpdate(
       ? { ...detail.time }
       : atOf(args, state);
   const out = await ctx.rt.mutex.run(() =>
-    ctx.handle.calendar.act.update(
-      found.id,
-      ownInviteId(state, found.id),
-      {
-        description: args.description ?? detail.description,
-        dungeonId: detail.dungeonId,
-        flags: detail.flags,
-        maxInvites: detail.maxInvites,
-        repeat: detail.repeat,
-        time,
-        title,
-        type: detail.type,
-        zoneTime: { ...time },
-      },
-    ),
+    ctx.handle.calendar.act.update(found.id, ownInviteId(state, found.id), {
+      description: args.description ?? detail.description,
+      dungeonId: detail.dungeonId,
+      flags: detail.flags,
+      maxInvites: detail.maxInvites,
+      repeat: detail.repeat,
+      time,
+      title,
+      type: detail.type,
+      zoneTime: { ...time },
+    }),
   );
   if (out.status === "refused") return refusedOf("update", out.error);
   return result("DONE", {

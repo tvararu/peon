@@ -2,10 +2,10 @@ import { type PackedTime, writePackedTime } from "#wow/protocol/packed-time";
 import { PacketWriter } from "#wow/protocol/packet";
 
 export const CalendarFlag = {
-  AllAllowed: 0x001,
-  InvitesLocked: 0x010,
-  WithoutInvites: 0x040,
-  GuildEvent: 0x400,
+  AllAllowed: 0x0_01,
+  InvitesLocked: 0x0_10,
+  WithoutInvites: 0x0_40,
+  GuildEvent: 0x4_00,
 } as const;
 
 export const CalendarRank = {
@@ -69,7 +69,7 @@ export const CalendarError = {
 
 export const CALENDAR_TITLE_MAX = 31;
 export const CALENDAR_DESCRIPTION_MAX = 255;
-export const CALENDAR_PAST_SLACK_SECONDS = 86400;
+export const CALENDAR_PAST_SLACK_SECONDS = 86_400;
 export const CALENDAR_CREATE_COOLDOWN_MS = 5000;
 
 export type CalendarEventSpec = {
@@ -169,19 +169,21 @@ export function buildCopyEvent(
   return writer.finish();
 }
 
-export function buildEventInvite(
-  eventId: bigint,
-  inviteId: bigint,
-  name: string,
-  isPreInvite: boolean,
-  isGuildEvent: boolean,
-): Uint8Array {
+export type EventInviteSpec = {
+  eventId: bigint;
+  inviteId: bigint;
+  name: string;
+  isPreInvite: boolean;
+  isGuildEvent: boolean;
+};
+
+export function buildEventInvite(spec: EventInviteSpec): Uint8Array {
   const writer = new PacketWriter();
-  writer.uint64LE(eventId);
-  writer.uint64LE(inviteId);
-  writer.cString(name);
-  writer.uint8(isPreInvite ? 1 : 0);
-  writer.uint8(isGuildEvent ? 1 : 0);
+  writer.uint64LE(spec.eventId);
+  writer.uint64LE(spec.inviteId);
+  writer.cString(spec.name);
+  writer.uint8(spec.isPreInvite ? 1 : 0);
+  writer.uint8(spec.isGuildEvent ? 1 : 0);
   return writer.finish();
 }
 
@@ -221,40 +223,35 @@ export function buildRemoveInvite(
   return writer.finish();
 }
 
-function buildInviteChange(
-  invitee: bigint,
-  eventId: bigint,
-  inviteId: bigint,
-  ownerInviteId: bigint,
-  value: number,
-): Uint8Array {
+export type InviteChange = {
+  invitee: bigint;
+  eventId: bigint;
+  inviteId: bigint;
+  ownerInviteId: bigint;
+};
+
+function buildInviteChange(change: InviteChange, value: number): Uint8Array {
   const writer = new PacketWriter();
-  writer.packedGuidBig(invitee);
-  writer.uint64LE(eventId);
-  writer.uint64LE(inviteId);
-  writer.uint64LE(ownerInviteId);
+  writer.packedGuidBig(change.invitee);
+  writer.uint64LE(change.eventId);
+  writer.uint64LE(change.inviteId);
+  writer.uint64LE(change.ownerInviteId);
   writer.uint8(value);
   return writer.finish();
 }
 
 export function buildEventStatus(
-  invitee: bigint,
-  eventId: bigint,
-  inviteId: bigint,
-  ownerInviteId: bigint,
+  change: InviteChange,
   status: number,
 ): Uint8Array {
-  return buildInviteChange(invitee, eventId, inviteId, ownerInviteId, status);
+  return buildInviteChange(change, status);
 }
 
 export function buildModeratorStatus(
-  invitee: bigint,
-  eventId: bigint,
-  inviteId: bigint,
-  ownerInviteId: bigint,
+  change: InviteChange,
   rank: number,
 ): Uint8Array {
-  return buildInviteChange(invitee, eventId, inviteId, ownerInviteId, rank);
+  return buildInviteChange(change, rank);
 }
 
 export function buildGuildFilter(

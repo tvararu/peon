@@ -47,13 +47,11 @@ function spec(title: string): SpecOf {
 
 async function run({ handle }: FlowContext): Promise<Json> {
   const created = await attempt(() =>
-    handle.calendar.act.create(spec(`Peon ${Date.now() % 100000}`)),
+    handle.calendar.act.create(spec(`Peon ${Date.now() % 100_000}`)),
   );
   const createdJson = created as { eventId?: string; status?: string };
   const eventId =
-    typeof createdJson.eventId === "string"
-      ? BigInt(createdJson.eventId)
-      : 0n;
+    typeof createdJson.eventId === "string" ? BigInt(createdJson.eventId) : 0n;
   const inviteId = 0n;
   const updated =
     eventId === 0n
@@ -69,9 +67,7 @@ async function run({ handle }: FlowContext): Promise<Json> {
   const copied =
     eventId === 0n
       ? { skipped: "no event" }
-      : await attempt(() =>
-          handle.calendar.act.copy(eventId, inviteId, at(3)),
-        );
+      : await attempt(() => handle.calendar.act.copy(eventId, inviteId, at(3)));
   const copiedJson = copied as { eventId?: string };
   const copyId =
     typeof copiedJson.eventId === "string" ? BigInt(copiedJson.eventId) : 0n;

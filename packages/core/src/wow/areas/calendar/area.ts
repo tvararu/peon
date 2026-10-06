@@ -85,9 +85,7 @@ export const calendarArea = defineArea({
       });
     });
     wire.on(GameOpcode.SMSG_CALENDAR_EVENT_REMOVED_ALERT, (reader) => {
-      store.receiveRemovedAlert(
-        parseCalendarEventRemovedAlert(reader).eventId,
-      );
+      store.receiveRemovedAlert(parseCalendarEventRemovedAlert(reader).eventId);
     });
     wire.on(GameOpcode.SMSG_CALENDAR_EVENT_UPDATED_ALERT, (reader) => {
       store.receiveUpdatedAlert(parseCalendarEventUpdatedAlert(reader));

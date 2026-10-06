@@ -61,7 +61,10 @@ function calendarCall(args: unknown, theme: CallInit["theme"]): string {
   });
 }
 
-function calendarBody({ expanded, result: out }: BodyInit<CalendarAfter>): string[] {
+function calendarBody({
+  expanded,
+  result: out,
+}: BodyInit<CalendarAfter>): string[] {
   return expanded ? out.body : [];
 }
 

@@ -22,6 +22,7 @@ const READ: AreaState<"calendar"> = {
       type: 0,
     },
   ],
+  filterGuild: [],
   holidays: [],
   invites: [
     {
@@ -33,6 +34,8 @@ const READ: AreaState<"calendar"> = {
       status: 0,
     },
   ],
+  lockouts: [],
+  lockoutUpdates: [],
   pending: 2,
   receivedAt: 1,
   relationTime: 0,
@@ -41,9 +44,6 @@ const READ: AreaState<"calendar"> = {
   serverOffsetSeconds: 25_200,
   serverTime: 1_790_928_000,
   zoneTime: ZONE,
-  filterGuild: [],
-  lockouts: [],
-  lockoutUpdates: [],
 };
 
 function calendarEvent(type: "calendar" | "pending"): AreaEvent {

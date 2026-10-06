@@ -12,9 +12,7 @@ type CalendarState = AreaState<"calendar">;
 
 const ZONE = { day: 4, hour: 19, minute: 0, month: 7, weekday: 6, year: 2026 };
 
-function calendarState(
-  over: Partial<CalendarState> = {},
-): CalendarState {
+function calendarState(over: Partial<CalendarState> = {}): CalendarState {
   return {
     arenaTeam: [],
     binds: [],
@@ -25,8 +23,8 @@ function calendarState(
     filterGuild: [],
     holidays: [],
     invites: [],
-    lockoutUpdates: [],
     lockouts: [],
+    lockoutUpdates: [],
     pending: undefined,
     receivedAt: undefined,
     relationTime: undefined,
@@ -117,10 +115,7 @@ describe("calendar tool", () => {
 
   test("list reports the stored events", async () => {
     const t = await createTestRuntime({});
-    stateOf(
-      t.handle,
-      calendarState({ events: [storedEvent(7n, "Raid")] }),
-    );
+    stateOf(t.handle, calendarState({ events: [storedEvent(7n, "Raid")] }));
     const out = await calendarSpec.run({ do: "list" }, toolCtx(t));
     expect(out.status).toBe("DONE");
     expect(contentOf(out)).toContain("Raid");
@@ -209,7 +204,10 @@ describe("calendar tool", () => {
     stateOf(t.handle, state);
     const spies = acts(t.handle);
     spies.remove.mockResolvedValue({ state, status: "ok" });
-    const out = await calendarSpec.run({ do: "remove", event: "7" }, toolCtx(t));
+    const out = await calendarSpec.run(
+      { do: "remove", event: "7" },
+      toolCtx(t),
+    );
     expect(out.status).toBe("DONE");
     expect(spies.remove).toHaveBeenCalledWith(7n, 9n);
   });

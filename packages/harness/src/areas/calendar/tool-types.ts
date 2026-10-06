@@ -82,8 +82,7 @@ export const calendarParams = Type.Object({
   ),
   year: Type.Optional(
     Type.Integer({
-      description:
-        "For create, update and copy: the year. Default tomorrow's.",
+      description: "For create, update and copy: the year. Default tomorrow's.",
       maximum: 2031,
       minimum: 2000,
     }),

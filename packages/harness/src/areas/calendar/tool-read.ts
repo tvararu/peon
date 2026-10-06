@@ -1,5 +1,5 @@
 import type { AreaState } from "@peon/core";
-import { afterOf, refusedOf, refuse } from "#harness/areas/calendar/tool-run";
+import { afterOf, refuse, refusedOf } from "#harness/areas/calendar/tool-run";
 import type {
   CalendarAfter,
   CalendarArgs,
@@ -21,9 +21,7 @@ export function findEvent(
   text: string,
 ): CalendarEvent {
   const trimmed = text.trim();
-  const exact = state.events.filter(
-    (event) => event.id.toString() === trimmed,
-  );
+  const exact = state.events.filter((event) => event.id.toString() === trimmed);
   if (exact.length === 1 && exact[0] !== undefined) return exact[0];
   const lower = trimmed.toLowerCase();
   const named = state.events.filter((event) =>

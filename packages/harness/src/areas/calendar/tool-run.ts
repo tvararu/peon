@@ -20,7 +20,10 @@ export function refuse(
   return new Refusal({ detail, next, reason });
 }
 
-export function silent(verb: CalendarDo, what: string): ToolResult<CalendarAfter> {
+export function silent(
+  verb: CalendarDo,
+  what: string,
+): ToolResult<CalendarAfter> {
   return result("UNCONFIRMED", {
     after: afterOf(verb),
     detail: `${what} got no answer. The server may be silent for this call.`,

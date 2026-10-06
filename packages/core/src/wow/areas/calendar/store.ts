@@ -15,6 +15,16 @@ import type {
   CalendarLockout,
   CalendarLockoutUpdated,
 } from "#wow/areas/calendar/protocol-server";
+import {
+  detach,
+  detachBind,
+  detachDetail,
+  detachDetails,
+  detachHoliday,
+  detachInvite,
+  detachListEvent,
+  EMPTY,
+} from "#wow/areas/calendar/store-detach";
 import type { PackedTime } from "#wow/protocol/packed-time";
 
 export type CalendarDetail = CalendarSendEvent;
@@ -64,102 +74,6 @@ export type CalendarEvent =
   | { type: "lockout_removed"; mapId: number; state: CalendarState }
   | { type: "lockout_updated"; mapId: number; state: CalendarState }
   | { type: "clear_pending"; state: CalendarState };
-
-const EMPTY: CalendarState = {
-  arenaTeam: [],
-  binds: [],
-  clearedPending: 0,
-  createdByMe: [],
-  details: {},
-  events: [],
-  filterGuild: [],
-  holidays: [],
-  invites: [],
-  lockoutUpdates: [],
-  lockouts: [],
-  pending: undefined,
-  receivedAt: undefined,
-  relationTime: undefined,
-  resets: [],
-  selfInvites: {},
-  serverOffsetSeconds: undefined,
-  serverTime: undefined,
-  zoneTime: undefined,
-};
-
-function detachInvite(invite: CalendarInvite): CalendarInvite {
-  return { ...invite };
-}
-
-function detachListEvent(event: CalendarListEvent): CalendarListEvent {
-  return { ...event, time: { ...event.time } };
-}
-
-function detachBind(bind: CalendarBind): CalendarBind {
-  return { ...bind };
-}
-
-function detachHoliday(holiday: CalendarHoliday): CalendarHoliday {
-  return {
-    ...holiday,
-    dates: [...holiday.dates],
-    durations: [...holiday.durations],
-    flags: [...holiday.flags],
-  };
-}
-
-function detachDetail(detail: CalendarDetail): CalendarDetail {
-  return {
-    ...detail,
-    invites: detail.invites.map((invite) => ({
-      ...invite,
-      statusTime: { ...invite.statusTime },
-    })),
-    time: { ...detail.time },
-    zoneTime: { ...detail.zoneTime },
-  };
-}
-
-function detachDetails(
-  details: Readonly<Record<string, CalendarDetail>>,
-): Record<string, CalendarDetail> {
-  return Object.fromEntries(
-    Object.entries(details).map(([id, detail]) => [id, detachDetail(detail)]),
-  );
-}
-
-function detach(state: CalendarState): CalendarState {
-  return {
-    ...state,
-    arenaTeam: state.arenaTeam.map((member) => ({ ...member })),
-    binds: state.binds.map(detachBind),
-    createdByMe: [...state.createdByMe],
-    details: detachDetails(state.details),
-    events: state.events.map(detachListEvent),
-    filterGuild: state.filterGuild.map((member) => ({ ...member })),
-    holidays: state.holidays.map(detachHoliday),
-    invites: state.invites.map(detachInvite),
-    lockoutUpdates: state.lockoutUpdates.map((update) => ({
-      ...update,
-      time: { ...update.time },
-    })),
-    lockouts: state.lockouts.map((lockout) => ({
-      ...lockout,
-      time: lockout.time && { ...lockout.time },
-    })),
-    resets: state.resets.map((reset) => ({ ...reset })),
-    selfInvites: Object.fromEntries(
-      Object.entries(state.selfInvites).map(([id, invite]) => [
-        id,
-        {
-          ...invite,
-          statusTime: invite.statusTime && { ...invite.statusTime },
-        },
-      ]),
-    ),
-    zoneTime: state.zoneTime && { ...state.zoneTime },
-  };
-}
 
 export class CalendarStore {
   private readonly events = new Emitter<[CalendarEvent]>();
@@ -244,10 +158,7 @@ export class CalendarStore {
     });
   }
 
-  receiveInvite(
-    parsed: CalendarEventInvitePacket,
-    selfGuid: bigint,
-  ): void {
+  receiveInvite(parsed: CalendarEventInvitePacket, selfGuid: bigint): void {
     const key = parsed.eventId.toString();
     const selfInvites = { ...this.state.selfInvites };
     if (parsed.invitee === selfGuid)
@@ -274,7 +185,9 @@ export class CalendarStore {
   }): void {
     const key = parsed.eventId.toString();
     if (this.state.details[key] === undefined) {
-      const current = this.state.events.some((event) => event.id === parsed.eventId)
+      const current = this.state.events.some(
+        (event) => event.id === parsed.eventId,
+      )
         ? this.state.events.map(detachListEvent)
         : [
             ...this.state.events.map(detachListEvent),
@@ -304,7 +217,12 @@ export class CalendarStore {
     if (detail) {
       const invites = detail.invites.map((invite) =>
         invite.invitee === parsed.invitee
-          ? { ...invite, rank: parsed.rank, status: parsed.status, statusTime: { ...parsed.statusTime } }
+          ? {
+              ...invite,
+              rank: parsed.rank,
+              status: parsed.status,
+              statusTime: { ...parsed.statusTime },
+            }
           : { ...invite },
       );
       this.state = {
@@ -333,7 +251,9 @@ export class CalendarStore {
           ...detachDetails(this.state.details),
           [key]: {
             ...detachDetail(detail),
-            invites: detail.invites.filter((invite) => invite.invitee !== parsed.invitee),
+            invites: detail.invites.filter(
+              (invite) => invite.invitee !== parsed.invitee,
+            ),
           },
         },
       };
