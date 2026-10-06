@@ -253,6 +253,7 @@ describe("items harness timer rows", () => {
       event: "items/expiring",
     });
     expect(rows[0]?.text).toContain("Dragonmaw Key");
+    expect(rows[0]?.text).toContain("temporary enchant");
     expect(rows[0]?.text).toContain("30 s");
   });
 

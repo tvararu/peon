@@ -478,7 +478,7 @@ describe("gear tool", () => {
     expect(acts.setAmmo).not.toHaveBeenCalled();
   });
 
-  test("the registered gear tool reports a refusal code from its first call", async () => {
+  test("the registered gear tool reports the refusal code", async () => {
     const t = await createTestRuntime();
     stocked(t.handle, []);
     const { text } = await runTool(gearTool.definition(t.rt), {

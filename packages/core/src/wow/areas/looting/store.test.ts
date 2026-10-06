@@ -24,7 +24,7 @@ function setup() {
 }
 
 describe("LootingStore", () => {
-  test("starts with no owners, no master candidates and no pass", () => {
+  test("starts with no owners, no candidates, no pass and no send", () => {
     const { rig } = setup();
     try {
       expect(rig.handle.state()).toEqual({
