@@ -26,8 +26,8 @@ import {
 } from "#wow/areas/channels/protocol";
 import type { ChannelStore, ChannelsEvent } from "#wow/areas/channels/store";
 import type { AreaRuntime, AreaRuntimeCtx } from "#wow/areas/contract";
-import type { CoreStores } from "#wow/session-stores";
 import { GameOpcode } from "#wow/protocol/opcodes";
+import type { CoreStores } from "#wow/session-stores";
 
 export const MAX_CHANNEL_PASSWORD = 31;
 export const CHANNEL_ANSWER_MS = 2000;

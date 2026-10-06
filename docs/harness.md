@@ -182,7 +182,6 @@ A result that is not `DONE` ends with a `Next:` step.
 | `recover` | Comes back to life: corpse run, spirit healer, a resurrection offer, or `self` with a Soulstone or Reincarnation. |
 | `social` | One chat message or one group action. |
 | `talents` | Shows talents and glyphs and spends talent points; puts glyphs in slots or clears them. |
-| `vehicle` | Takes a seat on a vehicle by walking to a unit and clicking it (`board`), leaves the seat (`leave`), changes seats (`seat`), asks to ride with a player (`ride_with`) and removes a passenger (`eject`). When a board gives control of the vehicle, the result says `travel` drives it and Next names a `travel` call. A seat request the server does not answer is `UNCONFIRMED` with the reason `no_answer`. |
 | `journal` | Quest log, bags and gear, bank contents, spells, reputation, or the game log. `since: last_turn` searches from the previous turn's start, so a search after a turn-in still finds what the turn-in logged. |
 | `gear` | Wears, takes off, moves, splits, opens and reads items. `gear move` with `to: bank` deposits the named carried item when the bank is open, else refuses with the `interact` deposit call. |
 | `stop` | Stops one action or everything. |
@@ -193,6 +192,8 @@ A result that is not `DONE` ends with a `Next:` step.
 | `group` | Shows the group roster, converts to a raid, moves members, promotes, sets loot rules from `what` (a method in `text` counts only when `what` is empty), runs ready checks, marks, gives master loot, rolls, shares quests and answers summons. |
 | `trade` | Gives items and gold to another player, answers a trade request, changes the offer, accepts, cancels or reads both offers. |
 | `mail` | Reads the letters waiting in the inbox, collects copper and items from them, or sends a letter with copper or items at a mailbox within 10 yards. |
+| `vehicle` | Takes a seat on a vehicle by walking to a unit and clicking it (`board`), leaves the seat (`leave`), changes seats (`seat`), asks to ride with a player (`ride_with`) and removes a passenger (`eject`). When a board gives control of the vehicle, the result says `travel` drives it and Next names a `travel` call. A seat request the server does not answer is `UNCONFIRMED` with the reason `no_answer`. |
+| `channel` | Joins and leaves chat channels, lists their members, and runs admin actions on a channel it moderates: kick, ban, unban, announce, moderate, invite and the rest. |
 
 `travel`, `engage`, `pilot`, `rest` and `recover` start a run (`r1`, `r2`, …).
 Only one run can be active. The tool waits for the run to end and

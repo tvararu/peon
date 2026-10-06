@@ -29,6 +29,21 @@ function pairRow(notice: PairNotice, rc: RuleInput, verb: string): AreaDraft {
   };
 }
 
+function flagRow(
+  notice: { type: string; channel: string },
+  noun: string,
+): AreaDraft[] {
+  const on = notice.type.endsWith("_on");
+  return [
+    {
+      class: "log",
+      data: { channel: notice.channel },
+      name: notice.type,
+      text: `${notice.channel} ${noun} are ${on ? "on" : "off"}.`,
+    },
+  ];
+}
+
 function noticeRow(notice: Notice, rc: RuleInput): AreaDraft[] {
   switch (notice.type) {
     case "player_kicked":
@@ -72,30 +87,10 @@ function noticeRow(notice: Notice, rc: RuleInput): AreaDraft[] {
       ];
     case "announcements_on":
     case "announcements_off":
-      return [
-        {
-          class: "log",
-          data: { channel: notice.channel },
-          name:
-            notice.type === "announcements_on"
-              ? "announcements_on"
-              : "announcements_off",
-          text: `${notice.channel} announcements are ${notice.type === "announcements_on" ? "on" : "off"}.`,
-        },
-      ];
+      return flagRow(notice, "announcements");
     case "moderation_on":
     case "moderation_off":
-      return [
-        {
-          class: "log",
-          data: { channel: notice.channel },
-          name:
-            notice.type === "moderation_on"
-              ? "moderation_on"
-              : "moderation_off",
-          text: `${notice.channel} moderation is ${notice.type === "moderation_on" ? "on" : "off"}.`,
-        },
-      ];
+      return flagRow(notice, "moderation");
     default:
       return [];
   }

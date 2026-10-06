@@ -57,7 +57,7 @@ function playerOf(args: ChannelArgs, verb: string): string {
   if (player === "")
     throw new Refusal({
       detail: `name the player to ${verb}.`,
-      next: nextCall("channel", { do: args.do, channel: args.channel }),
+      next: nextCall("channel", { channel: args.channel, do: args.do }),
       reason: "missing_player",
     });
   return player;
@@ -75,17 +75,17 @@ async function guarded<T>(ctx: ChannelCtx, act: () => Promise<T>): Promise<T> {
   return await abortable(queued, ctx.signal);
 }
 
-function adminDetail(verb: ChannelDo, result: ChannelAdminOutcome): string {
-  if (!result.ok) {
-    if (result.reason === "not_member")
+function adminDetail(verb: ChannelDo, outcome: ChannelAdminOutcome): string {
+  if (!outcome.ok) {
+    if (outcome.reason === "not_member")
       return `you are not on that channel, so ${verb} went nowhere.`;
-    if (result.reason === "bad_name")
+    if (outcome.reason === "bad_name")
       return `that player name is not usable for ${verb}.`;
-    return `the password is longer than 31 characters, so it went nowhere.`;
+    return "the password is longer than 31 characters, so it went nowhere.";
   }
-  if (result.notice === undefined)
+  if (outcome.notice === undefined)
     return `the server gave no answer to ${verb}; the journal shows whether it landed.`;
-  return `the server answered ${verb} with ${result.notice.type}.`;
+  return `the server answered ${verb} with ${outcome.notice.type}.`;
 }
 
 function settleAdmin(
@@ -97,13 +97,13 @@ function settleAdmin(
   if (!outcome.ok && outcome.reason === "not_member")
     throw new Refusal({
       detail: `you are not on ${channel}.`,
-      next: nextCall("channel", { do: "join", channel }),
+      next: nextCall("channel", { channel, do: "join" }),
       reason: "not_member",
     });
   if (!outcome.ok)
     throw new Refusal({
       detail: adminDetail(do_, outcome),
-      next: nextCall("channel", { do: do_, channel }),
+      next: nextCall("channel", { channel, do: do_ }),
       reason: outcome.reason,
     });
   const status = outcome.notice === undefined ? "UNCONFIRMED" : "DONE";
@@ -145,7 +145,7 @@ async function runList(
   if (!outcome.ok)
     throw new Refusal({
       detail: `you are not on ${channel}.`,
-      next: nextCall("channel", { do: "join", channel }),
+      next: nextCall("channel", { channel, do: "join" }),
       reason: "not_member",
     });
   const names = outcome.members.length;
@@ -168,7 +168,7 @@ async function runCount(
     return result("UNCONFIRMED", {
       after: { channel, do: "count", player: undefined },
       detail: `the server gave no member count for ${channel}.`,
-      next: nextCall("channel", { do: "join", channel }),
+      next: nextCall("channel", { channel, do: "join" }),
       reason: "no_answer",
     });
   return result("DONE", {
@@ -182,8 +182,9 @@ async function runJoin(
   ctx: ChannelCtx,
 ): Promise<ToolResult<ChannelAfter>> {
   const channel = channelOf(args);
-  await guarded(ctx, async () => {
+  await guarded(ctx, () => {
     ctx.handle.joinChannel(channel, args.password);
+    return Promise.resolve();
   });
   return result("UNCONFIRMED", {
     after: { channel, do: "join", player: undefined },
@@ -197,8 +198,9 @@ async function runLeave(
   ctx: ChannelCtx,
 ): Promise<ToolResult<ChannelAfter>> {
   const channel = channelOf(args);
-  await guarded(ctx, async () => {
+  await guarded(ctx, () => {
     ctx.handle.leaveChannel(channel);
+    return Promise.resolve();
   });
   return result("DONE", {
     after: { channel, do: "leave", player: undefined },
@@ -206,7 +208,7 @@ async function runLeave(
   });
 }
 
-export async function channelRun(
+export function channelRun(
   args: ChannelArgs,
   ctx: ChannelCtx,
 ): Promise<ToolResult<ChannelAfter>> {
