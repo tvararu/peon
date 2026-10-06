@@ -1,7 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import type { AreaEventOf } from "@peon/core";
 import { areaDrafts, areaRuleSet } from "#harness/areas/rules";
-import { createRuleMemo } from "#harness/events/rules";
 import { testLookup, testRuleInput } from "#test-support/rule-fixtures";
 
 type RaidEvent = AreaEventOf<"raid">;
@@ -288,21 +287,13 @@ describe("minimap ping harness rules", () => {
   } as const;
 
   test("a ping writes one passive row carrying the position", () => {
-    const memo = createRuleMemo();
-    memo.pose = { mapId: 0, x: 100, y: 40, z: 0 };
-    const [row, ...rest] = rowsWith(ping, { memo });
+    const [row, ...rest] = rows(ping);
     expect(rest).toEqual([]);
     expect(row).toMatchObject({
       class: "passive",
       data: { name: "Tom", x: 130, y: 40 },
       event: "raid/ping",
     });
-  });
-
-  test("a ping before any pose is known still writes a row", () => {
-    const [row] = rows(ping);
-    expect(row).toMatchObject({ class: "passive", event: "raid/ping" });
-    expect(row?.data).toMatchObject({ name: "Tom", x: 130, y: 40 });
   });
 });
 
@@ -320,7 +311,12 @@ describe("summon harness rules", () => {
     expect(out).toHaveLength(1);
     expect(out[0]).toMatchObject({
       class: "wake",
-      data: { seconds: 120, summoner: "16", zone: "Eversong Woods" },
+      data: {
+        name: "Tom",
+        seconds: 120,
+        summoner: "16",
+        zone: "Eversong Woods",
+      },
       event: "raid/summon",
     });
   });
@@ -344,9 +340,15 @@ describe("summon harness rules", () => {
     expect(anon?.data).toMatchObject({ name: "Someone" });
   });
 
-  test("an expiry writes one passive row", () => {
+  test("an expiry writes one passive row naming the summoner", () => {
     expect(
       rows({ name: "Tom", summoner: 0x10n, type: "summon_expired" }),
-    ).toMatchObject([{ class: "passive", event: "raid/summon_expired" }]);
+    ).toMatchObject([
+      {
+        class: "passive",
+        data: { name: "Tom", summoner: "16" },
+        event: "raid/summon_expired",
+      },
+    ]);
   });
 });

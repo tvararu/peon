@@ -142,7 +142,7 @@ describe("raid member stats policy", () => {
       );
       expect(rig.handle.act.memberStats("Tom")?.hp).toBe(5);
       rig.inject(GameOpcode.SMSG_GROUP_LIST, list(1, []));
-      expect(rig.handle.act.memberStats("Tom")).toBeUndefined();
+      expect(rig.stores.areas.raid.snapshot().stats?.has(TOM)).toBe(false);
       expect(() => rig.handle.act.requestMemberStats("Tom")).toThrow("Tom");
     } finally {
       rig.dispose();

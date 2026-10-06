@@ -381,7 +381,7 @@ describe("group tool give", () => {
 });
 
 describe("group tool pass_loot", () => {
-  test("sends the opt-out flag and reports it", async () => {
+  test("sends the opt-out flag on and off", async () => {
     const t = await world();
     const on = await runTool(t.tool, { do: "pass_loot", what: "on" });
     expect(t.pass).toHaveBeenLastCalledWith(true);
