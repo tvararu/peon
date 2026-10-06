@@ -86,11 +86,11 @@ describe("spells harness rules", () => {
     expect(rows).toMatchObject([
       {
         event: "spells/channel_start",
-        text: expect.stringContaining("5143"),
+        text: expect.stringMatching(/Channelling.*5143/),
       },
       {
         event: "spells/channel_start",
-        text: expect.stringContaining("5143"),
+        text: expect.stringMatching(/Channelling.*5143/),
       },
       {
         event: "spells/channel_end",
@@ -137,7 +137,9 @@ describe("spells harness rules", () => {
           spellName: "Shadow Bolt",
         },
         event: "spells/target_start",
-        text: expect.stringMatching(/Scourge Invader.*Shadow Bolt/),
+        text: expect.stringMatching(
+          /Scourge Invader starts casting Shadow Bolt/,
+        ),
       },
     ]);
     expect(areaDrafts(rules, end, rc)).toMatchObject([
@@ -148,7 +150,9 @@ describe("spells harness rules", () => {
           spellName: "Shadow Bolt",
         },
         event: "spells/target_interrupted",
-        text: expect.stringMatching(/Scourge Invader.*Shadow Bolt/),
+        text: expect.stringMatching(
+          /Scourge Invader.*Shadow Bolt.*interrupted/,
+        ),
       },
     ]);
   });
@@ -312,7 +316,7 @@ describe("spells skill rows", () => {
     ).toMatchObject([
       {
         event: "spells/skill_changed",
-        text: expect.stringMatching(/learned.*1\/75/),
+        text: expect.stringMatching(/Mining.*learned.*1\/75/),
       },
     ]);
     expect(
@@ -320,13 +324,13 @@ describe("spells skill rows", () => {
     ).toMatchObject([
       {
         event: "spells/skill_changed",
-        text: expect.stringMatching(/is now.*12\/75/),
+        text: expect.stringMatching(/Mining.*is now.*12\/75/),
       },
     ]);
     expect(areaDrafts(areaRuleSet(), removed, testRuleInput())).toMatchObject([
       {
         event: "spells/skill_removed",
-        text: expect.stringContaining("dropped"),
+        text: expect.stringMatching(/Mining.*dropped/),
       },
     ]);
   });

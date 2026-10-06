@@ -268,7 +268,8 @@ describe("threat/target_lost", () => {
   test("a target break for an engaged unit logs once", () => {
     const event = rules();
     event(fightingMe);
-    const [row] = event(broken);
+    const [row, ...rest] = event(broken);
+    expect(rest).toEqual([]);
     expect(row).toMatchObject({
       class: "log",
       data: {

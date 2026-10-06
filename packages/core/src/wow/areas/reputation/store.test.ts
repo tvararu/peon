@@ -402,7 +402,7 @@ describe("reputation store pending flags", () => {
     expect(row(store, BLOODSAIL)?.atWar).toBe(true);
   });
 
-  test("an unchanged standing flushed with an unrelated gain keeps a pending peace (ReputationMgr.cpp:193-202,373,532)", async () => {
+  test("an unchanged standing flushed with an unrelated gain keeps a pending peace until a later war declaration (ReputationMgr.cpp:193-202,373,532)", async () => {
     const { seen, store } = await setup();
     store.setStanding(standing(BLOODSAIL, -700));
     store.setPendingFlag(BLOODSAIL, "atWar", false);

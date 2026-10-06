@@ -110,7 +110,7 @@ function seatState(controlling: boolean) {
 }
 
 describe("vehicle board and driving", () => {
-  test("a board that gives control says travel drives it and names a travel call", async () => {
+  test("a board that gives control is DONE with a travel next call", async () => {
     const { t } = await world();
     Object.assign(t.handle.vehicles, { state: seatState(true) });
     const res = await run(t, { do: "board", unit: "Wintergarde Gryphon" });

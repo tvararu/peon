@@ -318,6 +318,14 @@ describe("talents learn", () => {
     );
   });
 
+  test("learn with no talent and no plan is REFUSED missing_plan and sends nothing", async () => {
+    const { learn, t } = await rig();
+    await expect(
+      talentsSpec.run({ do: "learn" }, toolCtx(t)),
+    ).rejects.toMatchObject({ reason: "missing_plan" });
+    expect(learn).not.toHaveBeenCalled();
+  });
+
   test("learn refuses an id past the uint32 wire range without sending", async () => {
     const { learn, t } = await rig({ catalog: undefined });
     await expect(

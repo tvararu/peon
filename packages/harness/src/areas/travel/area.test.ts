@@ -75,6 +75,7 @@ describe("travel harness rules", () => {
       domain: "travel",
       event: "travel/node_learned",
     });
+    expect(row?.text).toContain("New flight path");
     expect(row?.text).toContain("Dragonhawk Master");
   });
 

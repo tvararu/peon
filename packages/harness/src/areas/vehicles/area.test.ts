@@ -179,13 +179,13 @@ describe("vehicles/control", () => {
       data: { allow: true, mover: "0xf130003eea000abc" },
       name: "control",
     });
-    expect(gained?.text).toContain("control");
+    expect(gained?.text).toContain("now control");
     const [lost] = rules()({ allow: false, mover: GUID, type: "control" });
     expect(lost).toMatchObject({
       class: "wake",
       data: { allow: false, mover: "0xf130003eea000abc" },
       name: "control",
     });
-    expect(lost?.text).toContain("control");
+    expect(lost?.text).toContain("no longer control");
   });
 });
