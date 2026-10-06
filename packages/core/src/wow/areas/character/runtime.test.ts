@@ -79,9 +79,8 @@ describe("character runtime", () => {
   test("deleteCharacter sends the guid and reports the reply", async () => {
     const rig = areaRig("character");
     try {
-      const pending = rig.handle.act.deleteCharacter(
-        0x00_00_00_01_00_00_00_42n,
-      );
+      const pending =
+        rig.handle.act.deleteCharacter(0x00_00_00_01_00_00_00_42n);
       await flush();
       expect(rig.sent).toEqual([
         {

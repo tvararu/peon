@@ -125,10 +125,7 @@ async function barberOutcome({ ctx }: Wait): Promise<BarberResult> {
   return result;
 }
 
-async function whoisOutcome(
-  { ctx }: Wait,
-  name: string,
-): Promise<string> {
+async function whoisOutcome({ ctx }: Wait, name: string): Promise<string> {
   ctx.send(GameOpcode.CMSG_WHOIS, buildWhois(name));
   const event = await ctx.until((e) => e.type === "whois", {
     timeoutMs: CHARACTER_REQUEST_MS,
@@ -170,7 +167,10 @@ async function styleAtBarber(
   return await barberOutcome(wait);
 }
 
-async function deleteCharacter({ ctx, wait }: Acts, guid: bigint): Promise<string> {
+async function deleteCharacter(
+  { ctx, wait }: Acts,
+  guid: bigint,
+): Promise<string> {
   ctx.send(GameOpcode.CMSG_CHAR_DELETE, buildCharDelete(guid));
   return (await awaitOperation(wait, "delete")).result;
 }
