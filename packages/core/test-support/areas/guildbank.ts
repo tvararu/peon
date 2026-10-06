@@ -184,3 +184,14 @@ export function moneyWithdrawnBody(remaining: number): Uint8Array {
   w.uint32LE(remaining >>> 0);
   return w.finish();
 }
+
+export function bankCommandResultBody(
+  command: number,
+  result: number,
+): Uint8Array {
+  const w = new PacketWriter();
+  w.uint32LE(command);
+  w.cString("");
+  w.uint32LE(result);
+  return w.finish();
+}

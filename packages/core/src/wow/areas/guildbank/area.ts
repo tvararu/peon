@@ -8,6 +8,7 @@ import {
 } from "#wow/areas/guildbank/protocol";
 import { guildbankRuntime } from "#wow/areas/guildbank/runtime";
 import { GuildBankStore } from "#wow/areas/guildbank/store";
+import { parseGuildCommandResult } from "#wow/protocol/guild";
 import { GameOpcode } from "#wow/protocol/opcodes";
 
 export const guildbankArea = defineArea({
@@ -39,6 +40,10 @@ export const guildbankArea = defineArea({
     wire.on(GameOpcode.MSG_QUERY_GUILD_BANK_TEXT, (reader) => {
       const parsed = parseBankText(reader);
       if (parsed) store.receiveText(parsed);
+    });
+    wire.peek(GameOpcode.SMSG_GUILD_COMMAND_RESULT, (reader) => {
+      const result = parseGuildCommandResult(reader);
+      store.receiveCommandResult(result.command, result.result);
     });
     wire.on(GameOpcode.MSG_GUILD_BANK_MONEY_WITHDRAWN, (reader) => {
       const parsed = parseMoneyWithdrawn(reader);

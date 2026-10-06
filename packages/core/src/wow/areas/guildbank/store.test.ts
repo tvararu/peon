@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import {
+  bankCommandResultBody,
   bankListBody,
   bankLogBody,
   bankTextBody,
@@ -9,6 +10,7 @@ import {
 } from "#test-support/areas/guildbank";
 import { GUILD_BANK_LOG } from "#wow/areas/guildbank/protocol";
 import type { GuildBankEvent } from "#wow/areas/guildbank/store";
+import { GuildCommand, GuildCommandResult } from "#wow/protocol/guild";
 import { GameOpcode } from "#wow/protocol/opcodes";
 
 function openList() {
@@ -130,6 +132,50 @@ describe("guildbank store", () => {
         moneyWithdrawnBody(-1),
       );
       expect(rig.handle.state().moneyWithdrawn).toBe(-1);
+    } finally {
+      rig.dispose();
+    }
+  });
+
+  test("SMSG_GUILD_COMMAND_RESULT for VIEW_TAB refuses a pending open as not in a guild (GuildHandler.cpp:287)", async () => {
+    const rig = guildbankRig();
+    const seen: GuildBankEvent[] = [];
+    rig.handle.onEvent((event) => seen.push(event));
+    try {
+      const opened = rig.handle.act.openVault(GUILD_BANK_VAULT);
+      rig.inject(
+        GameOpcode.SMSG_GUILD_COMMAND_RESULT,
+        bankCommandResultBody(
+          GuildCommand.VIEW_TAB,
+          GuildCommandResult.GUILD_PLAYER_NOT_IN_GUILD,
+        ),
+      );
+      expect(await opened).toEqual({
+        reason: "not in a guild",
+        status: "refused",
+      });
+      expect(seen).toContainEqual({
+        kind: "open",
+        reason: "not in a guild",
+        type: "refused",
+      });
+    } finally {
+      rig.dispose();
+    }
+  });
+
+  test("SMSG_GUILD_COMMAND_RESULT for another command leaves a pending open waiting", () => {
+    const rig = guildbankRig();
+    try {
+      rig.handle.act.openVault(GUILD_BANK_VAULT).catch(() => undefined);
+      rig.inject(
+        GameOpcode.SMSG_GUILD_COMMAND_RESULT,
+        bankCommandResultBody(
+          GuildCommand.INVITE,
+          GuildCommandResult.GUILD_PLAYER_NOT_IN_GUILD,
+        ),
+      );
+      expect(rig.handle.state().pending?.kind).toBe("open");
     } finally {
       rig.dispose();
     }

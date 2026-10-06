@@ -10,6 +10,7 @@ import { distance } from "#wow/geometry";
 import type { InventoryState } from "#wow/inventory";
 import { readInventory } from "#wow/inventory";
 import { ObjectType } from "#wow/protocol/entity-fields";
+import { GuildCommand, GuildCommandResult } from "#wow/protocol/guild";
 import type { SessionDeps } from "#wow/session-stores";
 
 export const GUILD_BANK_OBJECT_TYPE = 34;
@@ -313,6 +314,15 @@ export class GuildBankStore {
     if (this.request?.kind === "money_query")
       this.settle({ status: "ok" }, { remaining, type: "money_queried" });
     else this.events.emit({ remaining, type: "money_queried" });
+  }
+
+  receiveCommandResult(command: number, result: number): void {
+    if (command !== GuildCommand.VIEW_TAB || result === 0) return;
+    this.refuse(
+      result === GuildCommandResult.GUILD_PLAYER_NOT_IN_GUILD
+        ? "not in a guild"
+        : `guild command result ${result}`,
+    );
   }
 
   noteVault(vault: bigint): void {
