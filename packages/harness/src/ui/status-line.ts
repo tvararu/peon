@@ -3,6 +3,7 @@ import type { NowSnapshot, RunView } from "#harness/contract/views";
 import { span } from "#harness/ui/draw";
 
 const VERB: Readonly<Record<RunKind, string>> = {
+  arena: "queueing",
   engage: "fighting",
   pilot: "steering",
   recover: "recovering",

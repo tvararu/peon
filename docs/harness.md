@@ -192,7 +192,7 @@ A result that is not `DONE` ends with a `Next:` step.
 | `dungeon` | Difficulty, saved instances, resets, the bind prompt and the dungeon finder queue, role answers, proposal answers, teleports and kick votes. |
 | `group` | Shows the group roster, converts to a raid, moves members, promotes, sets loot rules from `what` (a method in `text` counts only when `what` is empty), runs ready checks, marks, gives master loot, rolls, shares quests and answers summons. |
 | `trade` | Gives items and gold to another player, answers a trade request, changes the offer, accepts, cancels or reads both offers. |
-| `mail` | Reads the letters waiting in the inbox, collects copper and items from them, or sends a letter with copper or items at a mailbox within 10 yards. |
+| `arena` | Reads arena teams and their rosters, invites players and passes the captaincy, inspects a nearby player's teams, and joins or leaves an arena queue at a battlemaster. |
 
 `travel`, `engage`, `pilot`, `rest` and `recover` start a run (`r1`, `r2`, …).
 Only one run can be active. The tool waits for the run to end and

@@ -4,7 +4,8 @@ export type RunKind =
   | "pilot"
   | "rest"
   | "recover"
-  | "trade";
+  | "trade"
+  | "arena";
 
 export type RunStatus =
   | "running"
