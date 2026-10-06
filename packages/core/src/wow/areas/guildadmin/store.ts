@@ -88,6 +88,7 @@ export class GuildadminStore {
   private eventLogState: GuildEventLogEntry[] | undefined;
   private rosterState: GuildadminRoster | undefined;
   private emblemState: GuildEmblem | undefined;
+  private ranksKnown: number | undefined;
 
   snapshot(): GuildadminState {
     return {
@@ -110,8 +111,13 @@ export class GuildadminStore {
     this.events.emit({ type: "info", info: detach(info) });
   }
 
+  rankCount(): number | undefined {
+    return this.ranksKnown;
+  }
+
   receiveGuildEvent(code: number, params: readonly string[] = []): void {
     if (code === GuildEventCode.RANK_UPDATED) {
+      this.ranksKnown = Number(params[2]);
       this.events.emit({
         type: "rank_updated",
         rank: Number(params[0]),
@@ -121,6 +127,7 @@ export class GuildadminStore {
       return;
     }
     if (code === GuildEventCode.RANK_DELETED) {
+      this.ranksKnown = Number(params[0]);
       this.events.emit({ type: "rank_deleted", count: Number(params[0]) });
       return;
     }
@@ -147,6 +154,7 @@ export class GuildadminStore {
 
   receiveRoster(raw: GuildRosterRaw): void {
     const roster = toRoster(raw);
+    this.ranksKnown = roster.ranks.length;
     this.rosterState = detachRoster(roster);
     this.events.emit({ type: "roster", roster: detachRoster(roster) });
   }

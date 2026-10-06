@@ -72,7 +72,7 @@ function refuse(reason: string): GuildadminRefusal {
 }
 
 function rankCount(env: Env): number | undefined {
-  return env.store.snapshot().roster?.ranks.length;
+  return env.store.rankCount();
 }
 
 function validName(name: string, max: number): string | undefined {

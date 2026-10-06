@@ -323,4 +323,29 @@ describe("guildadmin admin area", () => {
       rig.dispose();
     }
   });
+
+  test("the rank count follows GE_RANK_UPDATED so a new rank can be renamed", async () => {
+    const rig = areaRig("guildadmin");
+    try {
+      rig.inject(GameOpcode.SMSG_GUILD_ROSTER, rosterBody("", 5));
+      rig.inject(
+        GameOpcode.SMSG_GUILD_EVENT,
+        guildadminEventBody({ code: 10, params: ["5", "Raider", "6"] }),
+      );
+      const pending = rig.handle.act.setRank(5, {
+        name: "Raiders",
+        rights: 0x40,
+        goldPerDay: 0,
+        tabs: [],
+      });
+      expect(rig.sent[0]?.opcode).toBe(GameOpcode.CMSG_GUILD_RANK);
+      rig.inject(
+        GameOpcode.SMSG_GUILD_EVENT,
+        guildadminEventBody({ code: 10, params: ["5", "Raiders", "6"] }),
+      );
+      expect((await pending).status).toBe("updated");
+    } finally {
+      rig.dispose();
+    }
+  });
 });
