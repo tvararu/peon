@@ -1,6 +1,10 @@
 import { describe, expect, test } from "bun:test";
 import { createService, type Fetch } from "#factory/realm-service";
-import { runService, serviceCommands } from "#factory/soap-service-cli";
+import {
+  runService,
+  serviceCommands,
+  serviceUsage,
+} from "#factory/soap-service-cli";
 
 function harness(status = 200, body = '{"ok":true,"savedAt":"t"}') {
   const urls: string[] = [];
@@ -21,15 +25,23 @@ function harness(status = 200, body = '{"ok":true,"savedAt":"t"}') {
 }
 
 describe("runService", () => {
-  test("routes every command runService handles", () => {
-    expect(serviceCommands).toEqual([
+  test("lists exactly the commands it handles, for soap-cli to route", async () => {
+    expect([...serviceCommands].sort()).toEqual([
+      "accounts",
       "health",
       "presets",
-      "accounts",
-      "truth",
-      "setup",
       "reset",
+      "setup",
+      "truth",
     ]);
+    for (const name of serviceCommands) {
+      const h = harness();
+      await runService([name], h.deps);
+      expect(h.err).not.toContain(serviceUsage);
+    }
+    const unknown = harness();
+    expect(await runService(["nope"], unknown.deps)).toBe(1);
+    expect(unknown.err).toContain(serviceUsage);
   });
 
   test("truth maps the account to its character", async () => {

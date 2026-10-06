@@ -54,7 +54,7 @@ describe("report text", () => {
     expect(body).not.toContain("factory:claim");
   });
 
-  test("a branch that names an issue links it", () => {
+  test("a branch that names an issue links it and a reaper run gets the claim note", () => {
     expect(issueOf("refs/heads/factory/103-factory-project-board")).toBe(103);
     expect(issueOf("OpenHubris/auto-work-run-177")).toBeNull();
     expect(reportBody(b)).toContain("- Issue: #103");
