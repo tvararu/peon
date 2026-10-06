@@ -51,7 +51,12 @@ describe("parseChannelNotify", () => {
   });
 
   test.each([
-    ["WRONG_PASSWORD", ChannelNotify.WRONG_PASSWORD, "Secret", /wrong password/i],
+    [
+      "WRONG_PASSWORD",
+      ChannelNotify.WRONG_PASSWORD,
+      "Secret",
+      /wrong password/i,
+    ],
     ["NOT_MEMBER", ChannelNotify.NOT_MEMBER, "Trade", /not on channel/i],
     ["BANNED", ChannelNotify.BANNED, "Trade", /banned/i],
     ["MUTED", ChannelNotify.MUTED, "General", /permission to speak/i],
