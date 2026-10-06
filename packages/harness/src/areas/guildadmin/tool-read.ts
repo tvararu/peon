@@ -34,7 +34,9 @@ function rosterBody(roster: GuildRoster | undefined): string[] {
 
 function rosterLine(member: GuildRoster["members"][number]): string {
   const note = member.publicNote ? ` note "${member.publicNote}"` : "";
-  const officer = member.officerNote ? ` officer note "${member.officerNote}"` : "";
+  const officer = member.officerNote
+    ? ` officer note "${member.officerNote}"`
+    : "";
   return `member ${member.name} rank ${member.rankIndex}${note}${officer}`;
 }
 
