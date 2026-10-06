@@ -105,3 +105,17 @@ Join a channel it owns and kick another player off it (`t2-channels-kick`): kick
 | `CMSG_CHANNEL_DISPLAY_LIST` | `live` | same run: 12-byte out body `channel`, answered by the same 36-byte list | `Handlers/ChannelHandler.cpp:292` |
 | `CMSG_GET_CHANNEL_MEMBER_COUNT` | `live` | same run: 12-byte out body `channel` | `Handlers/ChannelHandler.cpp:298` |
 | `SMSG_CHANNEL_MEMBER_COUNT` | `live` | same run: 17-byte body name + flags `01` + count 2; a `CMSG_CHANNEL_LIST` for `peonl9c3d4eother` (not joined) got `not_member` | `Handlers/ChannelHandler.cpp:304` |
+| `CMSG_CHANNEL_KICK` | `live` | puppet run on channel `peonw6abcd` (owner `Fgkmffpgikb`, partner `Fgkmffpglbp`, both `eversong10`, deleted): 23-byte out body `channel + partner name` answered by `player_kicked` naming the partner target and the owner actor | `Handlers/ChannelHandler.cpp:222` |
+| `CMSG_CHANNEL_BAN` | `live` | same run: 23-byte out body answered by `player_banned`, with a `SMSG_USERLIST_REMOVE` for the partner | `Handlers/ChannelHandler.cpp:237` |
+| `CMSG_CHANNEL_UNBAN` | `live` | same run: 23-byte out body answered by `player_unbanned` | `Handlers/ChannelHandler.cpp:252` |
+| `CMSG_CHANNEL_ANNOUNCEMENTS` | `live` | same run: 11-byte out body `channel` answered by `announcements_off` (the toggle) | `Handlers/ChannelHandler.cpp:267` |
+| `CMSG_CHANNEL_MODERATE` | `live` | same run: 11-byte out body `channel` answered by `moderation_off` (the toggle) | `Handlers/ChannelHandler.cpp:279` |
+| `CMSG_SET_CHANNEL_WATCH` | `live` | same run: 11-byte out body `channel`; the owner then got every `SMSG_USERLIST_*` below | `Handlers/ChannelHandler.cpp:321` |
+| `CMSG_CLEAR_CHANNEL_WATCH` | `live` | unit-tested send of the 11-byte `channel` body; the handler removes the watcher and answers nothing | `Handlers/ChannelHandler.cpp:336` |
+| `SMSG_USERLIST_ADD` | `live` | same run: body `guid + member flags 0 + flags 01 + count 2 + channel`, parsed as a `channel_userlist` add when the partner rejoined | `Chat/Channels/Channel.cpp:1163` |
+| `SMSG_USERLIST_REMOVE` | `live` | same run: body `guid + flags 01 + count 1 + channel`, parsed as a `channel_userlist` remove on kick and on ban | `Chat/Channels/Channel.cpp:1180` |
+| `SMSG_USERLIST_UPDATE` | `live` | same run: body `guid + member flags 2 + flags 01 + count 2 + channel`, parsed as a `channel_userlist` update when the owner moderated the partner | `Chat/Channels/Channel.cpp:1196` |
+| `CMSG_DECLINE_CHANNEL_INVITE` | `live` | same run: partner sent the 11-byte `channel` body after the owner's invite; the server answered nothing, matching its no-op handler | `Handlers/ChatHandler.cpp:809` |
+| `CMSG_VOICE_SESSION_ENABLE` | `dead` | same run: 2-byte body sent; the server answered nothing and the handler only skips two `u8` values | `Handlers/VoiceChatHandler.cpp:23` |
+| `CMSG_SET_ACTIVE_VOICE_CHANNEL` | `dead` | same run: empty body sent; the server answered nothing and the handler only skips a `u32` and a string | `Handlers/VoiceChatHandler.cpp:37` |
+| `CMSG_CHANNEL_VOICE_ON` | `dead` | same run: empty body sent; the server answered nothing and the handler reads nothing | `Handlers/VoiceChatHandler.cpp:31` |
