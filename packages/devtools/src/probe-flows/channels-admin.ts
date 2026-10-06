@@ -1,4 +1,9 @@
-import type { FlowContext, Json, ProbeFlow } from "#tools/probe-flows";
+import {
+  type FlowContext,
+  type Json,
+  type ProbeFlow,
+  settleWithin,
+} from "#tools/probe-flows";
 
 type ChannelAdminAction =
   | "password"
@@ -64,6 +69,11 @@ async function run({ handle, args, settle }: FlowContext): Promise<Json> {
     );
     if (joined === undefined)
       throw new Error(`never joined ${channel}: no you_joined notice.`);
+    const waitMs = Number(args["wait_ms"] ?? 0);
+    if (waitMs > 0)
+      await settleWithin(waitMs)(() =>
+        seen.find((row) => row["type"] === "joined"),
+      );
     const rows: Json[] = [];
     const params: Record<ChannelAdminAction, string | undefined> = {
       announcements: undefined,
@@ -100,5 +110,5 @@ export const flow: ProbeFlow = {
   name: "channels-admin",
   run,
   usage:
-    "--flow channels-admin --arg channel=<name> --arg partner=<name> [--arg password=<pw>]: join the channel, run the thirteen admin actions (owner, moderator, unmoderator, mute, unmute, password, set_owner, invite, announcements, moderate, kick, ban, unban), and print each server notice.",
+    "--flow channels-admin --arg channel=<name> --arg partner=<name> [--arg password=<pw>] [--arg wait_ms=<ms>]: join the channel, wait up to wait_ms for another player to join, run the thirteen admin actions (owner, moderator, unmoderator, mute, unmute, password, set_owner, invite, announcements, moderate, kick, ban, unban), and print each server notice.",
 };
