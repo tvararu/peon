@@ -28,20 +28,21 @@ async function attempt(act: () => Promise<unknown>): Promise<Json> {
 }
 
 function findVault(handle: WorldHandle) {
-  return others(handle).find(({ entity }) => {
-    if (!("gameObjectType" in entity)) return false;
-    return entity.gameObjectType === VAULT_OBJECT_TYPE;
-  });
+  const { templates } = handle.objects.state();
+  return others(handle).find(
+    ({ entity }) => templates.get(entity.entry)?.type === VAULT_OBJECT_TYPE,
+  );
 }
 
-async function run({ handle }: FlowContext): Promise<Json> {
-  const vault = findVault(handle);
+async function run({ handle, settle }: FlowContext): Promise<Json> {
+  const vault = await settle(() => findVault(handle));
   if (!vault)
     throw new Error(
       "guildbank-vault found no guild vault object nearby; place the character at a vault first.",
     );
   const act = handle.guildbank.act;
   const opened = await attempt(() => act.openVault(vault.entity.guid));
+  const bought = await attempt(() => act.buyTab(handle.guildbank.state().tabs));
   const tab = await attempt(() => act.queryTab(0));
   const text = await attempt(() => act.queryText(0));
   const log = await attempt(() => act.queryLog(0));
@@ -49,6 +50,7 @@ async function run({ handle }: FlowContext): Promise<Json> {
   const deposited = await attempt(() => act.depositMoney(DEPOSIT_COPPER));
   const withdrawn = await attempt(() => act.withdrawMoney(WITHDRAW_COPPER));
   return json({
+    bought,
     deposited,
     limit,
     log,
@@ -65,5 +67,5 @@ export const flow: ProbeFlow = {
   name: "guildbank-vault",
   run,
   usage:
-    "--flow guildbank-vault: within 10 yards of a guild vault as a guild member, opens the vault, queries tab 0, reads its text and log and the money-withdrawn limit, deposits 2000 copper and withdraws 500.",
+    "--flow guildbank-vault: within 10 yards of a guild vault as a guild member, opens the vault, buys the next tab, queries tab 0, reads its text and log and the money-withdrawn limit, deposits 2000 copper and withdraws 500.",
 };

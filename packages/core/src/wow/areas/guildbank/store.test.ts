@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import {
   bankCommandResultBody,
+  bankGuildEventBody,
   bankListBody,
   bankLogBody,
   bankTextBody,
@@ -10,7 +11,11 @@ import {
 } from "#test-support/areas/guildbank";
 import { GUILD_BANK_LOG } from "#wow/areas/guildbank/protocol";
 import type { GuildBankEvent } from "#wow/areas/guildbank/store";
-import { GuildCommand, GuildCommandResult } from "#wow/protocol/guild";
+import {
+  GuildCommand,
+  GuildCommandResult,
+  GuildEventCode,
+} from "#wow/protocol/guild";
 import { GameOpcode } from "#wow/protocol/opcodes";
 
 function openList() {
@@ -176,6 +181,42 @@ describe("guildbank store", () => {
         ),
       );
       expect(rig.handle.state().pending?.kind).toBe("open");
+    } finally {
+      rig.dispose();
+    }
+  });
+
+  test("SMSG_GUILD_EVENT BANK_MONEY_SET settles a pending deposit with the new vault money (live 19-byte body)", async () => {
+    const rig = guildbankRig();
+    try {
+      const opened = rig.handle.act.openVault(GUILD_BANK_VAULT);
+      rig.inject(GameOpcode.SMSG_GUILD_BANK_LIST, openList());
+      await opened;
+      const moved = rig.handle.act.depositMoney(2000);
+      rig.inject(
+        GameOpcode.SMSG_GUILD_EVENT,
+        bankGuildEventBody(GuildEventCode.BANK_MONEY_SET, ["3000"]),
+      );
+      expect(await moved).toEqual({ status: "ok" });
+      expect(rig.handle.state().money).toBe(3000n);
+    } finally {
+      rig.dispose();
+    }
+  });
+
+  test("SMSG_GUILD_EVENT BANK_TAB_PURCHASED settles a pending buy", async () => {
+    const rig = guildbankRig();
+    try {
+      const opened = rig.handle.act.openVault(GUILD_BANK_VAULT);
+      rig.inject(GameOpcode.SMSG_GUILD_BANK_LIST, openList());
+      await opened;
+      const bought = rig.handle.act.buyTab(1);
+      rig.inject(
+        GameOpcode.SMSG_GUILD_EVENT,
+        bankGuildEventBody(GuildEventCode.BANK_TAB_PURCHASED, []),
+      );
+      expect(await bought).toEqual({ status: "ok" });
+      expect(rig.handle.state().tabs).toBe(2);
     } finally {
       rig.dispose();
     }

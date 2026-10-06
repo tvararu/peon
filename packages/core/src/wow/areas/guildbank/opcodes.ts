@@ -15,7 +15,7 @@ export const GUILDBANK_OPCODES = {
     "CMSG_SET_GUILD_BANK_TEXT",
     "SMSG_GUILD_BANK_LIST",
   ],
-  uses: ["SMSG_GUILD_COMMAND_RESULT"],
+  uses: ["SMSG_GUILD_COMMAND_RESULT", "SMSG_GUILD_EVENT"],
   stubs: [],
   dead: [],
   unseen: [],

@@ -195,3 +195,14 @@ export function bankCommandResultBody(
   w.uint32LE(result);
   return w.finish();
 }
+
+export function bankGuildEventBody(
+  eventType: number,
+  params: readonly string[],
+): Uint8Array {
+  const w = new PacketWriter();
+  w.uint8(eventType);
+  w.uint8(params.length);
+  for (const param of params) w.cString(param);
+  return w.finish();
+}

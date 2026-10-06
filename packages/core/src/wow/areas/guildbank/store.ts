@@ -10,7 +10,11 @@ import { distance } from "#wow/geometry";
 import type { InventoryState } from "#wow/inventory";
 import { readInventory } from "#wow/inventory";
 import { ObjectType } from "#wow/protocol/entity-fields";
-import { GuildCommand, GuildCommandResult } from "#wow/protocol/guild";
+import {
+  GuildCommand,
+  GuildCommandResult,
+  GuildEventCode,
+} from "#wow/protocol/guild";
 import type { SessionDeps } from "#wow/session-stores";
 
 export const GUILD_BANK_OBJECT_TYPE = 34;
@@ -323,6 +327,41 @@ export class GuildBankStore {
         ? "not in a guild"
         : `guild command result ${result}`,
     );
+  }
+
+  receiveGuildEvent(eventType: number, params: readonly string[]): void {
+    const pending = this.request;
+    if (
+      eventType === GuildEventCode.BANK_MONEY_SET &&
+      /^\d+$/.test(params[0] ?? "")
+    ) {
+      this.money = BigInt(params[0] ?? "0");
+      if (
+        pending?.kind === "deposit_money" ||
+        pending?.kind === "withdraw_money"
+      )
+        this.settle(
+          { status: "ok" },
+          { copper: pending.copper, money: this.money, type: "money_moved" },
+        );
+      return;
+    }
+    if (
+      eventType === GuildEventCode.BANK_TAB_PURCHASED &&
+      pending?.kind === "buy"
+    ) {
+      this.tabs.push(undefined);
+      this.settle(
+        { status: "ok" },
+        { tab: pending.tab, tabs: this.tabs.length, type: "tab_bought" },
+      );
+      return;
+    }
+    if (
+      eventType === GuildEventCode.BANK_TAB_UPDATED &&
+      pending?.kind === "rename"
+    )
+      this.settle({ status: "ok" }, { tab: pending.tab, type: "tab_renamed" });
   }
 
   noteVault(vault: bigint): void {
