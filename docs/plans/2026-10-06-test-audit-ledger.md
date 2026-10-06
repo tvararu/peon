@@ -8,8 +8,10 @@ in campaign mode
 ([CAMPAIGN.md](https://github.com/openclaw/openclaw/blob/main/.agents/skills/test-audit/CAMPAIGN.md),
 step 3) to every test declaration under `packages/`: 7,972 declarations in
 64 lanes. One read-only agent read each lane, with its production owners and
-overlapping tests, and marked every declaration. The raid lane is cut over
-in the same PR; every other lane is a plan, not a change.
+overlapping tests, and marked every declaration. A second pass rechecked
+every mark about prose against the text ruling below. The raid lane is cut
+over in the same PR, and its section shows the marks after that cutover;
+every other lane is a plan, not a change.
 
 Treat a lane as input to a cutover, not as the edit list. Before applying a
 lane, reread each non-`R` test and its keeper: the raid cutover found most
@@ -33,6 +35,10 @@ changes none of them.
 - `PAGE_READ_MAX_PAGES` is defined twice, in objects `runtime.ts` and
   `store.ts` (area-objects).
 - `parseFramingVariant` has no production caller (harness-runtime).
+- Harness rows and tool results render values into `text` that `data` does
+  not always carry. Putting every rendered value in `data` and building
+  `text` from it in one formatter would let tests assert `data` and pin the
+  formatter once.
 - Each lane's `Seams` list names exports and parameters only tests use.
 
 ## Marks
@@ -51,16 +57,18 @@ at the baseline commit.
 
 - Packet layouts checked against reference bytes or AzerothCore writers are
   protocol contracts.
-- Agent-facing status codes and keys in tool output (`DONE`,
-  `REFUSED not_master`) are contracts; English sentences pinned with
-  `toContain` are wording. Event delivery shows the agent a row's `text`,
-  not its `data`, so a value a harness rule renders into that text is a
-  contract too: a looked-up unit name, an icon or flag label, a 1-based
-  group number, a distance or bearing, or a branch label such as `lost`
-  or `cleared`. Assert the value, not the sentence around it. A name the
-  rule copies from the event unchanged is covered by asserting `data`.
-  The raid cutover applied this ruling; the other lanes' harness `area`
-  marks predate it, so recheck their `F` marks against it.
+- Agents read only text: event delivery shows a row's `text`, never its
+  `data`, and tool results reach the agent as text. Status codes and reason
+  codes (`DONE`, `REFUSED not_master`) are contracts. So is any value the
+  code computes or looks up and renders into that text: a looked-up or
+  substituted name, an item name resolved from state, a label mapped from a
+  code (icon, flag, transition, result table), a computed number (1-based
+  index, seconds, distance, bearing), and a branch label unless a status or
+  reason code in the same text already tells the branches apart (`data` does
+  not count: the agent never sees it). Assert the value, not the sentence
+  around it. Whole-sentence pins, `toEqual` over a row's prose, names the
+  rule copies unchanged from the event when `data` asserts them, and prose
+  beside a code that already proves the branch are wording.
 - `WorldHandle` spy assertions in harness tool tests are the harness-to-core
   boundary, unless the mock implements the behaviour under test or another
   test asserts the same call for the same branch.
@@ -81,44 +89,44 @@ at the baseline commit.
 | [area-bank](#area-bank) | 4 | 42 | 8 | 1 | 1 |
 | [area-battlegrounds](#area-battlegrounds) | 6 | 57 | 5 | 1 | 0 |
 | [area-buyback](#area-buyback) | 5 | 26 | 3 | 1 | 1 |
-| [area-calendar](#area-calendar) | 5 | 23 | 3 | 0 | 2 |
+| [area-calendar](#area-calendar) | 5 | 22 | 4 | 0 | 2 |
 | [area-channels](#area-channels) | 5 | 48 | 4 | 3 | 0 |
 | [area-charters](#area-charters) | 4 | 31 | 2 | 1 | 1 |
-| [area-combatlog](#area-combatlog) | 22 | 143 | 12 | 2 | 12 |
+| [area-combatlog](#area-combatlog) | 22 | 142 | 14 | 2 | 11 |
 | [area-complaints](#area-complaints) | 4 | 13 | 0 | 1 | 0 |
 | [area-contacts](#area-contacts) | 4 | 16 | 2 | 1 | 0 |
 | [area-emotes](#area-emotes) | 7 | 36 | 2 | 4 | 2 |
 | [area-framework](#area-framework) | 5 | 40 | 1 | 0 | 2 |
 | [area-guildadmin](#area-guildadmin) | 3 | 12 | 2 | 0 | 2 |
 | [area-inspect](#area-inspect) | 4 | 14 | 1 | 1 | 2 |
-| [area-instances](#area-instances) | 11 | 120 | 20 | 1 | 5 |
+| [area-instances](#area-instances) | 11 | 126 | 16 | 1 | 3 |
 | [area-items-1](#area-items-1) | 17 | 145 | 3 | 1 | 0 |
-| [area-items-2](#area-items-2) | 13 | 128 | 7 | 3 | 1 |
-| [area-lfg](#area-lfg) | 10 | 131 | 8 | 1 | 6 |
+| [area-items-2](#area-items-2) | 13 | 129 | 6 | 3 | 1 |
+| [area-lfg](#area-lfg) | 10 | 133 | 7 | 1 | 5 |
 | [area-login](#area-login) | 5 | 35 | 1 | 5 | 4 |
-| [area-looting](#area-looting) | 4 | 35 | 1 | 1 | 1 |
+| [area-looting](#area-looting) | 4 | 34 | 2 | 1 | 1 |
 | [area-mail](#area-mail) | 10 | 82 | 2 | 2 | 2 |
-| [area-objects](#area-objects) | 18 | 135 | 6 | 4 | 4 |
-| [area-pets](#area-pets) | 18 | 194 | 17 | 2 | 0 |
-| [area-quests](#area-quests) | 11 | 124 | 8 | 6 | 4 |
-| [area-raid](#area-raid) | 29 | 257 | 40 | 1 | 9 |
+| [area-objects](#area-objects) | 18 | 136 | 6 | 4 | 3 |
+| [area-pets](#area-pets) | 18 | 197 | 14 | 2 | 0 |
+| [area-quests](#area-quests) | 11 | 123 | 9 | 6 | 4 |
+| [area-raid](#area-raid) | 29 | 286 | 12 | 1 | 8 |
 | [area-reputation](#area-reputation) | 8 | 86 | 1 | 3 | 4 |
-| [area-selfstate](#area-selfstate) | 10 | 115 | 13 | 1 | 1 |
-| [area-spells](#area-spells) | 27 | 191 | 6 | 7 | 5 |
+| [area-selfstate](#area-selfstate) | 10 | 116 | 12 | 1 | 1 |
+| [area-spells](#area-spells) | 27 | 187 | 10 | 7 | 5 |
 | [area-talents](#area-talents) | 15 | 168 | 13 | 3 | 2 |
 | [area-threat](#area-threat) | 6 | 52 | 7 | 1 | 5 |
 | [area-time](#area-time) | 4 | 26 | 1 | 1 | 2 |
-| [area-trade](#area-trade) | 10 | 111 | 3 | 8 | 5 |
+| [area-trade](#area-trade) | 10 | 111 | 5 | 7 | 4 |
 | [area-transports](#area-transports) | 9 | 57 | 3 | 0 | 0 |
-| [area-travel](#area-travel) | 7 | 79 | 9 | 2 | 1 |
-| [area-unitmotion](#area-unitmotion) | 5 | 29 | 4 | 6 | 1 |
-| [area-vehicles](#area-vehicles) | 9 | 87 | 12 | 3 | 3 |
+| [area-travel](#area-travel) | 7 | 78 | 10 | 2 | 1 |
+| [area-unitmotion](#area-unitmotion) | 5 | 30 | 3 | 6 | 1 |
+| [area-vehicles](#area-vehicles) | 9 | 88 | 11 | 3 | 3 |
 | [core-lib](#core-lib) | 11 | 70 | 2 | 0 | 17 |
-| [core-protocol-1](#core-protocol-1) | 19 | 162 | 3 | 24 | 9 |
+| [core-protocol-1](#core-protocol-1) | 19 | 160 | 20 | 9 | 9 |
 | [core-protocol-2](#core-protocol-2) | 15 | 180 | 19 | 4 | 6 |
 | [core-protocol-3](#core-protocol-3) | 19 | 158 | 3 | 16 | 2 |
-| [core-world-handlers](#core-world-handlers) | 15 | 111 | 16 | 3 | 2 |
-| [core-wow-1](#core-wow-1) | 29 | 246 | 7 | 3 | 3 |
+| [core-world-handlers](#core-world-handlers) | 15 | 112 | 15 | 3 | 2 |
+| [core-wow-1](#core-wow-1) | 29 | 248 | 7 | 1 | 3 |
 | [core-wow-2](#core-wow-2) | 24 | 243 | 5 | 5 | 4 |
 | [core-wow-3](#core-wow-3) | 34 | 241 | 6 | 0 | 0 |
 | [devtools](#devtools) | 11 | 78 | 1 | 1 | 1 |
@@ -132,13 +140,13 @@ at the baseline commit.
 | [harness-loops-1](#harness-loops-1) | 30 | 161 | 3 | 2 | 0 |
 | [harness-loops-2](#harness-loops-2) | 18 | 154 | 3 | 5 | 0 |
 | [harness-misc](#harness-misc) | 27 | 157 | 4 | 2 | 10 |
-| [harness-navigation](#harness-navigation) | 22 | 151 | 11 | 2 | 0 |
-| [harness-ops](#harness-ops) | 26 | 226 | 12 | 1 | 1 |
+| [harness-navigation](#harness-navigation) | 22 | 150 | 12 | 2 | 0 |
+| [harness-ops](#harness-ops) | 26 | 225 | 13 | 1 | 1 |
 | [harness-runtime](#harness-runtime) | 36 | 226 | 10 | 8 | 8 |
-| [harness-tools-1](#harness-tools-1) | 22 | 142 | 44 | 2 | 8 |
-| [harness-tools-2](#harness-tools-2) | 29 | 180 | 11 | 10 | 2 |
-| [harness-tools-3](#harness-tools-3) | 19 | 175 | 7 | 3 | 2 |
-| **total** | | 7159 | 432 | 183 | 198 |
+| [harness-tools-1](#harness-tools-1) | 22 | 146 | 41 | 2 | 7 |
+| [harness-tools-2](#harness-tools-2) | 29 | 181 | 11 | 10 | 1 |
+| [harness-tools-3](#harness-tools-3) | 19 | 128 | 56 | 2 | 1 |
+| **total** | | 7152 | 468 | 164 | 188 |
 
 ## area-account
 
@@ -424,12 +432,12 @@ at the baseline commit.
 
 ### packages/harness/src/areas/bank/area.test.ts
 - 23 D: restates the `worldActs` constant typed by defineHarnessArea (area.ts:74); no behaviour, no other proof needed
-- 32 F: asserts text contains "bank" prose; drop it and assert data.banker (the guid text) instead
+- 32 F: `toContain("bank")` pins prose ("Opened the bank." never even contains the banker); the banker is copied unchanged from the event, so drop the text assertion and assert data.banker is the guid text "f130000000000055" (ruling A: echoed value, data asserts it)
 - 47 R: deposit row class/event and item name resolved through lookup
 - 68 R: withdraw row uses the withdraw event name and resolved item name
 - 89 R: unknown entry yields the generic name and the guid is kept in data
-- 106 F: asserts the prose contains "ok" beside event name; assert data.result instead of text
-- 121 F: asserts prose contains the reason; assert data.reason and data.kind (the keys the agent parses)
+- 106 F: the text echoes event.result unchanged, and data.result already carries it; drop `toContain("ok")` and assert data.result === "ok" (ruling A: echoed name, no computed value)
+- 121 F: the reason and kind are copied unchanged from the event into data and the wake row name "bank/refused" proves the branch; drop `toContain("cant_carry_more")` and assert data.reason "cant_carry_more" and data.kind "deposit" (ruling A: echoed value)
 - 135 R: no_change maps to a wake row named bank/no_change
 - 148 R: unanswered maps to a wake row named bank/unanswered
 
@@ -507,9 +515,9 @@ at the baseline commit.
 - 354 R: snapshot slot array mutation does not alias store state
 
 ### packages/harness/src/areas/battlegrounds/area.test.ts
-- 11 F: toEqual pins the prose text "PvP flag is on." beside event/class/data contract; drop text
-- 36 F: toEqual pins "Earned 100 honor." beside event/class/data; drop text
-- 58 F: toEqual pins "Zone 42 is under attack." beside passive class and areaId; drop text
+- 11 F: toEqual pins the whole row incl. prose "PvP flag is on."; keep event/class/data. Ruling A: flagText maps wants/timer to a label (on / off / counting down) the agent reads from text only, so keep that branch label as a tight `toContain("on")`-style assertion on `text` (wants:true, timer:false), drop the sentence
+- 36 F: toEqual pins the whole row incl. prose "Earned 100 honor."; keep event/class/data (honor 100, rank 2). Ruling A: the 100 is copied unchanged from the event and data already asserts it, so drop the text pin entirely
+- 58 F: toEqual pins the whole row incl. prose "Zone 42 is under attack."; keep passive class, event and data areaId. Ruling A: 42 is copied unchanged from the event and data asserts it, so drop the text pin entirely
 - 80 R: honor_inspect and pvp_kill_quest map to inspect and kill log rows
 - 125 R: first queued status logs once; refresh from queued writes nothing
 - 152 R: queue_left row only when previous was queued; active writes nothing
@@ -559,9 +567,9 @@ at the baseline commit.
 
 ### packages/harness/src/areas/buyback/area.test.ts
 - 29 D: restates the declared worldActs constant; no behaviour, no keeper contract
-- 33 F: row text prose "Bought back Linen Cloth for 35 copper." is the only price assertion; assert data.price and drop text
-- 53 F: asserts only English prose; assert data.price is undefined and entry/guid in data, drop text
-- 62 F: asserts toContain("cant_find_item") prose; assert data.reason === "cant_find_item" instead
+- 33 F: price is looked up from the remembered listed row and item name resolved via lookup, both rendered only in text; assert toContain("Linen Cloth") and toContain("35 copper"), drop the sentence
+- 53 F: unknown-price branch has no status code; assert text toContain("Linen Cloth") and not toContain("copper") (name lookup + missing price branch), drop the exact sentence
+- 62 F: reason is copied unchanged from the event and data.reason carries it; assert data.reason === "cant_find_item", drop the text toContain prose
 - 76 R: unanswered buyback yields exactly one wake row with event buyback/unanswered
 - 89 C packages/harness/src/areas/buyback/area.test.ts:33: listed-yields-no-rows is already asserted as the first step there
 
@@ -631,9 +639,9 @@ at the baseline commit.
 - none
 
 ### packages/harness/src/areas/calendar/area.test.ts
-- 50 R: attach turns stored calendar state into one calendar/read row with the parsed data keys the agent reads
+- 50 F: toEqual pins the sentence in text; keep data keys and assert text toContain "1 invites", "1 events", "2026-07-04 19:00" (counts/stamp the agent reads); drop the sentence
 - 75 R: no calendar from the server means no attach row; a fabricated row would mislead the agent
-- 81 F: asserts the prose "The calendar refused with error 6." beside the contract fields, and restates worldActs constants; drop the text and the worldActs line
+- 81 F: drop worldActs line and the sentence "The calendar refused with error 6." (code 6 in data proves branch); add toContain("2 pending") on the pending row text (count only data-asserted)
 
 #### Seams
 - packages/harness/src/areas/calendar/area.ts `worldActs`: also read by harness registry code, so it is not test-only; the assertion at line 81 only restates it
@@ -795,7 +803,7 @@ at the baseline commit.
 
 ### packages/harness/src/areas/charters/area.test.ts
 - 15 D: restates the declared worldActs constant in area.ts:91; no behaviour, no other keeper (registry.test.ts drives its own fixture modules)
-- 25 F: row class/domain/event are the contract; toContain("1000") and toContain("9") pin prose (and "9" matches almost anything); drop or assert data fields
+- 25 F: cost 1000 and required 9 are computed from entries and rendered only into text (data has just entries count and npc), so they are contract values; keep them but tighten the bare toContain("9") (matches almost anything) to toContain("1000 copper") and toContain("9 signatures"); drop any whole-sentence pin; row class/domain/event assertions stay
 - 54 R: a query event produces no rows (empty draft list); catches an accidental log spam that would wake the agent
 
 #### Seams
@@ -1080,10 +1088,10 @@ at the baseline commit.
 - none
 
 ### packages/harness/src/areas/combatlog/area-avoid.test.ts
-- 35 F: pins the sentence "You took 120 fall damage." beside class wake and event; drop the text, assert data amount/type
+- 35 F: wake row text carries computed type name and amount; replace the full-sentence pin with toContain("fall") and toContain("120"); keep class wake/event
 - 46 R: environmental row is class log inside a run
-- 55 F: wire types 0-5 to names via data.type; drop the row.text toContain(name) prose
-- 63 F: unknown type still writes a row with data type unknown_9; drop the toContain("120") prose
+- 55 R: each wire type 0-5 maps to its name in both text (toContain(name)) and data.type; a label-table shift misreports the damage to the agent
+- 63 F: unknown type label unknown_9 is a computed text value; assert row.text toContain("unknown_9") (not only "120"), keep data type
 - 69 R: damage to another unit writes nothing
 
 #### Seams
@@ -1093,8 +1101,8 @@ at the baseline commit.
 - none
 
 ### packages/harness/src/areas/combatlog/area-dispel.test.ts
-- 38 F: contract is one log row with data aura/kind/spellId; drop the toContain prose on the name, "dispels" and 168
-- 52 F: keep data.kind steal; drop the "steals" prose assertion
+- 38 F: keep text toContain("Defias Mage") (looked-up caster name) and data aura/kind/spellId; drop the "dispels" verb and echoed "168" prose assertions
+- 52 F: data.kind steal tells the branch; drop the "steals" prose assertion, keep data.kind and the row
 - 58 R: each aura event writes its own row; no dedupe by spell
 - 64 R: own dispel, dispel on someone else, empty caster, failed dispel and execute write no row
 
@@ -1105,14 +1113,14 @@ at the baseline commit.
 - none
 
 ### packages/harness/src/areas/combatlog/area-heal.test.ts
-- 41 F: row class passive and event heal_in are the contract; drop the exact sentence "Mate heals you for 540."
+- 41 F: keep class passive/event heal_in; assert text toContain("Mate") (looked-up healer name) and data.amount 540; drop the exact sentence
 - 53 R: 10 s per-healer suppression boundary 10999/11000
 - 62 R: suppressed heal does not extend the window
 - 71 R: each healer has its own window
 - 79 R: periodic heal shares the heal window
 - 89 R: self heals, empty casters, zero heals and heals on others write nothing
 - 100 R: zero-amount heal does not start the window
-- 106 F: asserts only prose of an unnamed healer; assert the row exists and event heal_in instead of the sentence
+- 106 F: unnamed-healer fallback is a rendered value; assert text toContain("A unit") (today it asserts only the echoed "heals you for 540" prose) and the row exists
 
 #### Seams
 - none
@@ -1123,11 +1131,11 @@ at the baseline commit.
 ### packages/harness/src/areas/combatlog/area.test.ts
 - 89 D: plain melee entry writes no row; also silent inside packages/harness/src/areas/combatlog/area.test.ts:224
 - 95 R: damage, heal, kill-by-self, pet and non-player kills write no row
-- 113 F: immune row once per creature entry and spell is the contract; drop the sentence "is immune to spell 122." from text
-- 133 F: immune miss and immune swing each write once; drop the prose in the two text assertions, keep spellId data
+- 113 F: immune row once per creature entry and spell; keep text toContain(`Mottled Boar u${BOAR}`) (looked-up name+ref) and data entry/spellId; drop "is immune to spell 122."
+- 133 F: immune miss and swing each write once; keep data spellId (5143 vs 0 tells the branch) and toContain(`Mottled Boar u${BOAR}`); drop both "immune to ..." sentences
 - 159 R: pet immunity does not consume the character's own row
-- 171 F: killing_blow row data/guid/ref are the contract; drop the prose text from the toEqual
-- 192 F: fight row data (durationMs, totals) is the contract; drop the "Fight over:" sentence from the toEqual
+- 171 F: keep class/data/guid/ref and text toContain(`Mate u${MATE}`) and toContain(`Mottled Boar u${BOAR}`) (looked-up names+refs); drop the "killed your target" sentence from the toEqual
+- 192 F: keep data (durationMs from lastAt-startedAt, totals) in the row; drop the "Fight over:" sentence from the toEqual; text values are asserted in totals.test.ts:99/:110/:116
 - 211 D: groupmate kill row via the router; same row as :171 and :224; keeper area.test.ts:224
 - 224 R: router turns area events from the handle into immune, killing_blow and fight rows, dedupes immunity
 
@@ -1141,9 +1149,9 @@ at the baseline commit.
 - 38 R: noteEntry sums dealt, taken, healed for the character and pet since the start
 - 59 R: avoided counts our misses and target avoidance, not our own dodges
 - 78 R: immune lists each refused spell once in order with the count
-- 99 D: pins one exact English sentence of fightText, same input and string as area.test.ts:192; wording only
-- 110 R: no brackets without misses, healing appended when present; output branches
-- 116 R: plural forms for counts above one
+- 99 F: fightText renders computed counts; replace toBe sentence with toContain("dealt 312"), "took 145", "1 dodge", "1 resist"; drop "Fight over:" wording
+- 110 F: no brackets without misses and healing appended when present are branches; assert toContain("healed 15") and no "(" / "healed" otherwise; drop full-sentence toBe
+- 116 F: plural forms are computed labels; assert toContain("2 dodges") and toContain("3 misses"); drop full-sentence toBe and "Fight over:" wording
 
 #### Seams
 - none
@@ -1247,7 +1255,7 @@ at the baseline commit.
 - 122 R: entity event without an entity is ignored; guards a crash on malformed events
 - 164 R: emote only permits wave ids (0,3) and sends CMSG_EMOTE; refusal reason only_wave
 - 179 R: name resolution plus CMSG_TEXT_EMOTE body with target guid through the act
-- 198 F: refused branch only asserts ok false; assert reason (unknown_emote) too
+- 198 F: refused branch only asserts ok false; assert reason unknown_emote (a code, not prose); no sentence is pinned, nothing to drop
 - 213 R: unknown_emote reply lists five closest, nothing sent
 - 228 R: ready (126) refused as ready_check, nothing sent
 - 245 R: spam guard ordering across three queued emotes
@@ -1370,7 +1378,7 @@ at the baseline commit.
 - protocol.test.ts:38 name claims CMSG_GUILD_INFO/DISBAND bodies are checked but exercises neither; the area tests carry the real assertion
 
 ### packages/harness/src/areas/guildadmin/area.test.ts
-- 38 F: whole-draft toEqual pins the prose text "The guild is disbanded."; keep class/domain/event/data and drop text
+- 38 F: whole-draft toEqual pins fixed prose "The guild is disbanded."; no computed value in it. Keep class/domain/event/data, drop text (ruling A: wording)
 - 52 R: info event writes no wake row; a rule emitting rows on info would spam the agent
 - 58 R: attach on an existing guild state writes no drafts; a startup-replay rule would wrongly fire
 - 65 D: restates the declared worldActs constant (expected value is the source literal); no behaviour; act calls proven by core area.test.ts:66 and core area.test.ts:111
@@ -1550,17 +1558,17 @@ at the baseline commit.
 - none
 
 ### packages/harness/src/areas/instances/area.test.ts
-- 25 F: contract is class/event/data; drop the toContain("heroic") prose assertion
+- 25 R: sole proof the difficulty name (event name, absent from data) reaches the row text; keep toContain("heroic"); data has no name
 - 45 R: login difficulty silent, later change logs
-- 63 F: keep class/event/data per kind; drop toContain("533") text assertion
-- 83 F: keep wake vs log class and data; drop toContain("60 s") prose
+- 63 F: keep class/data; replace toContain("533") (echoed, data asserts mapId) with span values per kind: 7200→"2 h", 600→"10 min", 240→"4 min", 86400→"1 d"
+- 83 R: already asserts the computed value (60000 ms → "60 s"); keep it; cancelled branch is class/state
 - 109 R: corpse_elsewhere wake row
-- 115 F: keep class/data/progress; drop toContain("36") prose
-- 127 F: keep wake class and data per reason; drop text-contains-36 and distinct-text prose assertions
-- 142 F: keep wake and data; drop toContain("36") prose
-- 153 F: keep wake class and data; drop "60 s" and "bind" prose
+- 115 F: keep class/data/progress; drop toContain("36") (echoed mapId, data asserts it)
+- 127 F: keep wake class/data; drop "36"; assert the label mapped per code (0 inside, 1 offline, 2 zoning) not just 3 distinct texts
+- 142 F: keep wake and data; drop toContain("36") (echoed mapId, data asserts it)
+- 153 F: keep wake, data and toContain("60 s") (seconds from timeoutMs); drop "bind" call-hint prose
 - 170 R: bound is passive row
-- 176 F: keep added/removed data and quiet-when-unchanged; drop toContain("533") prose
+- 176 F: keep added/removed data and quiet-when-unchanged; drop toContain("533") (echoed, data asserts it)
 - 203 R: saved_maps stays silent
 - 209 R: encounter stays silent
 
@@ -1571,14 +1579,14 @@ at the baseline commit.
 - none
 
 ### packages/harness/src/areas/instances/tool-lfg-verbs.test.ts
-- 14 F: keep leave call and DONE; drop toContain("left") prose
-- 25 F: keep answerProposal(true) and DONE; drop toContain("accepted") prose
+- 14 F: keep leave call and DONE; drop toContain("left") prose (constant sentence, DONE proves branch)
+- 25 F: keep answerProposal(true), DONE and the "accepted" label (only text tells accept from decline); add accept:false → "declined"
 - 36 R: no_proposal refusal code passes through as REFUSED
-- 45 F: keep setRoles(2) bit mapping and DONE; drop toContain("tank") prose
-- 59 D: prose-only (healer in detail); status already asserted by tool-lfg-verbs.test.ts:45
-- 71 F: keep teleport(true, undefined) and DONE; drop toContain("out of") prose
-- 82 F: keep dead REFUSED and no teleport call; drop toContain("ghost") prose
-- 92 F: keep voteKick(true) and DONE; drop toContain("kick") prose
+- 45 R: roles bit 2 → "tank" is a name mapped from a code and only the text shows it; keep toContain("tank")
+- 59 R: bit 4 → "healer" is a role name mapped from a code, only text shows it; distinct from the tank case at :45
+- 71 R: keep teleport(true, undefined) and DONE; "out of" is the in/out branch label (both DONE), keep it
+- 82 F: keep dead REFUSED and no teleport call; drop toContain("ghost") prose (reason dead proves branch)
+- 92 F: keep voteKick(true) and DONE; toContain("kick") is in both branches; assert "to kick" and add accept:false → "against"
 - 106 R: tool must not auto-answer bind or kick vote on events
 - 136 R: join not_leader refusal surfaces as REFUSED
 - 149 D: same expectSendKind(dungeonTool, bind) and kind check as tool.test.ts:164
@@ -1590,19 +1598,19 @@ at the baseline commit.
 - none
 
 ### packages/harness/src/areas/instances/tool-lfg.test.ts
-- 12 F: keep join entries/roles and DONE; drop toContain("queued") prose
+- 12 F: keep join entries/roles and DONE; drop toContain("queued"); assert "random dungeon" (entry-type label) and role name "damage"
 - 33 R: empty dungeon list triggers requestDungeons once before join
-- 69 F: keep role bits 6 and reason deserter REFUSED; drop detail toContain("deserter") prose
+- 69 F: keep role bits 6 and reason deserter REFUSED; drop detail toContain("deserter") (echoed reason, code proves it)
 - 87 R: no_random_dungeon refusal, no join
 - 118 R: already_queued refusal, no join
 - 132 R: queue by id uses named entry and role bit
-- 157 F: keep setRoles(8) and one role_answered row; drop text toContain("damage")
-- 185 F: keep answerProposal(true) and one proposal_answered row; drop "accepted" prose
+- 157 R: asserts role name "damage" in the role_answered row text, mapped from bit 8; only the text shows it; keep
+- 185 F: keep answerProposal(true) and one proposal_answered row; drop toContain("accepted") prose; data.accepted true covers it
 - 216 C packages/harness/src/areas/instances/tool-lfg.test.ts:157: both auto answers already proven separately; no ordering assertion added
 - 260 R: already-open role check answered at join
 - 282 R: auto false answers nothing
 - 315 R: answering role check cancels the no-answer leave timer
-- 346 F: keep leave called once and one role_unanswered row; drop toContain("left the queue") prose
+- 346 F: keep leave called once and one role_unanswered row; drop toContain("left the queue") prose (constant, row name proves branch)
 
 #### Seams
 - none
@@ -1611,7 +1619,7 @@ at the baseline commit.
 - none
 
 ### packages/harness/src/areas/instances/tool-reset.test.ts
-- 8 D: reason reset_failed already asserted at tool.test.ts:396; the rest pins next-hint prose (travel, hearth)
+- 8 D: reason reset_failed asserted at tool.test.ts:396; rest pins constant next-call prose (travel, hearth), no computed value
 
 #### Seams
 - none
@@ -1628,8 +1636,8 @@ at the baseline commit.
 - 212 R: stale list asks once
 - 223 R: no list asks and reports silent server
 - 236 R: difficulty wire mapping table (only 4 forms hit distinct values; 10-normal/25-normal alias rows are cheap)
-- 263 D: prose-only "heroic" check; DONE already asserted by tool.test.ts:236
-- 276 F: keep UNCONFIRMED unconfirmed_solo; drop toContain("next dungeon entry") prose
+- 263 F: sole proof of the difficulty name looked up from the wire number (table at :236 asserts wire only); keep toContain("heroic"), add raid names
+- 276 F: keep UNCONFIRMED unconfirmed_solo and toContain("heroic") (name from wire); drop toContain("next dungeon entry") prose
 - 294 R: refusal reasons pass through as REFUSED
 - 313 R: no_answer is UNCONFIRMED
 - 329 R: bad_value/missing_args refused before any send
@@ -2015,7 +2023,7 @@ at the baseline commit.
 
 ### packages/harness/src/areas/items/area-wrap.test.ts
 - 17 R: wrap-kind moved event writes items/wrapped, not items/moved
-- 34 C packages/harness/src/areas/items/area.test.ts:68: same move_refused wake row (kind only differs in event input, no new branch)
+- 34 C packages/harness/src/areas/items/area.test.ts:68: same move_refused wake; reason is echoed from the event and in data, so drop the "Move refused: ..." text pin; keeper asserts data reason
 
 ### packages/harness/src/areas/items/area.test.ts
 - 42 R: each move kind maps to its log event name and data
@@ -2024,9 +2032,9 @@ at the baseline commit.
 - 132 R: equal level writes no upgrade row (boundary)
 - 148 R: read_ok and item_text write items/read log rows
 - 191 R: item cooldown log row carries entry/spell data and names the item
-- 212 F: class/seconds boundary at 60/59 is the contract; drop the toContain("1 h")/("59 s") prose pins
-- 237 F: keep class/event/data enchantSlot; drop toContain("enchant") prose
-- 258 F: keep class wake and event items/durability_loss; drop toContain("repair") prose
+- 212 R: asserts class at 60/59 boundary and computed durations toContain("1 h")/("59 s") (seconds-to-text values); keep all, no sentence is pinned
+- 237 F: keep class/event/data enchantSlot; replace toContain("enchant") with item name "Dragonmaw Key" and computed "30 s" (enchant-vs-item label is the only text branch tell); no sentence
+- 258 F: keep class wake and event items/durability_loss; drop toContain("repair") (constant sentence, single branch, no looked-up value)
 - 272 R: proficiency log row carries names and mask data
 - 296 R: proficiency with nothing added writes no row
 - 342 R: attach replays proficiency rows from retained masks
@@ -2046,7 +2054,7 @@ at the baseline commit.
 - 279 R: empty slot reference refuses no_such_item without deposit
 - 292 R: duplicate names refuse ambiguous_item without deposit
 - 305 R: server refusal keeps the reason and offers the deposit next call
-- 318 D: same ok-deposit branch as the keeper tool-bank.test.ts:110 (DONE, item named); only prose differs
+- 318 D tool-bank.test.ts:110: same ok-deposit branch; keeper asserts DONE and the looked-up item name "Linen Cloth"; drop "Deposited" prose
 - 354 R: closed bank Next preserves the explicitly selected stack
 - 366 R: server refusal Next preserves the selected stack
 - 381 R: carried-bag item keeps its bag/slot through the Next after the bank opens
@@ -2320,20 +2328,20 @@ at the baseline commit.
 - 67 R: leaving from queued/proposal writes one passive lfg/left row
 - 76 R: none after none not a leave
 - 81 R: search-flag status never writes queued/left
-- 97 F: also asserts row.text toContain("deserter"); drop prose, keep data reason/result
+- 97 F: ruling A: row.text toContain("deserter") only echoes event.reason that data.reason already asserts; drop the text assertion, keep class/event/data
 - 113 R: accepted join writes no refused row
-- 129 F: asserts text contains "4 min" prose beside data queuedTime; drop the text assertion
-- 139 D: pins wording "16 s" only; no contract, queue row data proven by area.test.ts:129
+- 129 R: ruling A: toContain("4 min") asserts the computed minutes (240 s to min) the agent reads; keep it
+- 139 R: ruling A: toContain("16 s") asserts the seconds branch label (under 60 s) with no data field telling branches apart; keep
 - 143 R: queue rows throttled to 60 s with boundary
 - 151 R: leaving and requeueing resets throttle
 - 161 R: open proposal wakes with deadline data
 - 171 R: closed proposal states log, not wake
 - 177 R: already-answered proposal does not wake
-- 183 D: only asserts row texts differ, prose inequality; classes proven by area.test.ts:161,171
+- 183 D: ruling A: only asserts the three texts differ, a prose inequality; state is in data, classes proven by area.test.ts:161,171
 - 190 R: role check start wakes, later state logs
 - 199 R: open kick vote wakes with deadline and counts
-- 223 F: ended vote class log is contract; drop text not.toBe(open text) prose inequality
-- 240 F: also asserts text toContain("invalid_location") prose; drop it, keep data code/reason
+- 223 F: ruling A: drop text not.toBe(open text) prose inequality; keep class log; add open row text toContain("3 of 3") for the rendered agrees/needed counts
+- 240 F: ruling A: text toContain("invalid_location") only echoes event.reason already in data.reason; drop the text assertion, keep data code 6/reason
 - 254 R: offer continue row carries entry
 - 262 R: reward log progress row with money, xp, item count
 - 288 R: dungeon list arrivals write no row
@@ -2420,7 +2428,7 @@ at the baseline commit.
 - 93 R: SMSG_LOOT_MASTER_LIST u8 count and full u64 guids against bytes
 - 105 R: count 0 edge reads no guids; catches over-read of an empty list
 - 111 R: CMSG_LOOT_MASTER_GIVE layout (u64, u8 slot, u64 target) by bytes
-- 120 F: pins English wording of every error name; keep the code→name mapping with fewer prose asserts, keep the 99 fallback (runtime.test.ts:278 covers 12)
+- 120 R: ruling A: lootErrorName maps codes to labels the agent reads via the loot_error reject; keep every code→name assertion (10,12,13,14,0) and the 99 fallback value as is
 
 #### Seams
 - none
@@ -2469,8 +2477,8 @@ at the baseline commit.
 - store.test.ts:176 name promises duplicate-item give settling but body is assertion-free
 
 ### packages/harness/src/areas/looting/area.test.ts
-- 27 R: master_loot_candidates yields one passive master_loot row with self name and looked-up names
-- 43 R: unknown guid falls back to 0x hex in data and text
+- 27 F: ruling A: keep the looked-up/substituted names (self "Me", unit lookup "Partner") in data.candidates and the text; replace the full-sentence `text: "Master loot candidates: Me, Partner."` with a `toContain("Me, Partner")` style check on the rendered names
+- 43 F: ruling A: keep the 0x2a hex fallback value in data and text; drop the full-sentence text pin, assert `toContain("0x2a")` instead
 - 63 R: loot_owner event writes no row (default branch)
 - 67 R: looting contributes no attach row; filter is on domain which equals the area name
 
@@ -2630,7 +2638,7 @@ at the baseline commit.
 ### packages/harness/src/areas/mail/tool.test.ts
 - 105 R: minimalArgs validates against mailParams; a schema change breaking the registry sample is caught
 - 119 R: every verb refuses with reason no_mailbox away from a box and calls no act; coords asserted are data
-- 143 F: only asserts the sentence "No mailbox is known nearby"; assert reason no_mailbox and drop the prose
+- 143 F: pins the whole sentence "No mailbox is known nearby" (WORDING, drop). Keep the branch value: reason no_mailbox is the same as the far-box branch, so the only thing telling "no box known" from "box far" is the text lacking coordinates/distance; assert reason no_mailbox and `not.toContain("yd away")` (tool-check.ts noMailboxText known.length===0 branch), no sentence
 - 152 R: check lists, marks each letter read via markMailRead, DONE status, body truncated to 200 chars
 - 191 R: take collects money then each attachment in order with payCod false
 - 237 R: equip refusal stops take with equip_error after gold taken
@@ -2804,7 +2812,7 @@ at the baseline commit.
 - 244 R: REFUSED no_pole for non-pole weapon
 - 252 R: REFUSED already_fishing
 - 260 R: bite order cast, use bobber, open, release; DONE and after fields
-- 271 F: also asserts out.detail toContain the item name prose; keep order, DONE and after.taken, drop the detail assertion
+- 271 R: out.detail toContain("Raw Brilliant Smallfish") is the item name resolved from bag state into agent text (tool-fish.ts caught detail): contract, keep with after.taken
 - 306 F: ends with expect(release).toBeDefined(), vacuous; drop it, keep the cast/release/use ordering
 - 329 R: fish_not_hooked FAILED not_hooked, bobber never used
 - 339 R: fish_escaped FAILED escaped, bobber never used
@@ -2835,7 +2843,7 @@ at the baseline commit.
 - 445 F: asserts only DONE; assert readPage called and use not called, as the name says
 - 457 C packages/harness/src/areas/objects/tool.test.ts:330: same openLockSpell mock and locked refusal; 330 reaches the open path via default use
 - 469 D: no contract, expected value restates emptyUse's own literal
-- 479 D: asserts prose "Used Milly's Harvest (o1)." and vacuous expect(contentOf).toBeDefined(); no contract
+- 479 F: pins sentence "Used Milly's Harvest (o1)." plus vacuous expect(contentOf).toBeDefined(); keep values toContain("Milly's Harvest") (name from row state) and "o1", drop sentence and contentOf
 
 #### Seams
 - packages/harness/src/areas/objects/tool.ts `emptyUse`: exported, only tool.test.ts:469 imports it
@@ -3069,18 +3077,18 @@ at the baseline commit.
 - none
 
 ### packages/harness/src/areas/pets/area.test.ts
-- 75 F: pins the sentence "Fang (Wolf) is out: ..." beside name out; keep class/name/guid, drop prose
+- 75 F: pins whole sentence in toMatchObject text; keep values via toContain: "Fang" (unitName lookup), "Wolf" (family 1 table), "defensive", "follow"; drop prose
 - 86 R: pets area rules emit the right log rows (names, once-per-pet gating); a second bar for the same pet, such as a stance change, gives no row
-- 93 F: asserts toContain("Ravager") prose beside row name out; assert the name only
-- 101 F: asserts only the prose "Your pet (family 99) is out..."; assert row name out and a defined guid for the fallback branch
+- 93 R: toContain("Ravager") asserts the family-31 table label (the guid has no unit name, so the text reads "Your pet (Ravager)"); a value, not wording
+- 101 F: toBe pins the sentence; keep values: toContain("Your pet") fallback name and "family 99" unknown-family fallback, plus "defensive, follow"; drop prose
 - 106 R: pets area rules emit the right log rows (names, once-per-pet gating); the clear gives one gone row, and a clear with no pet out gives none
-- 115 F: pins the out sentence by toBe beside row names; keep names, drop text
+- 115 F: toBe pins the out sentence; keep values via toContain: "Fang" (lookup), "Wolf" (family table), "defensive", "follow"; drop the rest of the sentence
 - 124 R: pets area rules emit the right log rows (names, once-per-pet gating); attach with no pet out writes no row and the first bar gives an out ro
-- 130 F: pins the out sentence beside domain/event pets/out; keep the event key, drop text
-- 147 F: toContain("nothing to attack")/("not_ready") prose beside refused row names; assert names and data reason
+- 130 F: pins whole sentence beside event pets/out; keep the event key and toContain "Fang", "Wolf", "defensive", "follow" (looked-up name, family label); drop prose
+- 147 F: reason values in text are contracts: keep "nothing to attack" (reason code spelled out); add "spell 1742" next to "not_ready" (agent reads spell only in text); assert data.reason
 - 162 R: pets area rules emit the right log rows (names, once-per-pet gating); a silent cast failure writes no row
 - 174 R: pets area rules emit the right log rows (names, once-per-pet gating); a learned spell gives one learned row and an unlearned spell gives non
-- 182 F: toContain("Fangtooth") prose beside row names; assert names (and data) only
+- 182 F: toContain("Fangtooth") is fine (data.name not asserted), but stable/unanswered/refused rows only check names; add toContain "stabled", "rename" (request), "profane"/"no pet" reason
 
 #### Seams
 - none: tests use production exports (petsRuntime, PetsStore.refreshing) that the area and runtime also call
@@ -3089,13 +3097,13 @@ at the baseline commit.
 - none
 
 ### packages/harness/src/areas/pets/tool-command.test.ts
-- 16 F: detail toContain("follow") is prose beside DONE and the petCommand spy; drop it
+- 16 F: detail toContain("follow") echoes the input order and the petCommand spy proves it beside DONE; drop the prose assertion
 - 30 R: pet command tool statuses, refusals and spy calls; a follow bar while waiting for stay keeps waiting, then times out UNCO
 - 48 R: pet command tool statuses, refusals and spy calls; stance passive sends one petStance and is DONE on the passive bar
 - 64 R: pet command tool statuses, refusals and spy calls; a missing stance is REFUSED missing_stance and sends nothing
 - 72 R: pet command tool statuses, refusals and spy calls; stop sends petStopAttack then follow and is DONE on the follow bar
 - 89 R: pet command tool statuses, refusals and spy calls; no pet out is REFUSED no_pet
-- 97 F: detail toContain("Wolf") is prose beside DONE and the petAttack spy; drop it
+- 97 R: detail toContain("Wolf") is the target name resolved from the seen unit (not in input, which is "u1"); a value, keep; optionally add "u1" ref
 - 114 R: pet command tool statuses, refusals and spy calls; an unseen target is REFUSED not_seen and sends nothing
 - 124 R: pet command tool statuses, refusals and spy calls; no answer within 5 s is UNCONFIRMED with a walk-back next
 
@@ -3129,10 +3137,10 @@ at the baseline commit.
 ### packages/harness/src/areas/pets/tool-spell.test.ts
 - 21 R: cast/autocast/tame tool statuses, refusals and mutex abort; cast resolves the name, sends the pet cast and is DONE on the new cool
 - 49 R: cast/autocast/tame tool statuses, refusals and mutex abort; cast with no definition loaded is UNCONFIRMED, never plain success
-- 69 F: toContain("cooldown") is prose beside FAILED and the not_ready reason; drop the prose line
+- 69 F: keep toContain("not_ready"): the failure code appears only in detail (out.reason is cast_failed); drop toContain("cooldown") prose beside it
 - 91 R: cast/autocast/tame tool statuses, refusals and mutex abort; a cast_failed for another request of the same spell does not fail this
-- 137 F: toContain("closed in") is prose beside DONE; drop it
-- 151 F: toContain("closing in") is prose beside UNCONFIRMED; drop it
+- 137 R: toContain("closed in") is the only marker of the chasing branch among DONE results (no code or data field); a tight branch label, keep, not a sentence pin
+- 151 F: toContain("closing in") is prose beside UNCONFIRMED; assert out.reason toBe "closing_in" (the code that proves the branch) and drop the prose
 - 164 R: cast/autocast/tame tool statuses, refusals and mutex abort; a cooldown that arrives without a bar update still settles DONE
 - 179 R: cast/autocast/tame tool statuses, refusals and mutex abort; cast of an unknown spell names the pet's spells
 - 188 R: cast/autocast/tame tool statuses, refusals and mutex abort; a cast aborted after queueing behind the mutex sends nothing
@@ -3140,7 +3148,7 @@ at the baseline commit.
 - 222 R: cast/autocast/tame tool statuses, refusals and mutex abort; cast ignores a vehicle bar whose slots carry no spell ids
 - 254 R: cast/autocast/tame tool statuses, refusals and mutex abort; cast resolves a vehicle bar slot spell by id without a pet view
 - 313 R: cast/autocast/tame tool statuses, refusals and mutex abort; autocast off is DONE on the next bar showing type off
-- 335 F: toContain("already") is prose beside DONE and the not-called spy; drop it
+- 335 F: toContain("already") is prose beside DONE and the not-called spy, which proves the branch; drop it
 - 347 R: cast/autocast/tame tool statuses, refusals and mutex abort; autocast without on or off is REFUSED missing_state
 - 355 R: cast/autocast/tame tool statuses, refusals and mutex abort; autocast with no reply is UNCONFIRMED
 - 369 R: cast/autocast/tame tool statuses, refusals and mutex abort; an autocast aborted after queueing behind the mutex sends nothing
@@ -3170,7 +3178,7 @@ at the baseline commit.
 - 243 R: pet talent tool statuses, refusals and listing; an abort while queued behind the mutex sends nothing
 - 263 R: pet talent tool statuses, refusals and listing; without a what it lists free points and the pet's tree, never another 
 - 279 R: pet talent tool statuses, refusals and listing; the list says the points are unknown before the server reports them
-- 285 F: negative on the prose "more; narrow the call." passes if wording changes; assert body length 22 and all ids shown
+- 285 F: negative on the "more; narrow the call." marker is wording; keep the 22 body rows and every id (values) in the formatted text, drop the prose negative
 
 #### Seams
 - none: tests use production exports (petsRuntime, PetsStore.refreshing) that the area and runtime also call
@@ -3179,7 +3187,7 @@ at the baseline commit.
 - none
 
 ### packages/harness/src/areas/pets/tool.test.ts
-- 26 F: pins the sentence "You have no pet out." with toBe beside DONE and nothing sent; drop the prose
+- 26 F: toBe pins "You have no pet out." and DONE does not tell the no-pet branch from status; keep as a tight toContain("no pet") branch label, drop the sentence
 - 34 R: pet status/call/revive/dismiss tool statuses and settle logic; status prints name, family, level, health, happiness, stance, command 
 - 55 R: pet status/call/revive/dismiss tool statuses and settle logic; status shows an infinite cooldown as unavailable, never ready
 - 71 R: pet status/call/revive/dismiss tool statuses and settle logic; call casts Call Pet and is DONE on the new bar
@@ -3409,17 +3417,17 @@ at the baseline commit.
 
 ### packages/harness/src/areas/quests/area.test.ts
 - 16 D: copies the worldActs list from area.ts; no contract beyond the declaration, and missing acts fail in the tool-level tests
-- 61 F: pins the exact sentence "Quest givers near you: ... has a quest for you."; keep the data givers and class, drop the text toBe
+- 61 F: keep text toContain of the looked-up giver name+ref "Magistrix Erona u3" and the mapped label "has a quest for you" (and no "Arcanist"); drop the toBe sentence and "Quest givers near you" prefix
 - 76 R: repeated or equivalent giver sets write no second row; spam guard across three cases
 - 88 R: a giver turning its offer into a turn-in writes no row
-- 94 F: asserts prose fragments in toContain; assert the data givers and keep the row count
+- 94 R: text toContain asserts looked-up name+ref plus the WORDS label "has a quest to turn in" and the absent name after the mark change; values only, no full sentence
 - 107 R: gray or in-progress givers write no row
-- 113 F: pins the full sentence "No quest giver in view has..."; keep the row count and assert data, drop the text toBe
-- 123 F: pins the fallback text "quests completed"; keep class, name and data (fallback: true) and drop text
-- 135 F: asserts only the prose containing the POI name; assert data from and name instead
-- 149 R: offered wake row names the sharer and quest; it contains the accept_quest and decline_quest tool names the agent parses
-- 167 F: data (answer, member, questId) is the contract; drop the two prose toContain assertions
-- 182 R: declined first result writes a wake share_result row with answer declined
+- 113 F: data is {} so only text tells the none-left branch; keep the row count and assert a tight toContain("No quest giver in view"), drop the full-sentence toBe
+- 123 F: keep class, name and data (count, fallback, type); the text carries the event type label, assert toContain("completed") only, drop the toEqual pin of "quests completed"
+- 135 F: assert data name "Lion's Pride Inn" and in text the looked-up giver name+ref "Magistrix Erona u3" (the lookup the text adds); drop the echoed-name-only toContain
+- 149 R: text asserts looked-up sharer name, share title and the accept_quest/decline_quest tool names the agent parses; all values, no full sentence
+- 167 F: keep toContain of looked-up member "Julia Sunstriker" and code-mapped label "accepted"; add the quest title or "quest 8329" fallback from questTitle lookup in the text; data stays
+- 182 F: only data is checked, but the agent reads text; add toContain of looked-up member "Arcanist Ithanas" and the code-3 label "declined" (own table entry vs 2 at :167) in text
 
 #### Seams
 - none
@@ -3428,9 +3436,9 @@ at the baseline commit.
 - none
 
 ### packages/harness/src/areas/quests/journal.test.ts
-- 40 F: only the prose "done today." line is asserted; assert the id line structure and keep the quest missing from the log
+- 40 F: the line pins "#14179 quest 14179: done today."; split into toContain("#14179"), the title fallback "quest 14179" and the only-in-text branch label "done today"; drop punctuation/format
 - 61 R: a logged and done-today quest shows the log line only (negative control with positive #14179)
-- 83 R: ordering contract, daily lines come after log lines
+- 83 F: ordering is the contract, but the daily line is located by the full sentence; locate it with "#14179" (and "done today") instead of the whole line, keep the log line "#8326" index comparison
 
 #### Seams
 - none
@@ -3604,32 +3612,32 @@ at the baseline commit.
 ### packages/harness/src/areas/raid/area.test.ts
 - 27 R: conversion produces one passive raid/roster row
 - 37 R: joined changes write no row
-- 47 F: asserts the sentence "Tom left the group." beside class/event; drop the prose, assert data {change:"left", name:"Tom"}
+- 47 R: a left change is a passive roster row; data change left and name Tom carry the echoed name, no sentence is pinned (ruling A)
 - 59 R: becoming leader is a wake row with data.change leader
 - 71 R: another member becoming leader stays passive
 - 83 R: other self changes stay passive
 - 93 R: disband writes a passive roster row
 - 99 R: blocked invite is a log row
 - 105 R: command result is a wake raid/command row
-- 116 F: asserts the sentence "Tom died." beside class/event; assert data {name, transition:"died"} instead
+- 116 R: transition code died maps to the "died" label (transitionText); toContain("died") keeps the mapped value, drop name and sentence
 - 129 R: stats with no transition write no row
-- 137 F: prose toContain on Tom, main tank, gained; keep data {flag:"main_tank", on:true}, drop the text
-- 149 F: "lost"/"gained" prose; data.on false is the contract, drop the text assertions
-- 161 F: "group 3" prose beside data from/to; drop the text
+- 137 R: asserts "main tank" (flagLabel maps main_tank) and "gained" (the agent sees no data, so the label is the branch); echoed name Tom stays in data
+- 149 R: asserts "assistant", "lost" and not "gained": the gained/lost label is the only branch signal in the text the agent reads
+- 161 R: asserts the computed 1-based group (to 2 renders /\bgroup 3\b/) beside data from/to; the index is a rendered value, keep
 - 173 R: started check is a wake raid/ready_check row
-- 179 F: asserts "You start" prose; assert data.name is empty and drop the text
-- 189 F: toContain "Tom" and "not ready" prose beside data answer; keep the data
-- 205 F: toContain "Tom" prose beside data counts; keep the data
-- 233 F: three toContain prose checks (Tom, skull, Springpaw Lynx) beside data; keep data icon, name, target
-- 249 F: only event plus prose "Fgk"/"star"; assert the data that names the agent
-- 259 F: "cleared" prose beside data icon and name; drop the text
+- 179 R: empty initiator name renders "You start" (self substitution, no data field tells the branch); keep toContain("You start")
+- 189 R: answer code not_ready maps to "not ready" (answerText table); keep toContain("not ready"), echoed name Tom stays in data only
+- 205 R: asserts the rendered counts and names via toContain("1 ready"), "not ready: Tom", "1 offline", and no "did not answer" for pending 0
+- 233 R: keeps toContain("skull") (icon table) and "Springpaw Lynx" (looked-up target); no echoed-name or sentence pin
+- 249 R: keeps toContain("Fgk") (self name substituted for the guid) and "star" (icon label); data asserts icon and name
+- 259 R: asserts "cleared" (branch label the agent reads), "skull" (icon label) and data target "0"
 - 275 R: the server's own clear before a move writes no row
 - 281 R: a mark list writes no row
-- 297 F: asserts "30 yd" and /north/ prose beside data x y; keep data, drop wording
-- 312 F: no-pose ping still writes a row; drop the toContain("Tom") prose
-- 328 F: wake class and data seconds/summoner/zone are the contract; drop the three toContain prose checks
-- 342 F: only the prose "zone 3430"; assert data.zone is "zone 3430" instead
-- 347 F: asserts "Ann summons you"/"Someone summons you" prose; assert data.name Ann and Someone
+- 297 R: keeps toContain("30 yd") and /north/i, the computed distance and bearing; data x y beside them
+- 312 R: no pose means no computed distance in the text (not.toContain(" yd ")); data carries name and position, no prose pinned
+- 328 F: keep toContain("120 s") (seconds from timeoutMs); drop zone and name text, data asserts the echoed values
+- 342 F: keep toContain("zone 3430"), the computed fallback label; data repeats it, so the text check is the one that matters
+- 347 R: keeps toContain("Ann") (looked-up name) and "Someone" (fallback) in the text the agent reads; data repeats them
 - 361 R: expiry writes a passive raid/summon_expired row
 
 ### packages/harness/src/areas/raid/tool-lead.test.ts
@@ -3644,7 +3652,7 @@ at the baseline commit.
 ### packages/harness/src/areas/raid/tool-loot.test.ts
 - 219 R: not_in_group, no_master_loot and not_master refusals open nothing
 - 242 R: needs_item and not_a_member refusals
-- 253 F: DONE plus prose toContain "Linen Cloth" and "Tom" beside the open, give and release spies; drop the prose
+- 253 R: keeps toContain("Linen Cloth") (item name resolved from loot state) with DONE and the open, give and release spies; Tom not asserted
 - 269 R: no member named gives to @self on the nearest corpse
 - 276 R: naming the caller's own character gives to @self
 - 287 R: lowest slot wins among same-label items
@@ -3656,10 +3664,10 @@ at the baseline commit.
 - 349 R: not_candidate refusal still releases
 - 357 R: loot error surfaces as FAILED with LOOT_ERROR_ code and still releases
 - 366 R: a window that never opens fails without giving
-- 377 F: name promises "names the walk" but only too_far is asserted; assert the walk hint or drop it from the name
-- 386 F: spy calls are the contract; drop the prose toContain("requested")
+- 377 R: asserts too_far with the computed "40 yd" distance and no open; the walk-range sentence is not pinned
+- 386 R: pass_loot spy calls with true then false and DONE are the contract; no "requested" prose asserted (echoed on/off)
 - 395 R: bad_choice and not_in_group refusals send nothing
-- 410 F: DONE and the roll spy are the contract; drop prose toContain("Linen Cloth")
+- 410 R: DONE, roll spy, and toContain("Linen Cloth") (item name resolved from the open roll); keep the name, no sentence
 - 418 R: no_roll when none open or the only one is answered
 - 431 R: roll_not_allowed lists the allowed votes
 - 439 R: bad_choice on an unknown vote
@@ -3740,21 +3748,21 @@ at the baseline commit.
 
 ### packages/harness/src/areas/raid/tool-share.test.ts
 - 124 R: not_in_group refusal sends nothing
-- 132 F: asserts only prose ("no quest #8325", "name the quest") for refusals; assert the unknown_quest and needs_quest reason codes
+- 132 R: asserts reason codes unknown_quest (missing and empty slot) and needs_quest; no prose, quest id echo not pinned
 - 147 R: shared by title; per-member answers (sharing, accepted via relay, has it) are rendered and DONE
-- 168 D: same result and relay rendering as tool-share.test.ts:147 with other codes, no new branch; keeper tool-share.test.ts:147
+- 168 R: asserts result-table labels "Tom: busy" and "Ann: declined" (RESULT_TEXT codes 4 and 3 relayed); new table entries beyond 147, keep
 - 182 R: rows for another quest are ignored
-- 196 F: asserts only the sentence "no answer: the quest cannot be shared" plus UNCONFIRMED; assert reason no_answer, drop prose
-- 212 F: only asserts the same sentence; assert UNCONFIRMED and reason no_answer from the pure-timeout path
+- 196 R: asserts UNCONFIRMED no_answer on a no_answer close at 2999 ms (event path); the sentence is not pinned
+- 212 R: asserts UNCONFIRMED no_answer from the timeout path (silent server, 3600 ms); different path from 196, no prose
 - 225 R: a busy push refusal reaches the agent as busy
 - 234 R: a throwing send gives FAILED and frees the subscription
 - 243 R: a pre-aborted share sends nothing
-- 257 F: asserts FAILED plus "cannot share" and "today" prose; keep FAILED and reason refused, drop prose
+- 257 R: asserts FAILED refused for a refused close; reason code is the contract, no prose
 - 278 R: no_offer for accept and decline, nothing answered
-- 288 F: `expect(out.text).toContain("")` is vacuous; assert REFUSED dead (also fix the name)
-- 299 F: decline spy call is the contract; drop prose toContain("declined")
-- 310 F: only the prose "no shared quest"; assert REFUSED no_offer
-- 317 F: accept spy and DONE are the contract; drop prose toContain("accepted")
+- 288 R: asserts REFUSED dead for accept while dead, nothing answered; name matches the assertion
+- 299 R: decline spy call "decline" plus DONE; no prose asserted (echoed word)
+- 310 R: asserts REFUSED no_offer when the store no longer owes the decline; reason code, no prose
+- 317 R: accept spy "accept" plus DONE once the quest enters the log; no prose asserted
 - 342 R: a log event without the quest stays UNCONFIRMED
 - 363 R: a throwing accept gives FAILED without hanging
 
@@ -3780,7 +3788,7 @@ at the baseline commit.
 ### packages/harness/src/areas/raid/tool.test.ts
 - 105 R: groupSpec.minimalArgs validates against groupParams; the agent sees this as the minimal call
 - 119 D: expectSendKind only throws for read or control tools and group is an action, so these seven calls assert nothing; keeper tool.test.ts:336
-- 130 F: DONE and uninvite not called are the contract; drop prose "You are not in a group."
+- 130 R: outside a group status is DONE with no code; toContain("not in a group") is the only branch label the agent reads, keep it; uninvite and setLeader not called
 - 139 R: status lists per-member subgroup, roles, vitals and life (dead, ghost, offline)
 - 183 R: status names the leader and whether Peon leads or assists
 - 197 R: stale party stats say how long ago they were seen; unit-sourced stats do not
@@ -3798,7 +3806,7 @@ at the baseline commit.
 - 403 R: reason is sent and DONE when the member leaves the roster
 - 427 R: a left change for someone else does not confirm
 - 443 D: same setup and assertion as tool.test.ts:360 (leader Tom, Peon plain member); keeper tool.test.ts:360
-- 453 F: DONE on the disbanded event is the contract; drop the /disband/i prose
+- 453 R: kick DONE on a disbanded event vs a left change differ only in detail (tool.ts:77 "the group disbanded"); keep /disband/i, no code tells them apart
 - 463 R: a server refusal maps to FAILED not_leader
 - 477 R: an ok command result is not a refusal
 - 496 D: silent 3 s UNCONFIRMED is already asserted by the kick-as-assistant test and the left-for-someone-else test; keeper tool.test.ts:390
@@ -4080,17 +4088,17 @@ at the baseline commit.
 - none
 
 ### packages/harness/src/areas/selfstate/area.test.ts
-- 50 F: toEqual pins text "You are under water: breath 60 s." beside the row data; assert class/event/data and drop the sentence
-- 68 F: asserts only class and the sentence "You can breathe again."; assert event key instead and drop the prose
-- 81 F: toEqual pins "Breath 10 s left. Surface now."; keep class/event/data (remainingS rounding) and drop the sentence
-- 94 F: toMatchObject pins the instance-full sentence beside class/data/event; drop the prose
-- 111 F: asserts only prose "reason 99"; assert data.mapId and data.reason for the unknown-reason branch instead
-- 122 F: toEqual pins "You can come back where you died (Reincarnation)."; keep data/event, drop the sentence
+- 50 F: toEqual pins whole sentence; keep class/event/data and toContain("60 s") (computed seconds in text); drop the rest of the sentence
+- 68 F: asserts class plus sentence "You can breathe again."; assert event selfstate/surfaced (data is {}, event key proves the branch) and drop the prose
+- 81 F: toEqual pins whole sentence; keep class/event/data and toContain("10 s") (ceil of 9600 ms, computed in text); drop "Surface now."
+- 94 F: keep class/data/event and toContain("map 36") + toContain("instance is full") (REASON_WORDS label for reason 2, text only); drop the sentence frame
+- 111 F: toBe pins whole sentence; keep toContain("229") and toContain("reason 99") (unknown-reason fallback, text only); drop the rest. Data asserts mapId/reason too
+- 122 F: name is copied unchanged and data already asserts it; keep class/data/event, drop the sentence (toEqual on text)
 - 139 R: mount/dismount rows are log class with display id and event keys
 - 150 R: taxi mount and dismount write no row
-- 157 F: toContain pins state words in text; keep rows/data/event, drop the toContain and unique-text assertions
+- 157 R: state words per drunk state are an enum-to-text label map (DRUNK_TEXT); toContain of tipsy/drunk/smashed/sober plus distinct-text check are contracts; keep
 - 184 R: other rider's animation writes no row
-- 188 F: asserts only fallback sentence "(spell 20707)"; assert data.spellId and event instead
+- 188 F: fallback "spell 20707" exists only in text; replace toBe of whole sentence with toContain("spell 20707"); drop the rest; may add data.name null
 - 197 R: stand changes and ghost_pending write no row
 - 204 R: fatigue timer start writes no breath row
 - 216 R: paused and refilling breath timers write no row
@@ -4338,13 +4346,13 @@ at the baseline commit.
 - 20 R: mirror_image event writes no row and no fallback row
 - 35 R: projectile_moved writes no row and no fallback
 - 50 R: spell_visual events write no row
-- 66 R: channel start/end write ruled rows with event keys
-- 102 R: relevant caster's start and interruption rows carry event key and data fields
-- 156 R: relevant channel start row carries kind channel and data
-- 186 F: name promises unnamed caster and spell fallback but only spell is unnamed and asserts toContain prose; assert the caster id fallback too or rename
+- 66 F: toMatchObject pins whole sentences; keep value asserts "5143" and "cancelled" (reason echo, no data) via toContain; drop the prose
+- 102 F: pins full sentences; keep looked-up "Scourge Invader" and spell name "Shadow Bolt" in text (agent reads text only) via toContain; keep data, drop prose
+- 156 F: pins full sentence; keep looked-up "Scourge Invader", "Drain Life" and the branch label "channelling" (vs "casting") via toContain; drop prose
+- 186 F: asserts only "spell 5143"; keep it and add the caster fallback "A unit" (area.ts:114) via toContain; name promises both fallbacks
 - 204 R: irrelevant casters and settled outcomes write no row
-- 250 R: totem rows map slot to element and use event keys
-- 305 R: skill learned/raised/dropped row split by from undefined
+- 250 F: pins full sentences; keep mapped element "earth", name "Stoneskin Totem" and reason "gone" via toContain; drop prose
+- 305 F: pins full sentences; keep branch labels "learned"/"is now"/"dropped" (no data to tell them apart) and values "1/75", "12/75"; drop other prose
 - 334 R: per-skill one-minute row throttle; other skills and removals still write
 
 ### packages/harness/src/areas/spells/tool-aura.test.ts
@@ -4364,7 +4372,7 @@ at the baseline commit.
 - 68 R: slot 144 maps to wire 143, upper boundary of the off-by-one
 - 80 R: bag item name resolves to an item button
 - 95 R: item id text needs no bag lookup and sends exactly one real packet
-- 106 F: asserts the sentence 'Cleared' via toContain beside the act call and DONE; drop the prose
+- 106 F: drop toContain("Cleared") prose beside DONE; keep the act(2, undefined) call and body "slot 3: empty" (1-based slot, empty label)
 - 119 R: slots 0, 145, -1, 1.5 refuse invalid_slot with act uncalled
 - 131 R: missing slot refuses missing_slot
 - 139 R: spell plus item refuses spell_or_item
@@ -4373,7 +4381,7 @@ at the baseline commit.
 
 ### packages/harness/src/areas/spells/tool-cast.test.ts
 - 53 R: no target casts on self and DONE on cast_succeeded
-- 68 F: asserts detail toContain 'Wolf' prose beside the cast guid and DONE; drop the prose
+- 68 R: detail toContain("Wolf") is the looked-up unit name for ref u1 rendered into text; keep it, assert only "Wolf" not the sentence
 - 80 R: numeric spell text casts that spell
 - 87 R: unknown name or id refuses unknown_spell without casting
 - 99 R: hearthstone variants refuse and point at travel hearth without casting
@@ -4580,16 +4588,16 @@ at the baseline commit.
 - none
 
 ### packages/harness/src/areas/talents/area.test.ts
-- 24 F: pins whole row text "3 talent points free." with data; drop the prose, keep event and data
-- 41 F: pins text "Learned talent 1862 rank 2."; keep event/data (rank 1-based) only
-- 63 F: pins "Talent reset offered for 1g by u64."; assert event/data cost only
-- 75 F: pins "Talents reset. 3 points free."; keep event/data
+- 24 F: drop the sentence pin "3 talent points free."; keep event/data and assert text contains the count with noun ("3 talent points"); 3 is echoed but the noun is rendered
+- 41 F: drop toBe "Learned talent 1862 rank 2."; id and rank 2 are already in data (echoed, not computed), so keep event/data only
+- 63 F: drop the sentence pin; keep toContain("1g") (cost computed from 10000 copper) and toContain("u64") (npc name looked up by refOf, not in data)
+- 75 F: drop the sentence pin; count is echoed in data, keep event/data and at most toContain("3 points") for the plural noun branch
 - 92 R: unchanged info writes nothing
 - 98 R: wipe_refused writes nothing
 - 104 R: points rise with no lost ranks is not a reset, writes nothing
 - 119 R: paired points event suppressed after a reset (stateful memo)
 - 142 R: later points rise after a reset still logs
-- 167 F: asserts prose fragments (43395, slot 2, cleared) beside event/data; keep data only
+- 167 F: keep toContain("slot 2") and ("slot 1") (computed slot+1 rendered) and "cleared" (the agent sees no data, so it is the branch label); drop "43395" (echoed, in data)
 - 189 R: reset keeps both reset and glyph rows in order
 
 ### packages/harness/src/areas/talents/tool-glyph.test.ts
@@ -4619,7 +4627,7 @@ at the baseline commit.
 - 459 R: schema accepts numeric or word slot
 
 ### packages/harness/src/areas/talents/tool-learn.test.ts
-- 14 F: asserts rank +1 and reason in data, then repeats them as toContain on prose; drop the text assertions
+- 14 F: keep data asserts; of the text asserts keep "rank 1" and add "rank 2" for row 0 (computed entry.rank+1 rendered); drop 124, reason words, not.toBe (echoed, in data)
 
 ### packages/harness/src/areas/talents/tool.test.ts
 - 145 R: minimalArgs hint must pass the schema; agent sees it in error hints
@@ -4703,21 +4711,21 @@ at the baseline commit.
 ### packages/harness/src/areas/threat/area.test.ts
 - 54 R: table, removed, cleared, hostile reaction and a break for an unengaged unit give no row (flood guard)
 - 74 D: asserts glyph "combat" and worldActs [], restating the area declaration; no contract
-- 81 F: whole-draft toEqual pins the sentence "is fighting you"; keep class wake, name engaged, ref, guid, data and the second-call [], drop text
+- 81 F: whole-draft toEqual pins the sentence "is fighting you"; the unit name is copied from the event and data.name already asserts it; keep class wake, name engaged, ref, guid, data and the second-call [], drop the text line (no computed value in this sentence)
 - 96 R: inside a run the engaged row is a log row
 - 101 R: a table that does not hold the character gives no row
 - 105 R: a victim_changed to the character is the engagement, logged once
 - 117 R: removal of the character or a clear resets engagement; a pet removal does not
-- 137 F: aggro_switch pet to character pins the full text sentence; keep class log, name and data fromVictim/toVictim, drop text
-- 157 F: wake class is the contract; text "turned from Mate" is prose, drop it and assert name aggro_switch
-- 167 F: log class is the contract; text prose, drop it and assert name aggro_switch
+- 137 F: aggro_switch pet to character pins the full sentence; data holds only guids, so the looked-up names are the contract: keep class log, name, data fromVictim/toVictim, and assert text toContain "Cat" (pet name from lookup) and "to you" (self substitution); drop the rest of the sentence
+- 157 F: keep class wake and name aggro_switch; text is the only carrier of the looked-up from-name and the self substitution, so assert toContain "Mate" and "to you" instead of the whole sentence; drop the sentence wording
+- 167 F: keep class log and name aggro_switch; assert text toContain "from you" (self substitution) and "Cat" (looked-up pet name) instead of the whole sentence; drop the sentence wording
 - 177 R: a switch between players on an unengaged unit gives no row
 - 181 R: on an engaged unit player switches log, creature to creature does not
-- 200 F: pins the pull_warning sentence; keep class, name and data mine/pullAt/victim/victimThreat, and the engaged-then-warn-once order
+- 200 F: pull_warning sentence pin; keep class, name and data mine/pullAt/victim/victimThreat, and the engaged-then-warn-once order; also keep the computed values in text: toContain "99%" (rounded share) and "Mate" (victim name looked up, absent from data); drop the rest of the sentence and the 110%/130% boilerplate
 - 223 R: a new victim re-arms the pull warning
 - 233 R: no warning for pet, self or creature victims
-- 244 F: pins "noticed you." sentence; keep class wake, name alerted, data and ref
-- 273 F: pins "vanished from targeting" sentence; keep class log, name target_lost, data hostileOnly and the once-only []
+- 244 F: pins "noticed you." sentence; the unit name is copied from the event and data.name asserts it; keep class wake, name alerted, data and ref, drop the text line
+- 273 F: pins "vanished from targeting" sentence; the name is copied from the event and data.name asserts it; keep class log, name target_lost, data hostileOnly and the once-only [], drop the text line
 - 293 R: a target break on an unengaged unit gives no row
 
 ### packages/harness/src/areas/threat/reads.test.ts
@@ -4887,11 +4895,11 @@ at the baseline commit.
 - 38 R: give cancels the opened trade when a later offer fails
 - 51 F: name promises no duplicate-slot error but mocks never error; assert withdrawItem ordered before the offerItem calls
 - 73 R: declining where the server cancels settles DONE
-- 84 F: same decline branch as 73 with reason busy; drop the prose "Declined" assertion, keep DONE
+- 84 F: same decline branch as 73 with reason busy; DONE already proves the branch, drop the `toContain("Declined")` prose, keep status DONE
 
 ### packages/harness/src/areas/trade/tool-result.test.ts
 - 57 R: accept after a completed trade reports both sides' items with names and counts
-- 66 D: asserts only the word "nothing", pure wording; no contract (counts are covered by tool-result.test.ts:57)
+- 66 F: the "nothing" is the computed empty-list fallback in transferText with no code to tell it apart; keep `gave nothing` (tight), drop other prose
 - 81 R: give path reports the completed trade, a different call site (tool-give.ts:171)
 - 117 R: accept waits for late item names instead of printing ids; timing contract
 - 129 C packages/harness/src/areas/trade/tool-result.test.ts:117: same wait in the shared completedText, only the entry tool differs
@@ -4900,8 +4908,8 @@ at the baseline commit.
 - 166 R: show path waits for late names for the past trade
 - 189 R: slot 6 non-traded item not reported as received through accept
 - 198 R: same slot 6 guard on the show path (different call site)
-- 207 F: drop the toContain("No trade is open") prose; keep the negatives that stale offer/version are not printed
-- 221 C packages/harness/src/areas/trade/tool-result.test.ts:166: show past-trade names already asserted there; "completed" is prose
+- 207 F: drop the toContain("No trade is open") sentence (no_trade branch label, negatives tell open from closed); keep not-printed "their offer"/"version"
+- 221 F: only test asserting the "Last completed trade" past-vs-current label (lastCompletedLine, no code tells it apart); keep that label and "20 Tough Jerky"
 
 ### packages/harness/src/areas/trade/tool.test.ts
 - 29 R: the minimal args validate against the schema; schema drift catch
@@ -4912,7 +4920,7 @@ at the baseline commit.
 - 105 R: no_such_item refusal, nothing requested
 - 116 R: ambiguous_item refusal for a shared name
 - 131 R: bag/slot selector picks one same-name stack and offers its position
-- 146 D: same ambiguous-name setup as 116; asserts only the prose "bag and slot"; keeper tool.test.ts:116
+- 146 D: same ambiguous-name setup as 116; reason ambiguous_item proves the branch, "bag and slot" is a hardcoded example sentence (wording); keeper tool.test.ts:116
 - 162 R: too_many_items refusal above 6
 - 177 R: too_far refusal
 - 189 R: not_seen refusal
@@ -5005,8 +5013,8 @@ at the baseline commit.
 - 221 R: no DBC source leaves data missing
 
 ### packages/harness/src/areas/transports/area.test.ts
-- 17 F: toEqual pins the prose texts "A transport came into view." beside name/data keys; match class/name/data only
-- 40 F: toEqual pins prose texts "Boarded a transport." etc. beside name/data keys; match class/name/data only
+- 17 F: toEqual pins static prose ("A transport came into view.", "left view.") beside name/data; no rendered value in text. Keep class/name/data (guid hex), drop text
+- 40 F: toEqual pins static prose ("Boarded a transport." etc.); text renders no looked-up value (entry/maps only in data). Keep class/name/data (entry, guid, fromMap, toMap), drop text
 
 ### packages/harness/src/areas/transports/stops.test.ts
 - 22 R: names nodes in range on same map only; other map yields none
@@ -5138,17 +5146,17 @@ at the baseline commit.
 - none
 
 ### packages/harness/src/areas/travel/area.test.ts
-- 41 F: row event/progress are contracts, but text "Home is now Falconwing Square." is wording; drop the text assertion
+- 41 F: keep event/progress and add toContain("Falconwing Square") (looked-up area, fallback `area N` is the other branch); drop the "Home is now ...." sentence
 - 51 R: login bind point writes no row; avoids spamming at login
 - 57 R: bind offer writes a bind_offer row
-- 65 F: event is a contract; toContain("New flight path")/master name are prose; keep the event, drop the prose
-- 82 R: undefined npc still writes node_learned; guards against a crash
-- 91 F: data route/fare/duration is the contract; drop the "copper fare"/"s flight" text assertions
+- 65 F: keep event and toContain("Dragonhawk Master") (unitName lookup rendered to the agent); drop the "New flight path" prose assertion
+- 82 F: no-master branch renders the fallback label "a new stop"; assert toContain("a new stop") (no data field tells it apart), not just the event
+- 91 F: keep data; keep computed values toContain("105"), toContain("95 s") (ms to s), and stop count "2 stops"; drop the "copper fare"/"flight" wording
 - 111 R: node id lands in row data
 - 123 R: landing writes a wake-class flight_landed row
-- 135 F: data code/name is the contract; drop the redundant text toContain
+- 135 F: name is echoed from the event and data.name already asserts it; drop the redundant text toContain("not_enough_money")
 - 148 R: named node row carries node data and the catalog name in text (the only carrier of the name)
-- 166 F: only asserts prose contains "83"; assert data.node 83 and event instead
+- 166 F: fallback label when catalog name is missing renders "node 83" in text only; assert toContain("node 83") and event, drop nothing else
 - 180 R: ok taxi reply writes no row
 #### Seams
 - none
@@ -5198,8 +5206,8 @@ at the baseline commit.
 - 231 R: dispose drops rows and listeners so later packets emit nothing
 
 ### packages/harness/src/areas/unitmotion/area.test.ts
-- 57 F: asserts prose "Springpaw Stalker" and "slowed to 50%"; assert row data pct/previous/value instead of text
-- 73 F: asserts the unit name inside prose; keep the rooted/freed event names, drop the text assertion
+- 57 F: keep the looked-up unit name "Springpaw Stalker" (data holds only the guid, so text is the agent's only name) and the computed pct, tightening `toContain("slowed to 50%")` to `toContain("50%")`; the slowed/sped branch is already pinned by the event name, so drop the wording
+- 73 R: rooted text carries the looked-up unit name (data has only the guid), asserted via `toContain("Springpaw Stalker")` with no sentence pinned; rooted/freed branches by event name
 - 86 R: lastAttacker counts as in the fight; without it an attacker's slow would be silent
 - 95 R: 100 ms per-guid throttle boundary at 99 and 100 ms
 - 107 R: throttle is per guid, so a second unit's row is not swallowed
@@ -5303,27 +5311,27 @@ at the baseline commit.
 - 146 R: snapshot maps are copies and dispose clears state and stops events
 
 ### packages/harness/src/areas/vehicles/area.test.ts
-- 19 F: toEqual pins the sentences "The unit became vehicle 315." beside class/name/data; assert only the contract fields
-- 44 F: toEqual pins the sentence "The server cancelled the expected ride aura." beside class/name/data; drop text
+- 19 F: ruling A: sentences are wording, vehicleId 315/0 already in data; replace toEqual with toMatchObject on class/name/data (guid, vehicleId), no text
+- 44 F: ruling A: sentence is wording and data is {}; assert class log and name ride_aura_cancel only, drop text
 - 57 R: spline events write no row inside or outside a run (flood guard)
 - 92 R: entered is a wake row named entered with entry, seat and hex vehicle data
-- 104 F: only asserts class wake and the prose toContain("seat 0"); assert name/data and drop the sentence
+- 104 F: ruling A: keep the value; assert data seat 0 with entry undefined (the seatText no-entry branch) and tight toContain("seat 0"), drop other prose
 - 112 R: exited writes a log row named exited with the vehicle guid
 - 119 R: seat_changed writes a log row with the new seat and vehicle
 - 147 R: attach writes one row for an already-seated character with the seat
 - 164 R: attach writes nothing when unseated
-- 170 F: control rows pin prose with toContain("control") and not.toBe(text); drop the prose assertions and keep class/name/data
+- 170 F: keep a tight toContain("control") as the branch label the agent reads (data.allow is not delivered); drop not.toBe(text); keep class/name/data allow+mover
 
 ### packages/harness/src/areas/vehicles/tool.test.ts
 - 85 R: minimalArgs validates against the parameters schema, so the fallback call stays legal
 - 99 R: tool kind conformance via expectSendKind (action tool may send)
-- 113 F: asserts prose toContain("travel") on detail beside the next call; keep next travel( and drop the detail prose
-- 122 F: negative checks only prose on detail; assert res.next has no travel call instead
-- 130 F: negative asserts only a prose substring is absent; assert res.next is undefined with no seat
-- 138 F: asserts the sentence containing the unit name beside the spellClick call and DONE; drop the prose, keep calls, status and after
+- 113 F: ruling A: keep status DONE and next toContain("travel("); drop the detail toContain("travel") prose
+- 122 F: ruling A: prose absence is wording; assert res.next is undefined (no travel call), drop detail not.toContain
+- 130 F: ruling A: prose absence is wording; assert res.next is undefined with no seat, drop detail not.toContain
+- 138 R: ruling A: toContain("Wintergarde Gryphon") is the unit name resolved from state into detail (agent reads it); keep with spellClick call, DONE and after
 - 148 R: an out-of-reach unit is walked to via goto before the click
 - 156 R: a failed walk throws FAILED and sends no click
-- 165 F: no_answer UNCONFIRMED and reason are the contract; drop the toLowerCase prose checks for "no answer" and "refused"
+- 165 F: ruling A: status UNCONFIRMED and reason no_answer prove the branch; drop the toLowerCase "no answer"/"refused" prose assertions
 - 174 R: act refusal surfaces as REFUSED with its reason
 - 186 R: missing and unknown unit refuse missing_target and not_seen, sending nothing
 - 197 R: abort while the click waits rejects the call
@@ -5514,15 +5522,15 @@ at the baseline commit.
 - 15 R: YOU_JOINED consumes its trailing fields and maps to joined with the channel
 - 30 R: YOU_LEFT consumes its trailing fields and maps to left
 - 44 R: unknown notify type maps to other, not an error
-- 53 F: keeper of the code->error mapping; asserts type/code/channel plus prose message, drop the message text and table the codes
-- 67 C packages/core/src/wow/protocol/chat-channel.test.ts:53: same error branch, another code; only the prose differs
-- 81 C packages/core/src/wow/protocol/chat-channel.test.ts:53: same error branch, another code; only the prose differs
-- 95 C packages/core/src/wow/protocol/chat-channel.test.ts:53: same error branch, another code; only the prose differs
-- 109 C packages/core/src/wow/protocol/chat-channel.test.ts:53: same error branch, another code; only the prose differs
-- 123 C packages/core/src/wow/protocol/chat-channel.test.ts:53: same error branch with an empty channel; message table prose only
-- 137 C packages/core/src/wow/protocol/chat-channel.test.ts:53: same error branch, another code; only the prose differs
-- 151 C packages/core/src/wow/protocol/chat-channel.test.ts:53: same error branch, another code; only the prose differs
-- 165 C packages/core/src/wow/protocol/chat-channel.test.ts:53: same error branch, another code; only the prose differs
+- 53 F: keeper of the code->error mapping; keep type, code and the channel name substituted into message (toContain("Secret")); drop the whole-sentence message pin (code already proves the branch)
+- 67 F: NOT_MEMBER is its own code->label row; keep type, code and the channel substitution via toContain(channel) (none for empty channel), drop the sentence pin; fold into one table with 53
+- 81 F: BANNED is its own code->label row; keep type, code and the channel substitution via toContain(channel) (none for empty channel), drop the sentence pin; fold into one table with 53
+- 95 F: MUTED is its own code->label row; keep type, code and the channel substitution via toContain(channel) (none for empty channel), drop the sentence pin; fold into one table with 53
+- 109 F: ALREADY_MEMBER is its own code->label row; keep type, code and the channel substitution via toContain(channel) (none for empty channel), drop the sentence pin; fold into one table with 53
+- 123 F: INVALID_NAME (empty channel) is its own code->label row; keep type, code and the channel substitution via toContain(channel) (none for empty channel), drop the sentence pin; fold into one table with 53
+- 137 F: THROTTLED is its own code->label row; keep type, code and the channel substitution via toContain(channel) (none for empty channel), drop the sentence pin; fold into one table with 53
+- 151 F: WRONG_FACTION is its own code->label row; keep type, code and the channel substitution via toContain(channel) (none for empty channel), drop the sentence pin; fold into one table with 53
+- 165 F: NOT_IN_AREA is its own code->label row; keep type, code and the channel substitution via toContain(channel) (none for empty channel), drop the sentence pin; fold into one table with 53
 - 181 R: join packet layout and empty password default
 - 191 R: join packet carries the password
 - 203 R: leave packet layout
@@ -5530,16 +5538,16 @@ at the baseline commit.
 - 219 C packages/core/src/wow/protocol/chat-channel.test.ts:212: same layout with other values, no new branch
 - 228 R: roll result fields in wire order
 - 244 R: guid low word above 2^31 stays unsigned
-- 262 R: broadcast id 1 formats shutdown with its time parameter
-- 270 C packages/core/src/wow/protocol/chat-channel.test.ts:262: same table lookup with prose of another id
+- 262 F: id 1 label and the substituted time parameter are computed text the agent reads (message is the only carrier); assert toContain("shutdown") and toContain("15:00") instead of the whole sentence
+- 270 F: id 2 label (restart label with its time 05:00) is a computed value in the only text the agent reads; keep as table row asserting the label keyword and parameter via toContain, drop the full-sentence toBe
 - 278 R: raw-string id returns the param untouched
-- 286 C packages/core/src/wow/protocol/chat-channel.test.ts:262: same table lookup, prose only
-- 294 C packages/core/src/wow/protocol/chat-channel.test.ts:262: same table lookup, prose only
-- 302 C packages/core/src/wow/protocol/chat-channel.test.ts:262: same table lookup, prose only
-- 310 C packages/core/src/wow/protocol/chat-channel.test.ts:262: same table lookup, prose only
-- 318 C packages/core/src/wow/protocol/chat-channel.test.ts:262: same table lookup, prose only
-- 326 C packages/core/src/wow/protocol/chat-channel.test.ts:262: same table lookup, prose only
-- 334 R: unknown broadcast id falls back to a generic message with the param
+- 286 F: id 4 label (shutdown-cancelled label) is a computed value in the only text the agent reads; keep as table row asserting the label keyword and parameter via toContain, drop the full-sentence toBe
+- 294 F: id 5 label (restart-cancelled label) is a computed value in the only text the agent reads; keep as table row asserting the label keyword and parameter via toContain, drop the full-sentence toBe
+- 302 F: id 6 label (battleground shutdown label with 10:00) is a computed value in the only text the agent reads; keep as table row asserting the label keyword and parameter via toContain, drop the full-sentence toBe
+- 310 F: id 7 label (battleground restart label with 03:00) is a computed value in the only text the agent reads; keep as table row asserting the label keyword and parameter via toContain, drop the full-sentence toBe
+- 318 F: id 8 label (instance shutdown label with 02:00) is a computed value in the only text the agent reads; keep as table row asserting the label keyword and parameter via toContain, drop the full-sentence toBe
+- 326 F: id 9 label (instance restart label with 01:00) is a computed value in the only text the agent reads; keep as table row asserting the label keyword and parameter via toContain, drop the full-sentence toBe
+- 334 F: unknown id fallback; keep toContain("99") and toContain("mystery") (id and param), drop the full sentence pin
 - 344 R: notification reads one cstring
 - 351 C packages/core/src/wow/protocol/chat-channel.test.ts:344: empty string is the same read path
 
@@ -5724,23 +5732,23 @@ at the baseline commit.
 - 99 R: invite packet reads inviter then guild name
 - 110 R: invite packet consumed fully
 - 121 R: success code 0 yields undefined so no error is reported
-- 127 F: only prose pinned by toBe; collapse 127-223 into one table asserting each code maps to a distinct non-generic message holding the name
-- 133 F: prose only; fold into the table (code 0x03 interpolates the name)
-- 139 F: prose only; fold into the table
-- 145 F: prose only; fold into the table
-- 151 F: prose only; fold into the table
-- 157 F: prose only; fold into the table
-- 163 F: prose only; fold into the table
-- 169 F: prose only; fold into the table
-- 175 F: prose only; fold into the table
-- 181 F: prose only; fold into the table
-- 187 F: prose only; fold into the table
-- 193 F: prose only; fold into the table
-- 199 F: prose only; fold into the table
-- 205 F: prose only; fold into the table
-- 211 F: prose only; fold into the table
-- 217 F: prose only; fold into the table
-- 223 F: prose only; fold into the table
+- 127 F: code-to-label table the agent reads (formatGuildCommandError, guild.ts:285); keep the values, drop the sentences. Collapse 127-223 into one table over codes 0x01-0x13 asserting each message is `[guild]`-prefixed, distinct from every other code's message and from the generic 255 fallback (no status code tells the branches apart in the text), and for name-carrying codes toContain(name)
+- 133 F: 0x02 no name; fold into the table of 127; keep only the distinct-label assertion; no name is rendered, drop the full sentence toBe
+- 139 F: 0x03 name; fold into the table of 127; toContain(the substituted name) is the value to keep, drop the full sentence toBe
+- 145 F: 0x04 no name; fold into the table of 127; keep only the distinct-label assertion; no name is rendered, drop the full sentence toBe
+- 151 F: 0x05 name; fold into the table of 127; toContain(the substituted name) is the value to keep, drop the full sentence toBe
+- 157 F: 0x06 no name; fold into the table of 127; keep only the distinct-label assertion; no name is rendered, drop the full sentence toBe
+- 163 F: 0x07 name; fold into the table of 127; toContain(the substituted name) is the value to keep, drop the full sentence toBe
+- 169 F: 0x08 no name; fold into the table of 127; keep only the distinct-label assertion; no name is rendered, drop the full sentence toBe
+- 175 F: 0x09 no name; fold into the table of 127; keep only the distinct-label assertion; no name is rendered, drop the full sentence toBe
+- 181 F: 0x0a name; fold into the table of 127; toContain(the substituted name) is the value to keep, drop the full sentence toBe
+- 187 F: 0x0b name; fold into the table of 127; toContain(the substituted name) is the value to keep, drop the full sentence toBe
+- 193 F: 0x0c name; fold into the table of 127; toContain(the substituted name) is the value to keep, drop the full sentence toBe
+- 199 F: 0x0d name; fold into the table of 127; toContain(the substituted name) is the value to keep, drop the full sentence toBe
+- 205 F: 0x0e name; fold into the table of 127; toContain(the substituted name) is the value to keep, drop the full sentence toBe
+- 211 F: 0x11 no name; fold into the table of 127; keep only the distinct-label assertion; no name is rendered, drop the full sentence toBe
+- 217 F: 0x12 no name; fold into the table of 127; keep only the distinct-label assertion; no name is rendered, drop the full sentence toBe
+- 223 F: 0x13 name; fold into the table of 127; toContain(the substituted name) is the value to keep, drop the full sentence toBe
 - 229 R: unknown code falls back to a generic error carrying the numeric code (no throw)
 
 ### packages/core/src/wow/protocol/guild-event.test.ts
@@ -6090,7 +6098,7 @@ at the baseline commit.
 - 25 R: an opcode already owned is skipped; real handler still runs and no double-register throw
 - 37 C packages/core/src/wow/protocol/stubs.test.ts:56: notify-once is also asserted by the retry test's final receipts
 - 56 R: notify returning false retries on the next receipt, then notifies once
-- 82 F: notice toEqual pins the prose "is not yet implemented"; keep opcode and label, drop text
+- 82 F: toEqual pins the whole notice incl. the sentence "[peon] <label> is not yet implemented"; keep opcode and label fields and assert `text` toContain(STUB_EXAMPLE_LABEL) (label is looked up from the stub table and substituted into the text the agent reads); drop the "[peon] ... is not yet implemented" wording pin
 - 103 R: every stub opcode is a SMSG_/MSG_ server opcode; guards a client opcode in the table
 
 ### packages/core/src/wow/protocol/talent-spec.test.ts
@@ -6187,8 +6195,8 @@ at the baseline commit.
 
 ### packages/core/src/wow/world-handlers-channels.test.ts
 - 14 R: SMSG_CHANNEL_NOTIFY YOU_LEFT removes the channel and renumbers the list; a wrong index map misroutes /1 /2
-- 42 F: contract is getChannel(3) after YOU_JOINED; drop the messages.some includes("MyChannel") prose check
-- 79 F: only asserts the sentence "Wrong password for Secret"; assert a system-type message is delivered, drop the exact prose
+- 42 R: asserts getChannel(3) and toContain("MyChannel"), the channel name substituted into the join message the agent reads; both are values, keep
+- 79 F: sentence-equality on "Wrong password for Secret"; keep SYSTEM type, assert toContain("Secret") (name) and /wrong password/i (label mapped from the code), drop the full sentence
 - 114 R: default sticky chat mode is say
 - 129 R: setLastChatMode stores the mode the next send uses
 - 145 R: sendInCurrentMode with default mode sends SAY
@@ -6223,7 +6231,7 @@ at the baseline commit.
 - 232 R: sendAfk uses the AFK chat type
 - 252 R: sendChannel keeps the channel name on the echoed message
 - 273 R: a handler throwing on a short body reaches onPacketError with the opcode
-- 299 C packages/core/src/wow/client-handlers.test.ts:135: same not_implemented notice with the same text asserted there
+- 299 C packages/core/src/wow/client-handlers.test.ts:135: notice text template asserted there; the opcode-to-label value "Ambiguous player name" is pinned by registry.test.ts:64 and this test's label filter; drop the sentence toBe
 
 #### Seams
 - packages/core/test-support/mock-world-server.ts `sendTimeSyncAfterLogin`: only chat.test.ts:16 uses it; goes with that D
@@ -6318,7 +6326,7 @@ at the baseline commit.
 - 262 R: error result fires friend-error with the result code
 - 295 R: addFriend writes CMSG_ADD_FRIEND name and empty note
 - 321 R: removeFriend looks up the guid by name and sends CMSG_DEL_FRIEND with the guid
-- 372 F: asserts the sentence '"Nobody" is not on your friends list.' beside type SYSTEM; assert system type and that no CMSG_DEL_FRIEND went out
+- 372 F: sentence pin '"Nobody" is not on your friends list.'; keep SYSTEM type plus toContain("Nobody") (substituted name), drop the sentence; assert no CMSG_DEL_FRIEND went out
 
 #### Seams
 - none
@@ -6329,14 +6337,14 @@ at the baseline commit.
 ### packages/core/src/wow/world-handlers-group.test.ts
 - 26 R: accept after a group invite sends CMSG_GROUP_ACCEPT with the zero flag
 - 63 R: decline after a group invite sends an empty CMSG_GROUP_DECLINE
-- 99 F: status 0 invite leaves seen empty (contract) but pins "Nothing to accept."; drop the prose
+- 99 F: status 0 invite leaves seen empty (contract); message has no value, drop the "Nothing to accept." toBe, assert SYSTEM type and no CMSG_GROUP_ACCEPT sent
 - 130 R: nine group opcodes decode to ordered events including member stats
 - 210 R: group_list leader resolves to the member name when the guid matches self
-- 245 F: only asserts the sentence '"Ghostplayer" is not in your party.'; assert system type and that no leader packet was sent
+- 245 F: sentence pin '"Ghostplayer" is not in your party.'; keep SYSTEM type plus toContain("Ghostplayer") (substituted name), drop the sentence; assert no leader packet was sent
 - 270 F: assertion-free (six commands, no capture); assert the CMSG_GROUP_INVITE/UNINVITE/DISBAND/SET_LEADER bodies
 - 309 R: sendRoll writes MSG_RANDOM_ROLL min and max
 - 335 R: MSG_RANDOM_ROLL becomes a ROLL message with sender and the rolled text
-- 367 D: same guid 0x42 and branch as 335, only min/max/result differ; keeper packages/core/src/wow/world-handlers-group.test.ts:335
+- 367 D: same guid 0x42 and branch as 335, which already asserts the resolved sender and the computed min/max/result text; keeper packages/core/src/wow/world-handlers-group.test.ts:335
 
 #### Seams
 - none
@@ -6407,7 +6415,7 @@ at the baseline commit.
 - 133 R: a message from an ignored sender is dropped, delivered again after removal
 - 179 R: addIgnore writes CMSG_ADD_IGNORE name
 - 204 R: removeIgnore looks up the guid and sends CMSG_DEL_IGNORE with it
-- 251 F: asserts the sentence '"Nobody" is not on your ignore list.' beside type SYSTEM; assert system type and no CMSG_DEL_IGNORE
+- 251 F: sentence pin '"Nobody" is not on your ignore list.'; keep SYSTEM type plus toContain("Nobody") (substituted name), drop the sentence; assert no CMSG_DEL_IGNORE went out
 
 #### Seams
 - none
@@ -6420,14 +6428,14 @@ at the baseline commit.
 - 44 R: two sends before name resolution arrive in order with sender
 - 78 R: zero-guid SYSTEM chat delivers with empty sender
 - 114 R: GM chat takes the sender name from the packet
-- 153 F: only the sentence 'No player named "Ghostplayer"...' plus type; drop the prose, assert SYSTEM type
+- 153 F: sentence pin 'No player named "Ghostplayer"...'; keep SYSTEM type plus toContain("Ghostplayer") (substituted name), drop the sentence
 - 181 R: SMSG_MOTD lines are joined into one SYSTEM message
-- 209 F: asserts "Server shutdown in 15:00" beside origin server; keep type/sender/origin, drop the prose
+- 209 F: keep type/sender/origin server and toContain("15:00") (substituted param); code 1 label is pinned at protocol/chat-channel.test.ts:267; drop the full sentence toBe
 - 238 R: SMSG_NOTIFICATION delivers with origin notification
-- 266 F: asserts "You have new mail." beside origin mail; keep type and origin, drop the prose
-- 291 F: only restriction text plus type and sender; drop the prose or assert the lookup against the enum
-- 318 F: only the fallback sentence "Chat restriction 255" plus type; drop the prose
-- 345 F: only the sentence about the opposing faction plus type and sender; drop the prose
+- 266 F: origin mail already proves the branch and the text has no value; keep type and origin, drop the "You have new mail." toBe
+- 291 F: code 1 maps to a restriction label; keep SYSTEM type and sender, replace the sentence toBe with toContain("throttled") (value mapped from the code)
+- 318 F: unknown code 255 falls back to a text with the code; keep SYSTEM type and sender, replace the toBe with toContain("255") (computed value)
+- 345 F: no code or origin tells this branch apart, so text is the only signal; keep type and sender, replace the full-sentence toBe with a tight /opposing faction/ regex
 - 418 R: monster yell takes the embedded sender name with no name query
 - 425 R: embedded name wins over an ignore-store hit
 
@@ -6528,7 +6536,7 @@ at the baseline commit.
 - 100 R: place_changed fires only when the place differs
 - 123 R: unknown ids stay unnamed
 - 142 R: getPlaceState returns a copy so callers cannot corrupt the store
-- 160 D: reads the generated area-names table; expected values copy the data; names are exercised via client-place.test.ts:78 and :123; keeper client-place.test.ts:78
+- 160 D: asserts generated-table names (Eversong Woods, Ghostlands, Elwynn Forest) copied from the data; looked-up values already asserted at client-place.test.ts:78 and :113; keeper client-place.test.ts:78
 - 167 R: SMSG_EXPLORATION_EXPERIENCE emits area_explored with name, id and XP
 
 ### packages/core/src/wow/client-social.test.ts
@@ -6540,8 +6548,8 @@ at the baseline commit.
 ### packages/core/src/wow/client.test.ts
 - 58 F: asserts nothing after login; assert the logged-in handle (self guid or login state) so a login that silently no-ops fails
 - 82 R: unknown world auth status falls back to status 0x%x message
-- 96 C packages/core/src/wow/client-connection.test.ts:176: named refusal text through authenticateWorld; same branch, other code (also char-create.test.ts:200)
-- 110 C packages/core/src/wow/client-connection.test.ts:176: same named-refusal lookup with a different code; no new branch
+- 96 R: code-to-label table (0x0d "failed") rendered in the auth error the agent reads; assert the label value; keep, distinct entry from :176 (0x1d)
+- 110 R: code-to-label table (0x15 "unknown account") rendered in the auth error; assert the label value via regex/toContain; distinct entry from :176
 - 124 R: unknown character name rejects with the name
 - 143 R: ping interval sends sequence 1 and the pong updates link rtt
 - 170 R: coalesced login verify stamps map on the self create entity
@@ -6895,7 +6903,7 @@ at the baseline commit.
 ### packages/core/src/wow/destroy.test.ts
 - 79 R: CMSG_DESTROYITEM bytes, pending state, confirmation only once the slot is observed empty, event order; guard is a throw
 - 100 R: partial destroy sends the count and waits for the smaller stack; catches early confirmation
-- 113 F: all assertions pin English throw messages ("No carried bag item", "exceeds the stack"); keep the no-send assertion, assert refusal not wording
+- 113 F: throws carry no code, so the message is the only branch label: keep "No carried bag item"/"exceeds the stack"/"limited to 255" as short fragments, add the rendered "bag 255 slot 30" values; drop sentence wording; keep no-send
 - 123 R: server refusal maps to cant_drop_soulbound and silence ends unanswered via timeout; error recovery
 - 152 R: a destroy from a refusal listener keeps its answer timeout; reentrancy bug
 
@@ -8136,7 +8144,7 @@ at the baseline commit.
 - 55 R: reviewed, judged, draft, unreviewed and non-In-review cards never bounce; guards each exclusion in one table
 - 74 R: a landing in flight suppresses all bounces; avoids bouncing the merger's own push
 - 94 R: first two bounces stay In review with the parseable marker comment, round-tripped through headMarks
-- 107 F: status blocked is the contract; drop prose toContain("move the card to In review"), keep not-"@" (no notification)
+- 107 F: status blocked is the status code that proves the branch; drop prose toContain("move the card to In review"). Keep not-"@" (no notification) and add the computed values the comment renders: the count "3" of maxBounces (`Bounce 3 of at most 2`, from the distinct-head count) and the 7-char head `c.slice(0, 7)`, `#7` from moved.pr; toContain on those values, not the sentence
 - 114 R: already-bounced head is idempotent; repeated pass would spam comments or double count
 - 119 R: Blocked then maintainer move back stays put, later new head restarts at 1/2; recovery ordering
 - 137 R: merger rebase marker neither bounces nor counts toward the limit
@@ -8284,8 +8292,8 @@ at the baseline commit.
 
 ### packages/factory/src/reaper-report.test.ts
 - 43 R: title round-trips the worktree name; the reaper matches drafts by title
-- 48 F: keep not "@" (no pings) and the archive path; drop prose "What to do:", "deletes this card", negated Issue/Ready sentences
-- 59 F: keep issueOf parsing and "- Issue: #103"; drop prose toContain("move #103 back to Ready")
+- 48 F: keep not "@" (no pings) and the archive path (`/x/alpha.patch`) and the held name `alpha`; drop prose "What to do:", "deletes this card" and the negated "- Issue:"/"back to Ready" sentences (only the absence of the computed "- Issue:" line for a null issue is worth keeping as `not.toContain("- Issue:")`)
+- 59 F: keep issueOf parsing and the computed "- Issue: #103" line (number parsed from the branch); drop prose toContain("move #103 back to Ready"), whose only value, 103, "- Issue: #103" already asserts
 - 68 R: newly held worktree creates exactly one draft
 - 75 R: unchanged hold changes nothing despite age drift; no churn
 - 80 R: changed reason or body edits draft in place with content flag
@@ -8344,7 +8352,7 @@ at the baseline commit.
 ### packages/factory/src/repo-guard.test.ts
 - 20 R: unset core.worktree returns null; a false positive blocks the factory repo
 - 24 R: returns the stray worktree value from .git/config
-- 29 F: name promises the value too but asserts only the unset command; assert the message contains /wt/run-26
+- 29 F: name promises the value too but asserts only the unset command; add `toContain("/wt/run-26")` (substituted stray path, a CONTRACT value); keep the unset-command check as the value-bearing path `/r/.git/config`, drop any sentence pinning
 
 ### packages/factory/src/setup.test.ts
 - 33 R: every automation prompt starts with its [factory:role] marker that omp-factory parses
@@ -8393,7 +8401,7 @@ at the baseline commit.
 - 231 R: demotion when the raise applies then rejects
 - 251 R: 0x33 refusal surfaces after demotion, no pinfo
 - 283 R: demotion readback of another account fails creation
-- 296 F: bare toThrow passes from the creation error alone; assert it names the demotion failure
+- 296 F: bare toThrow passes from the creation error alone; assert `toThrow("demotion")` (as line 283 does) - the label is a branch label separating demotion failure from the creation error "level_requirement", so keep that token only, no sentence
 - 306 R: stuck GMLevel 1 fails creation
 - 320 R: fresh account reachable after one auth 0x4 with backoff
 - 339 R: persistent auth 0x4 fails creation
@@ -8454,7 +8462,7 @@ at the baseline commit.
 ### packages/factory/src/soap-wrapper.test.ts
 - 68 R: wrapper runs the worktree puppet with the account's XDG dirs
 - 83 R: config logging in another character refused
-- 93 F: asserts only non-zero and empty stdout; assert stderr names the account mismatch
+- 93 F: asserts only non-zero and empty stdout; assert stderr `toContain` the substituted values (the config account "x" and the expected `${account}/${character}`) as line 83 does for the mismatch; drop the "logs in ... not ..." sentence
 - 100 R: missing config refused
 - 109 R: removes only the account's wrapper and dirs, idempotent
 
@@ -8559,7 +8567,7 @@ at the baseline commit.
 - 71 R: chat lines do not drain the wake bucket
 - 77 R: invite from one sender held 20 s after the first, boundary at SENDER_JOIN_MS/SENDER_GAP_MS
 - 87 R: attacker gets one wake per 30 s, other attacker independent
-- 100 F: also pins the prose "No progress for 5 min. Untried: ..."; keep the wake class, single row and 5 min boundary, drop the sentence
+- 100 F: wake class, single row, 5 min boundary stay; text has computed minutes and the untried list: assert toContain("5 min") and toContain('travel(to: "unstick")'), drop the full sentence
 
 #### Seams
 - none
@@ -8650,7 +8658,7 @@ at the baseline commit.
 - 249 R: rows an engage run summarises are consumed by its call, others are not
 - 307 R: stopped engage gives its rows back
 - 340 R: outside an engage run nothing is consumed
-- 362 F: pins the prose "died (no credit to you)" beside class wake; drop the sentence, keep class/event/sink call (rules-death.test.ts:47 owns data)
+- 362 F: keep class wake, event and sink.wake call; text renders the looked-up name and ref: assert toContain("Springpaw Stalker") and toContain("u17"), drop "died (no credit to you)" sentence
 - 402 R: no sink still logs the run end and delivers nothing
 
 #### Seams
@@ -8715,7 +8723,7 @@ at the baseline commit.
 
 ### packages/harness/src/events/rules-death.test.ts
 - 47 R: watched unit killed by another player wakes once
-- 65 F: asserts only the prose "died (no credit to you)"; assert data.by for the untapped branch instead
+- 65 F: tap "none" maps to a label in text and data.by tells the branch: assert data.by === "none" (plus name), text only toContain("no credit to you") and not "killed by another player"; drop whole sentence
 - 73 R: own tap, unwatched unit, non-health change give no row
 - 83 R: active run keeps the row in the log
 - 89 R: a unit that left view is no longer watched
@@ -9233,7 +9241,7 @@ at the baseline commit.
 - 277 R: an account still listed after delete writes cleanup-failed
 - 286 R: a failing pane close still deletes accounts; failure recovery
 - 298 R: failing soap list marks every account uncleaned
-- 310 F: copies the t0-self-state check ids and expected sentence; keep schema-validity and the summary line, drop the inventory
+- 310 F: keep the summary line (draft 0/5 tools=0 wall=72: computed counts and seconds from ms), verdict null/validator message, and the check ids list read from the scenario; drop the toEqual on draft.checks[0] whose `expected` sentence is copied scenario prose (keep only met false, observed null, source truth if wanted)
 - 346 R: a check's blockedBy propagates to the draft and result schema accepts it
 - 384 R: wall time is measured to the accepted answer, exit time kept separately
 - 403 R: a run not ending done measures wall time to its end
@@ -9274,7 +9282,7 @@ at the baseline commit.
 - 50 R: schedule shapes missing required field are refused
 - 70 R: truth check picks accept the schema list and refuse an unknown one
 - 100 R: console check evidence validation: missing match, bad regex, arg rules
-- 140 F: pins the "(known: t4-quest-first," prefix, which breaks when the first scenario changes; assert only the unknown-id message
+- 140 F: keep the echoed unknown id ("unknown scenario: t9-nope") and that the known list is computed from ROUND_1 (assert it contains a real id built from ROUND_1, not the literal first id "(known: t4-quest-first,", which breaks when the first scenario changes); drop the rest of the sentence
 - 165 R: scenario with two partners loads
 - 171 R: partner and partners together are refused
 - 177 R: more than four partners refused
@@ -9892,12 +9900,12 @@ at the baseline commit.
 - 125 R: cap of five units
 - 135 R: creatures beyond 60 yd ignored
 - 140 R: gray creature listed with no range and adds no aggro circle
-- 198 R: faction template 25 stays listed with no range, "does not attack first" line; real FactionTemplate DBC
+- 198 R: template 25 listed, no range, no circle; unitLine branch label "does not attack first" is the only text telling this branch apart: keep as tight toContain
 - 213 R: templates 14 and 38 get ranges and circles via real aggro predicate
 - 234 R: hostile reputation rank makes a template-25 creature aggro
 - 253 R: heading into a range masked, clear heading stays
 - 272 C packages/harness/src/loops/pilot-units.test.ts:96: same rayEntryYd inside-and-leaving inputs; margin<0 already implied by the 109 ordering
-- 289 F: line asserts fragments of prose; keep "(observed)" / "Inferred" markers only if the agent parses them, else the prose assertions are wording
+- 289 F: keep name+level ("Kobold Vermin, level 8"), "(observed)" (state branch) and "Inferred aggro range" labels; add the computed radius yd number; drop other prose
 
 #### Seams
 - packages/harness/src/loops/pilot-units.ts `aggroRadiusYd`: exported, only pilot-units.test.ts imports it
@@ -10058,7 +10066,7 @@ at the baseline commit.
 - 75 R: a stop from the request event prevents provider dispatch
 - 87 R: unknown selected id never reaches executor (unknown_id)
 - 104 R: null wait offers no wait candidate
-- 119 C packages/harness/src/loops/tactics-provider-failures.test.ts:116: JevUnavailableError ends run once as jev_unavailable; the keeper asserts the same plus reason text and transport event
+- 119 C packages/harness/src/loops/tactics-provider-failures.test.ts:116: JevUnavailableError ends run once as jev_unavailable (code); keeper also asserts the code and reason value
 - 136 R: request observations are deep-copied against later world changes
 - 160 R: repeated decisions keep real cadence (minInterval) without concurrent requests
 - 208 R: replacement waits for the old provider call to settle before dispatching
@@ -10255,7 +10263,7 @@ at the baseline commit.
 - 57 D: no contract, greps fixed words in the doc
 
 ### packages/harness/src/prompt/install.test.ts
-- 86 F: pins tool-note sentences ("Use find to filter...", "log is history..."); keep prompt start, section present and one stop line, drop the prose
+- 86 F: pins tool-note sentences ("Use find to filter...", "log is history..."); keep prompt start, "- look:"/"- journal:" note prefixes, one stop line; drop the prose
 - 100 R: before ready only the profile character is named
 - 111 R: unknown race/class/level dropped
 - 125 R: prompt never carries password or account
@@ -10307,7 +10315,7 @@ at the baseline commit.
 - 69 R: timeout yield releases the run
 
 ### packages/harness/src/smoke/g25-long-run.test.ts
-- 20 F: also pins exact detail and next sentences; keep RUNNING, runId, awaited:false, 120 s boundary and run continuing; drop the prose
+- 20 F: keep RUNNING, runId, awaited:false, 120 s boundary, run continuing; detail/next: toContain values "Magistrix Erona (u1)", "0 yd walked", "400 yd to go", "HP 200/200", run id; drop sentences
 
 ### packages/harness/src/smoke/v2-context.test.ts
 - 40 R: pins the Pi dependency behaviour that context-hook messages reach the model and are not persisted (test-local extension, guards a Pi upgrade)
@@ -10423,20 +10431,20 @@ at the baseline commit.
 - 67 R: env-gated recorded off-mesh starts nudge within reach onto the mesh, step legally and plan onward
 
 ### packages/harness/src/navigation/observation.test.ts
-- 20 F: toBe pins the full sentence for obstructed, and 101 asserts it again; assert a discriminating phrase only
+- 20 F: toBe pins the full obstructed sentence (WORDING); keep a tight toContain("different route") as the branch label, no code or data separates branches
 - 26 R: height_unresolved maps to a no-retry hint (branch discrimination)
 - 32 R: both start-side refusals get the open-ground hint, not the choose-elsewhere hint
 - 40 R: each ambiguous-column site and the non-floor Z refusal map to their own advice
 - 52 R: target_lost and unreachable pathfind refusals map to no-retry advice
-- 59 F: pins three sentences plus a negative on "NPC"; keep the "Move 3 to 5 yards" discriminator and drop the rest of the prose
+- 59 F: keep toContain("Move 3 to 5 yards") as the start-snap branch label (the number is the value); drop "off the walkable mesh", "Do not repeat" and the NPC negative
 - 67 R: end snap shares the unreachable hint rather than the start-snap hint
-- 73 F: pins two prose fragments for the surface-change corridor; keep one discriminating phrase
-- 79 F: pins three prose fragments for the path-corner refusal; keep one discriminating phrase
-- 86 F: pins three prose fragments for the corridor collision; keep one discriminating phrase
+- 73 F: keep one branch label ("another surface") that tells this corridor refusal from the next two; drop "nearer waypoint on the same floor" prose
+- 79 F: keep one branch label ("mesh and the ground") for the path-corner refusal; drop the "nearer waypoint" and "do not repeat" sentences
+- 86 F: keep one branch label ("object or a wall") for the corridor collision; drop the "nearer waypoint" and "do not repeat" sentences
 - 93 R: other or missing reasons return null
-- 101 R: observeNavigation spreads the state and adds nextStep
+- 101 F: toEqual pins the whole obstructed sentence (WORDING); keep the state spread and assert nextStep with toContain("different route") or non-null
 - 113 R: start-refusal hint reaches observeNavigation
-- 124 F: pins four prose fragments (Do not repeat, Move about 10 yards, nearer grounded waypoint, refused a new route); keep the replan_refused versus plain split
+- 124 F: keep "10 yards" (distance value) and the replan_refused vs plain split via "refused a new route"; drop "Do not repeat" and "nearer grounded waypoint" prose
 - 139 R: an unblocked active state has a null hint
 
 ### packages/harness/src/navigation/planner.test.ts
@@ -10567,13 +10575,13 @@ at the baseline commit.
 - 74 R: HP drops of other units are ignored; a wrong guid filter would invent hits
 - 86 R: attacked event with no attacker leaves lastAttacker undefined (the `?? state.attackers` path still exists in danger.ts)
 - 95 R: re-attach resets the ledger; stale hits would leak across sessions
-- 106 F: asserts the full 'Danger: ...' sentence beside the dangerView object; keep the view toEqual, drop the prose toBe
-- 131 R: attack start without a hit yields the 'coming at you' variant; distinguishes hit vs no-hit branch
-- 146 R: hit age counts from the latest HP drop, not the first
-- 170 R: bracket-free variant when hit age and distance are unknown
-- 188 R: 'and N more' attacker count branch
+- 106 F: dangerView toEqual keeps values; replace the dangerLine full-sentence toBe with toContain of "Springpaw Stalker u1", "3 s ago" (ms->s) and "41% HP"
+- 131 F: replace the full-sentence toBe with toContain "Springpaw Stalker u1", "(12 yd)", "coming at you" (the no-hit branch label) and "100% HP"
+- 146 F: hit age counts from the latest drop; replace sentence toBe with toContain "2 s ago" (computed age), "u1" and "41% HP"
+- 170 F: bracket-free branch; replace sentence toBe with toContain name+ref "u9", "88% HP", "coming at you" and not.toContain("(")
+- 188 F: replace sentence toBe with toContain "Mana Wyrm u3", "and 2 more" (computed count) and "30% HP"
 - 206 R: empty attackers gives no line
-- 210 R: still variant for single and multiple attackers
+- 210 F: replace the two sentence toBe with toContain "still coming" / "still attacking" (branch labels), "(12 yd)", "and 1 more", names and refs
 - 243 R: attacker name falls back from sightings to 'an unknown unit'
 - 304 R: a unit with you on its threat list joins the attackers once
 - 316 R: victim switch to you by a new unit interrupts; a known one and newAttacker=false do not
@@ -10763,15 +10771,15 @@ at the baseline commit.
 - none
 
 ### packages/harness/src/ops/recover.test.ts
-- 27 F: asserts the exact alternatives prose list beside releases/via/outcome; drop the alternatives strings
-- 54 F: asserts the alternatives prose list beside the activate spy and outcome; drop the prose
+- 27 R: alternatives list is the computed set of other ways per via (looked-up healer, offer, self-res spell); keep the toEqual, no extra prose beyond the labels
+- 54 R: alternatives per via are branch labels from state with no code telling them apart; keep the toEqual on the list beside the activate spy and outcome
 - 73 R: spirit healer out of range: too_far and no packet (keeps its contract)
-- 85 F: asserts the alternatives prose list; keep the no-release and selfResurrect spies
-- 130 F: asserts the alternatives prose list; keep the no_self_res cause and no-release spy
+- 85 R: alternatives labels vary by state (self-res spell lookup, healer view); keep the toEqual on the list with the no-release and selfResurrect spies
+- 130 R: the no-self-res label and the other-way list are branch labels; keep the toEqual on alternatives with the no_self_res cause and no-release spy
 - 168 R: self when the server stays silent settles no_answer (keeps its contract)
 - 194 R: self: an abort during the act rejects with the abort reason (keeps its contract)
 - 205 R: self: an already aborted run never calls the act (keeps its contract)
-- 221 F: asserts the alternatives prose beside the respondResurrection spy; drop the strings
+- 221 R: alternatives[0] starts with the looked-up healer ref "spirit healer u" and the other labels are computed; already asserts values, not sentences
 - 252 R: accept without an offer refuses in the outcome (keeps its contract)
 
 #### Seams
@@ -10811,7 +10819,7 @@ at the baseline commit.
 - 50 R: a questgiver is remembered after the sightings TTL (keeps its contract)
 - 57 R: travel to a questgiver out of view walks to where it was last seen, then to it (keeps its contract)
 - 81 R: a respawned NPC is found again by its entry (keeps its contract)
-- 98 F: detail regex pins prose '8 yd N of you, 3 min ago' beside reason/next/status; keep reason, next, status
+- 98 F: keep reason/next/status; in the detail regex keep the name+ref, the computed "8 yd N" and "3 min ago", drop "is not where it was last seen"
 - 115 R: after not_at_last_known the next look no longer lists the old point (keeps its contract)
 - 126 R: interact with a questgiver out of view walks to it and talks (keeps its contract)
 - 157 R: interact with a remembered NPC that is gone fails not_at_last_known (keeps its contract)
@@ -10857,8 +10865,8 @@ at the baseline commit.
 - 254 R: a continuation is never stored (keeps its contract)
 - 264 R: untried leaves out the call it refuses (keeps its contract)
 - 274 R: untried lists distinct next texts, newest first, at most 3 (keeps its contract)
-- 299 F: pins the detail sentence 'you already tried this from here...' beside reason, body and next; drop the detail toBe
-- 313 R: asks the human when nothing is untried (keeps its contract)
+- 299 F: reason is REPEAT/REFUSED and next/body are values; replace detail toBe with toContain("too_far") (reason echoed into text, nothing else asserts it)
+- 313 F: replace the full-sentence next toBe with the 'ask the human:' prefix plus toContain of the substituted tool "travel" and reason "no_ground"
 
 #### Seams
 - packages/harness/src/ops/repeat-guard.ts `REPEAT_MOVE_YD`, `TIME_CODES`: exported only for repeat-guard.test.ts
@@ -10886,8 +10894,8 @@ at the baseline commit.
 - 80 R: a name nobody has is not seen (keeps its contract)
 - 88 R: finds a unit out of view in the sightings (keeps its contract)
 - 100 R: applies the alive, lootable and relation filters to names (keeps its contract)
-- 122 F: pins the detail sentence beside reason, body, next and options; drop the detail toBe
-- 142 F: pins the detail sentence 'no unit named ...'; keep reason and next
+- 122 F: keep reason, body rows (distance, bearing, ref, call), next and options; replace detail toBe with toContain "2" (count) and both looked-up names
+- 142 F: reason not_seen proves the branch; drop the detail sentence (optionally toContain("Kobold")); keep reason and next
 
 #### Seams
 - none
@@ -10952,8 +10960,8 @@ at the baseline commit.
 - none
 
 ### packages/harness/src/ops/unreached.test.ts
-- 7 F: pins the full ask-the-human English sentence; assert the 'ask the human:' prefix instead
-- 20 F: pins the full ask-the-human English sentence; assert the 'ask the human:' prefix instead
+- 7 F: two branch texts with no code beyond the string; assert the 'ask the human:' prefix, toContain "Innkeeper Farley" and the branch label "no navigation data"
+- 20 F: assert the 'ask the human:' prefix, toContain "Innkeeper Farley" and the branch label "cannot reach"; drop the rest of the sentence
 - 33 R: a start off the mesh points at unstick (keeps its contract)
 - 45 R: a transient stop still hints travel to the unit (keeps its contract)
 - 54 R: structuralReach names map, path and ground failures only (keeps its contract)
@@ -11014,18 +11022,18 @@ at the baseline commit.
 ### packages/harness/src/extension/chat-commands.test.ts
 - 22 R: every slash alias sends through the matching WorldHandle chat call, trimmed, under the world mutex; a mis-mapped alias misroutes chat
 - 49 R: typed command name is logged as human/input text
-- 56 F: empty text sends nothing (contract) but also pins "Use /guild <text>." prose; keep the warning level and no-send, drop the sentences
+- 56 F: ruling A: usage notices substitute the typed command name; assert toContain("/guild"), "/tell", "/3" with the warning level and no sends; drop the full "Use /guild <text>." sentences
 - 71 R: /r with no reply target sends nothing and warns; with a target whispers it
-- 81 F: /N writes to the joined channel at that index; also pins "You are not in channel 5." prose; keep sendChannel call counts
+- 81 F: ruling A: keep sendChannel call counts and the warning level; assert the missing index value toContain("5"); drop the "You are not in channel 5." sentence
 - 94 R: offline refuses every chat command with an error and sends nothing
 
 ### packages/harness/src/extension/commands.test.ts
 - 41 R: /stop stops the active run and humanStop logs one human/input row with stoppedRuns
-- 59 F: /wake flips session.wake (contract); also pins "Wake is off."/usage sentences; drop the prose
+- 59 F: ruling A: keep session.wake flip and the substituted state toContain("off") at info level; drop the "Wake is off." sentence and the "Use /wake on or /wake off." usage prose, keep only the warning level
 - 70 R: /now reprints the last [now] line verbatim; empty case notifies
 - 81 R: /log caps rows at LOG_COMMAND_ROWS as human-only entries
 - 98 R: /snapshot slugs the label passed to snapshots.write
-- 106 F: /connect, /disconnect call the runtime and notify an error on failure; drop the exact English sentences, keep disconnect count and "error" level
+- 106 F: ruling A: keep disconnect count and levels; keep the substituted failure value toContain("auth failed") at error level; drop the already-up/Disconnected/Connect failed sentences
 
 ### packages/harness/src/extension/extension.test.ts
 - 7 R: wowExtension registers the input, guard and shutdown handlers and the two renderers
@@ -11033,7 +11041,7 @@ at the baseline commit.
 - 37 R: quit shuts the runtime down and logs out
 
 ### packages/harness/src/extension/guards.test.ts
-- 6 F: refuses user shell (exitCode 1, not cancelled) but the toEqual also pins the sentence "Shell commands are off in the harness."; assert exitCode/refusal only
+- 6 F: ruling A: assert exitCode 1, cancelled false and truncated false; drop the static output sentence "Shell commands are off in the harness." (no computed value in it)
 - 25 R: /login is left to Pi's own command; a swallowed Enter would break auth
 
 ### packages/harness/src/extension/input.test.ts
@@ -11096,10 +11104,10 @@ at the baseline commit.
 - 16 D: same dead function as 5; error-text pin on an unused parser; no contract exists
 - 27 R: none variant yields no framing text
 - 31 R: unknown class is left out of the framing sentence
-- 38 D: same minimal-framing branch as 50 (level and class interpolation) with other numbers; keeper framing-variants.test.ts:50
+- 38 D: ruling A: level and class are interpolated values but the branch repeats 50; keeper framing-variants.test.ts:50 (assert the level/class values via toContain)
 - 50 R: class and level are interpolated into the minimal sentence
 - 57 R: missing level drops the level words
-- 64 C packages/harness/src/jev/framing.test.ts:68: same mechanics sentence is asserted on the wire body there
+- 64 C packages/harness/src/jev/framing.test.ts:68: ruling A: the static mechanics sentences are wording, drop them; level/class interpolation is asserted there on the wire body
 
 ### packages/harness/src/jev/framing.test.ts
 - 10 R: none framing yields a body byte-identical to no framing
@@ -11301,7 +11309,7 @@ at the baseline commit.
 - 73 R: stopAll cancels runs, halts, stops cycle and attack, returns the records
 - 91 R: lost connection marks the active run interrupted with connection_lost
 - 109 R: shutdown stops runs, logs out, goes offline
-- 117 F: name says "with the stop call" but only the busy message prefix is asserted; assert the stop hint or rename
+- 117 F: ruling A: keep the looked-up run id and kind: toThrow containing "r1" and "engage"; drop the "is still running." prose; rename test (no stop hint is asserted)
 
 ### packages/harness/src/runtime/managed-tools.test.ts
 - 21 R: seeds silent fd and rg executables when host has none
@@ -11318,7 +11326,7 @@ at the baseline commit.
 - 55 R: only extension tools, flag model and thinking level
 - 67 R: session file under pi-sessions, cwd is workspace
 - 78 R: new session reruns the extension factory and keeps the game handle
-- 94 F: system message recorded once with sections; toStartWith pins the prompt sentence; assert section keys and absence of Pi defaults only
+- 94 F: ruling A: keep one recorded system message and section keys; assert preamble toContain(rt.profile.character) (the substituted self name), drop the toStartWith prompt sentence
 - 128 R: model missing from catalog refused, workspace still created
 - 143 F: result depends on host fd/rg presence; seeding already proved by managed-tools.test.ts:21, assert the call happens or drop
 
@@ -11378,9 +11386,9 @@ at the baseline commit.
 - 86 R: DONE result text, details shape, tool/call + tool/result rows and turn counter
 - 106 R: tool/result log row is the result text truncated to 2000 chars
 - 122 R: definition metadata and executionMode parallel for read, sequential for action
-- 135 F: pins the whole REFUSED turn_budget sentence; assert status/reason/Next and that run was not called, drop the prose
-- 145 F: pins the whole REFUSED offline sentence; assert status/reason/Next only
-- 152 F: pins the whole REFUSED not_ready sentence; assert status/reason/Next only
+- 135 F: ruling A: REFUSED turn_budget status/reason already prove the branch; drop the whole-sentence toBe ("report to the human now"), assert toContain("REFUSED turn_budget") and the Next line "end your turn" as a tight contain, and keep run not called
+- 145 F: ruling A: drop the whole-sentence toBe on the offline refusal; assert toContain("REFUSED offline") and keep the Next value "/connect" via toContain
+- 152 F: ruling A: drop the whole-sentence toBe on the not_ready refusal; assert toContain("REFUSED not_ready") and keep the Next value "look" call via toContain
 - 162 R: exact repeat of a failed call refuses without running and offers the untried Next
 - 180 R: a repeat runs again once a unit attacks (guard is lifted by danger)
 - 201 R: Next that repeats the call is kept until a repeat makes no progress, then asks the human
@@ -11409,11 +11417,11 @@ at the baseline commit.
 - MAX_CONTENT_BYTES (700) is declared in define.ts but no production code truncates by bytes; tests only check a fixed short output stays under it
 
 ### packages/harness/src/tools/engage-approach.test.ts
-- 67 F: asserts the full detail sentence by regex beside reason/next; drop the detail regex, keep started, reason and next
-- 85 F: same detail regex as 67; target_broken branch differs, keep reason/next/started and drop the sentence
+- 67 F: ruling A: keep the computed "12 yd" walked distance and the looked-up ref (Springpaw Stalker u\d+) via toContain/tight regex; drop the wording ("not in view any more; it may have died or despawned", "the fight did not start") since reason target_not_observed proves the branch; keep started 0, reason and next
+- 85 F: ruling A: target_broken branch; same as 67: keep "12 yd" and the u-ref, drop the sentence; keep started, reason and next
 - 106 R: target_broken for another unit leaves the approach going and the fight starts
-- 134 F: asserts detail sentence "died before you reached it; another unit killed it"; keep reason/next
-- 162 F: asserts detail sentence about the tap; keep reason tapped_by_other and next
+- 134 F: ruling A: keep the u-ref and computed "12 yd" via toContain; drop "died before you reached it; another unit killed it" (reason target_dead proves the branch); keep reason/next
+- 162 F: ruling A: keep the u-ref and "12 yd" via toContain; drop the tapped/"no loot, experience or quest credit" prose (reason tapped_by_other proves it); keep reason and next
 - 185 R: target tapped by arrival is not fought and Next points at the other stalker
 - 214 R: count call losing its target keeps count in Next
 - 231 R: count call hands a tapped first target to the cycle
@@ -11437,18 +11445,18 @@ at the baseline commit.
 ### packages/harness/src/tools/engage-choose.test.ts
 - 87 R: unnamed pick is the nearest hostile within 3 levels
 - 98 R: tapped-by-other unit is never chosen when unnamed
-- 117 F: pins the whole too_strong detail sentence by regex; keep reason too_strong and next undefined, drop the sentence
+- 117 F: ruling A: keep computed "L7, 6 levels above you" and the suggested engage(target: "u\d+") ref via tight regex/toContain; drop the "If the human asked for this fight" prose; keep reason too_strong and next undefined
 - 134 R: gray unit passed for one that gives XP
-- 159 F: pins gray-units detail sentence by regex; keep reason not_seen and explore next
+- 159 F: ruling A: keep the looked-up unit entry "Mistbat u\d+ L9" (name, ref, level) via toContain; drop "they give no XP or kill credit" prose; keep reason not_seen and explore next
 - 187 R: gray attacker is still fought
 - 205 R: named target skips the level cap
-- 213 F: pins the tapped detail sentence by regex; keep reason and next
+- 213 F: ruling A: keep the u-ref in the detail via toContain; drop "is tapped by another player; killing it gives you no loot..." (reason tapped_by_other proves it); keep reason and next
 - 243 R: tapped named unit with no other hostile points at engage()
 - 262 R: tapped named unit points at an untapped one of the same name
 - 293 R: unseen named target explores until it appears
 - 310 R: in-view unit beats a nearer remembered one
 - 324 R: only a remembered unit walks to where it was seen
-- 347 F: pins "last seen 48 yd north of you" sentence by regex; keep reason not_in_view and explore north next
+- 347 F: ruling A: keep the computed "48 yd north" (distance and bearing) and the u-ref via toContain; drop "is not in view; it was last seen ... of you" wording; keep reason not_in_view and explore north next
 - 368 R: remembered unit id behaves like a remembered name
 - 380 R: count above 1 selects cycle mode
 - 389 R: quest by id selects quest mode and the named creature as the item source
@@ -11467,17 +11475,17 @@ at the baseline commit.
 - none
 
 ### packages/harness/src/tools/engage-fight.test.ts
-- 31 F: full DONE line pinned by regex; assert status and after (kills, xp, loot) and drop the sentence
-- 50 F: asserts detail regex "no XP (gray target)" beside after targets; drop the sentence
-- 69 F: asserts detail sentence beside next recover() and reason died; drop the sentence
-- 89 F: exact detail "Surface now: you have 7 s of breath." beside contract fields; drop the prose
+- 31 F: ruling A: replace the whole DONE-line regex with toContain on values: "killed Springpaw Stalker (u\d+) in 0 s", "+108 XP", "Looted Broken Fang x1, 12 copper", "HP 200/200, mana 300/300 (100%)"; drop the "server kill credit" wording; keep the after assertion
+- 50 F: ruling A: keep "killed Springpaw Stalker (u\d+)" and the mapped label "gray target" (code-to-label, also in engage-reasons noXpText) via toContain; drop the rest of the regex; keep after targets
+- 69 F: ruling A: keep computed values "0 s into the fight" and "dead at 0, 0" plus the u-ref via toContain; drop "killed you" prose; keep next recover(), reason died
+- 89 F: ruling A: keep the computed seconds from 6200 ms: toContain("7 s"); drop the whole-sentence toBe "Surface now: you have 7 s of breath."; keep contract fields
 - 109 R: fight time and walk distance reported apart on death; regex pins numbers
 - 129 R: a kill after an approach counts only the fight seconds
 - 148 R: Jev timeout maps to jev_unavailable
-- 160 F: asserts "2 of 3 kills ... Stopped:" detail sentence beside reason/next/status; drop the sentence
-- 185 F: asserts gray-kill detail regex; keep next engage(count: 1) and status
+- 160 F: ruling A: keep computed values "2 of 3 kills", both u-refs, and "1 kill still needed" via toContain; drop "Stopped: no more Springpaw Stalker in view" wording (reason queue_exhausted and the stopText table prove it); keep reason/next/status
+- 185 F: ruling A: keep "1 of 2 kills (<ref>)" and "no XP for <ref>" (substituted ref, computed count) plus the mapped label "gray target" via toContain; drop "Stopped:" prose; keep next engage(count: 1) and status
 - 210 R: unnamed cycle does not refill with a gray same-name unit
-- 258 F: detail sentence duplicates engage-approach.test.ts:67; keep started, reason, next
+- 258 F: ruling A: keep the computed "20 yd" walked distance and the u-ref via toContain; drop the "not in view any more; it may have died or despawned" sentence (reason proves it); keep started 0, reason, next
 - 283 R: unreachable target points at another one in view
 - 299 R: unreachable target with a different creature in view points at it
 - 318 R: unreachable with nothing else in view sends the agent exploring
@@ -11486,7 +11494,7 @@ at the baseline commit.
 - 358 R: item quest with no known source refuses with the creature ask
 - 383 R: second attacker after a single kill is named in Next
 - 410 R: new attacker mid-cycle leads the next cycle
-- 460 F: exact detail "engage 0 of 1 kills. You: HP ..." by toBe; assert status RUNNING and runId, drop the sentence
+- 460 F: ruling A: replace the toBe on the detail with toContain of the computed values "0 of 1 kills", "HP 200/200, mana 300/300 (100%)" and "at 0, 0"; keep status RUNNING and runId
 
 #### Seams
 - none
@@ -11495,7 +11503,7 @@ at the baseline commit.
 - none
 
 ### packages/harness/src/tools/engage-loot-names.test.ts
-- 20 F: asserts toContain "killed you" prose beside died/recover and loot list; drop the prose
+- 20 F: ruling A: drop the toContain "killed you" prose (reason died proves it); keep died/recover and the after.loot fallback name "item 4813" (looked-up fallback value, already asserted)
 - 44 R: loot named late by the server is reported by name
 
 #### Seams
@@ -11506,11 +11514,11 @@ at the baseline commit.
 
 ### packages/harness/src/tools/engage-progress.test.ts
 - 122 R: cycle progress updates count each kill credit
-- 132 R: quest run counts from the quest log, with next and stop sentence
+- 132 F: ruling A: keep computed "1 of 8 kills" (updates and detail), the u-ref, "7 kills still needed" and next via toContain; drop "Stopped: the fight limit for one call was reached" wording (code max_starts_reached label is covered by engage-reasons plainReason table)
 - 151 R: kills of different creatures are named per creature
 - 170 R: quest kills are named by creature
 - 185 R: completing kill points at the turn-in
-- 211 F: asserts only status DONE plus a prose startsWith; assert next and drop the sentence
+- 211 F: ruling A: keep the substituted quest id "8325" via toContain and status DONE; drop the "nothing left to kill: the objectives of quest #8325 are complete." startsWith sentence
 
 #### Seams
 - none
@@ -11520,10 +11528,10 @@ at the baseline commit.
 
 ### packages/harness/src/tools/engage-queue.test.ts
 - 25 R: an attacker not in view is not queued
-- 100 F: pins exact detail "1 of 3 kills. You have mana 72/300 (24%)." beside next/reason/status; drop the detail pin
+- 100 F: ruling A: replace the exact toBe detail with toContain of computed values "1 of 3 kills" and "mana 72/300 (24%)"; keep next/reason/status
 - 110 R: attacker at the low mana stop is engaged before rest
-- 129 F: pins exact detail "You are at 40% HP." beside reason/status; drop the detail pin
-- 140 F: pins the detail sentence "no route to it was found"; keep next travel(to: ref)
+- 129 F: ruling A: replace the exact toBe detail with toContain of computed values "1 of 3 kills" and "40% HP"; keep reason/status
+- 140 F: ruling A: keep the u-ref and computed "90 yd" via toContain; drop "and no route to it was found" wording; keep next travel(to: ref) and no look(
 
 #### Seams
 - none
@@ -11532,7 +11540,7 @@ at the baseline commit.
 - none
 
 ### packages/harness/src/tools/engage-reasons.test.ts
-- 29 F: 14-row copy of reason-to-wording; keep branch rows (loot_denied:<n>, prefixes) and drop wording-only rows
+- 29 R: ruling A: plainReason is a code-to-label table the agent reads; all 14 rows are contract values (labels mapped from a code); keep every row, including the loot_denied:<n> prefix and unknown-code fallback at :57
 - 57 R: unknown code stays as is
 - 63 R: groups unkilled targets by reason
 - 69 R: kills are left out of the skipped list
@@ -11543,7 +11551,7 @@ at the baseline commit.
 - 130 R: failText with no kills lists each target
 - 144 R: failText empty-queue branch
 - 158 R: single target failText
-- 172 D: one wording case already in the plainReason table; keeper engage-reasons.test.ts:29
+- 172 R: ruling A: failText branch for target_dead_without_server_credit uses a different template (name + mapped label, no "was not killed") and substitutes the target name; the label is a mapped value; keep
 - 188 R: noXpText names gray kill
 - 194 R: noXpText distinguishes no-kill-XP source
 
@@ -11554,11 +11562,11 @@ at the baseline commit.
 - none
 
 ### packages/harness/src/tools/engage-stops.test.ts
-- 27 F: pins full detail by toBe beside status/reason/next; drop the detail prose
-- 50 F: pins full detail by toBe; keep reason lost and status FAILED
-- 65 F: pins per-target sentence by startsWith; keep reason and status
+- 27 F: ruling A: keep the substituted name "Springpaw Stalker" and the computed vitals "HP 200/200, mana 300/300 (100%)" via toContain; drop the whole-sentence toBe (the mapped label is covered by engage-reasons.test.ts:29); keep reason/next/status
+- 50 F: ruling A: keep the name and the vitals via toContain; drop the whole-sentence toBe (mapped label covered by engage-reasons.test.ts:29); keep reason lost and status FAILED
+- 65 F: ruling A: keep "0 of 3 kills", the grouping of refs (a and b together, then c) via a tight regex or toContain on the refs; drop the mapped labels and the startsWith sentence (covered by engage-reasons.test.ts:29,63); keep reason and status
 - 88 R: beset unreachable stop ends REFUSED with attacker_unreachable
-- 106 F: pins detail "Stopped: ... 1 kill still needed" by regex; keep reason loot_denied and status PARTLY
+- 106 F: ruling A: keep computed "2 of 3 kills", both u-refs and "1 kill still needed" via toContain; drop "Stopped: the last corpse was out of loot range" wording (reason loot_denied:release_only proves it; label covered by plainReason table); keep status PARTLY
 
 #### Seams
 - none
@@ -11568,7 +11576,7 @@ at the baseline commit.
 
 ### packages/harness/src/tools/engage-tally.test.ts
 - 109 R: decisionKind maps action ids to attack/spell/wait; production also uses it at engage-tally.ts:88
-- 117 F: pins totals sentence by regex beside structured after fields; keep after, drop the sentence
+- 117 F: ruling A: the DONE text is the only carrier of the totals, so keep computed values via toContain: "Dealt 312, took 145", "avoided: dodge x1", "immune: Frost Nova"; drop the surrounding "server kill credit", "+108 XP" and loot sentence from the regex; keep the after assertions
 - 149 R: totals cover whole run beyond the log ring
 - 170 R: pet damage kept after the pet is gone
 - 189 R: non-pet unit adds nothing
@@ -11582,9 +11590,9 @@ at the baseline commit.
 
 ### packages/harness/src/tools/engage.test.ts
 - 45 R: dead refuses with recover()
-- 53 F: pins the low_mana detail sentence by regex; keep reason and runs empty
+- 53 F: ruling A: keep the computed vitals: toContain("mana 60/300 (20%)") instead of \d+ placeholders; drop "pull at 30% or more" prose; keep reason low_mana and runs empty
 - 68 R: choice refusal inside the run returns a REFUSED result with the run id
-- 89 F: asserts toContain "Dismounted first." beside the dismount spy; keep the spy call and drop the sentence
+- 89 F: ruling A: the dismount spy proves the branch and nothing else is computed; drop the toContain "Dismounted first." prose, keep the spy call count
 - 110 R: taxi mount stops engage with in_flight through the real tool
 
 #### Seams
@@ -11615,7 +11623,7 @@ at the baseline commit.
 - none
 
 ### packages/harness/src/tools/human-admission.test.ts
-- 40 F: pins the whole human_waiting sentence; keep refusal reason and the read/control still run
+- 40 F: ruling A: keep refusal code "REFUSED human_waiting" and the Next "read the human's message" via toContain; drop the whole-sentence toBe ("the human wrote a message. Read it before you act."); keep the read/control DONE results
 - 54 R: human driving refuses actions, reads run, control released
 - 74 R: action beside a background run leaves run and loop hold alone
 - 90 R: human_waiting quoting, truncation and multi-message joining
@@ -11662,9 +11670,9 @@ at the baseline commit.
 - none
 
 ### packages/harness/src/tools/interact-bind.test.ts
-- 45 F: asserts toContain "Home is now Falconwing Square." beside the act spy; assert the home in after and drop the prose
+- 45 F: ruling A: keep the looked-up area name "Falconwing Square" via toContain("Falconwing Square") (value from place state); drop the "Home is now" sentence; keep the act spy and DONE
 - 73 R: non-innkeeper refuses not_innkeeper and sends nothing
-- 85 F: asserts only status plus the sentence "dead, out of range or in an instance"; assert reason no_answer and drop prose
+- 85 F: ruling A: status UNCONFIRMED proves the branch; drop the "dead, out of range or in an instance" prose; assert status UNCONFIRMED and no_answer reason/text code
 - 99 R: bind walks to the innkeeper first
 - 123 D: expectSendKind never fails for an action-kind tool; keeper define.test.ts:505
 
@@ -11675,7 +11683,7 @@ at the baseline commit.
 - none
 
 ### packages/harness/src/tools/interact-buyback.test.ts
-- 38 F: asserts toContain "Bought back Linen Cloth for 35 copper." beside the slot spy; assert money/after, drop the sentence
+- 38 F: ruling A: keep the looked-up item name "Linen Cloth" and the computed price "35 copper" (money diff) via two toContain; drop "Bought back ... for" sentence; keep the slot spy
 - 63 F: name promises it names what is there, only reason not_in_buyback is asserted; assert the listed names
 - 76 R: refused buyback becomes FAILED with the vendor reason
 - 93 R: unanswered buyback is UNCONFIRMED
@@ -11690,10 +11698,10 @@ at the baseline commit.
 ### packages/harness/src/tools/interact-flight.test.ts
 - 75 R: flight master lists known destinations with price, hides unknown, Next is the fly call
 - 90 R: non flight-master opens no taxi map
-- 100 F: asserts toContain "Learned the flight path" prose beside the reopen count; drop the sentence
+- 100 R: ruling A: the learned-reply line is a branch label with no status/data to tell it apart; keep toContain("Learned the flight path") plus the looked-up "Silvermoon City" and the reopen count
 - 121 R: missing catalog prints nothing
-- 134 F: asserts only toContain "did not show"; assert a non-empty line and no next, drop the sentence
-- 146 F: pins "No other flight path" prose beside next undefined; drop the prose
+- 134 R: ruling A: no-answer branch is only carried by the line text, so keep the short branch label toContain("did not show"); optionally add part.next undefined
+- 146 R: ruling A: empty-destination branch is only carried by the line text, so keep the short label toContain("No other flight path") with next undefined
 
 #### Seams
 - packages/harness/src/tools/interact-flight.ts `flightExtra`: exported and called directly here; also used by interact.ts
@@ -11702,8 +11710,8 @@ at the baseline commit.
 - none
 
 ### packages/harness/src/tools/interact-quest-accept.test.ts
-- 68 F: asserts toContain "objective region" prose beside next; drop the prose
-- 119 F: asserts "objective region around 10385, -6316" prose beside next; drop the prose
+- 68 F: ruling A: next carries the branch (travel to the trigger); drop the toContain "objective region" prose; keep next travel(to: "-9843.54, 127.53, 5.37")
+- 119 F: ruling A: keep the computed region coordinates via toContain("10385, -6316"); drop "objective region around" wording; keep next journal(about: "quests")
 - 193 R: waits for the late region reply before choosing Next
 - 222 R: gives up waiting after ANSWER_MS
 - 305 R: trigger inside the region wins over a nearer one
@@ -11731,7 +11739,7 @@ at the baseline commit.
 - 200 C packages/harness/src/tools/interact.test.ts:191: same reward_needed refusal with reward item body; :191 also takes the chosen reward
 - 213 R: reward and money come from the rewarded event, not the coinage field
 - 353 R: greeting placeholders $N/$C/$R are filled from the character
-- 384 F: negative not.toContain('Greetings') can pass if no greeting was read at all; assert the dialog still renders or pair with probability>0 control
+- 384 F: negative not.toContain('Greetings') (the hidden server fallback greeting branch; no status or data field tells it apart, so the text value is the contract) can pass if no greeting was read at all; keep it but pair it with a control that the dialog's real text still renders (e.g. toContain of the substituted quest/offer name) or a probability>0 case
 - 414 R: talk waits for a greeting text that arrives after the dialog
 - 462 R: gossip POI from the selected option marks the point and next is travel
 - 492 R: a POI recorded before the option is not attributed to it; next stays undefined
@@ -11765,17 +11773,17 @@ at the baseline commit.
 ### packages/harness/src/tools/interact-talents.test.ts
 - 80 R: without max_cost the act gets maxCost 0 and the refusal names the price and the confirmed call
 - 101 R: with max_cost it resets, reports free points and price, DONE
-- 117 D: prose-only singular 'point free' and 'Paid 0 copper'; keeper interact-talents.test.ts:101 covers the reset path
+- 117 R: asserts computed values: free-point count with singular label ('1 point free') and the zero price ('Paid 0 copper'); those are rendered counts/amounts, keep the values; the 3-point/1g path at :101 is a separate case
 - 128 R: trainer without the option refuses option_not_offered and sends nothing
 - 142 R: NPC opening no gossip also refuses option_not_offered
-- 156 F: each outcome asserts reason plus a lowercased prose word; keep reason, drop the prose toContain
+- 156 F: each outcome asserts reason plus a lowercased prose word ('money', 'no talents'); the reason code already proves the branch, so keep reason and drop the prose toContain; the 'level 10' toContain at :128 is a computed value, keep
 - 170 R: silent server gives UNCONFIRMED no_reply
 - 177 R: act errors reach the caller
 - 184 D: no contract: greps the stringified schema for 'reset_talents' and 'max_cost'; 'non-negative' is never asserted
 
 ### packages/harness/src/tools/interact-trainer.test.ts
 - 126 R: train learns every affordable spell, skips too_low, reports cost and money change
-- 153 F: asserts only a prose sentence; assert status and the next-level number as fields
+- 153 F: toBe of the whole sentence 'nothing to learn from <npc> (<ref>) now. Next new spells at level 12.'; drop the sentence and npc/ref echo, keep a toContain('level 12') for the computed next-level number (and a status/after field if present)
 - 164 R: talk on a trainer lists spells it teaches now
 - 178 R: repair opens the vendor window, settles on repaired, repairCost field
 - 195 R: repair with nothing damaged succeeds with repairCost 0
@@ -11784,7 +11792,7 @@ at the baseline commit.
 - 244 C packages/harness/src/areas/selfstate/dismount-first.test.ts:52: in_flight stop is the shared dismountFirst behaviour; wiring proven by :224
 
 ### packages/harness/src/tools/interact-vendor-names.test.ts
-- 33 F: timing and after.stock names are the contract; drop the 'Sells:' prose toContain
+- 33 F: timing and after.stock names are the contract; drop the 'Sells:' sentence prefix, keep toContain('Tough Jerky 25 copper') and toContain('Ice Cold Water 25 copper') (looked-up names and computed prices)
 - 55 R: buy without what waits for late names and refuses what_needed with a named next
 - 65 R: item id form buys the right slot once late names resolve
 - 73 C packages/harness/src/tools/interact-vendor-names.test.ts:174: number and name forms already table-tested there; late names covered by :55
@@ -11800,7 +11808,7 @@ at the baseline commit.
 - 44 R: partial name buy settles on the purchase with money and bags in the result
 - 67 R: two matches refuse ambiguous_item with ready calls
 - 86 R: vendor refusal becomes FAILED with the vendor's reason
-- 97 F: drop the 'Sells:' prose toContain; keep after.stock length
+- 97 F: drop the 'Sells:' and trailing-period prose; keep toContain of each 'Refreshing Spring Water 25 copper' / 'Tough Hunk of Bread 25 copper' entry (name plus computed price) and after.stock length
 - 112 R: sell_junk sells grey items and records them in after.sold
 - 158 C packages/harness/src/tools/interact-vendor-names.test.ts:174: line-number form is table-tested there
 - 176 R: unanswered buy is UNCONFIRMED and stops at one call
@@ -11810,7 +11818,7 @@ at the baseline commit.
 
 ### packages/harness/src/tools/interact.test.ts
 - 32 R: talk offers rendered as the design example and the window closed once
-- 55 F: asserts only the prose sentence 'opened no dialog in 3 s'; assert status or after fields
+- 55 F: toBe of the whole sentence 'Velan Brightoak (<ref>) opened no dialog in 3 s.'; drop the sentence and the echoed name/ref, keep toContain('3 s') (seconds computed from ms) and the branch label 'opened no dialog' only because no status or reason separates it; also assert status if one is set
 - 67 R: accept selects then accepts the quest and next points at engage
 - 91 R: unsupported map asks the human instead of travel; FAILED reason
 - 107 R: goal-less quest points the next call at the NPC named in view
@@ -11845,7 +11853,7 @@ at the baseline commit.
 
 ### packages/harness/src/tools/journal-mail.test.ts
 - 45 R: lists letter subject, body, money and attachment names within the line cap
-- 85 F: name promises the unread flag but asserts only 'empty'; assert the unread state
+- 85 F: name promises the unread flag but asserts only 'empty', which both 'Mail: empty.' and 'Mail: empty, unread waiting.' contain; assert toContain('unread waiting') with unread true and not.toContain('unread') with unread false (the branch label has no other signal)
 - 94 F: compares listMail by reference, vacuous; spy on listMail and assert not called
 
 ### packages/harness/src/tools/journal-quests-regions.test.ts
@@ -11945,7 +11953,7 @@ at the baseline commit.
 - 42 R: posture words before combat word
 - 51 R: stand, dead and unknown add no posture word
 - 56 R: mounted word only while mounted
-- 65 C packages/harness/src/tools/look-talents.test.ts:44: same free-points sentence; the 'after the pose text' ordering is not asserted
+- 65 C packages/harness/src/tools/look-talents.test.ts:44: same count value ('3 talent points free' rendered from freePoints 3) asserted there; the 'after the pose text' ordering is not asserted
 
 ### packages/harness/src/tools/look-talents.test.ts
 - 44 R: free talent points sentence and after.talentPoints
@@ -12010,36 +12018,36 @@ at the baseline commit.
 - 89 R: report counts decisions, jumps, walked yards past the 200 log cap
 
 ### packages/harness/src/tools/recover.test.ts
-- 31 R: corpse run DONE report and HP
-- 52 R: reclaim distance reported in text and corpseYd
-- 81 R: corpse_unreachable FAILED with next spirit_healer and other ways
+- 31 F: toBe pins the whole sentence "DONE alive again near your corpse..."; keep values toContain "8766, -6560", "108/217", "0 s" and status DONE, drop the sentence
+- 52 F: toBe pins the whole sentence; keep the rounded distance toContain("29 yd") (from 29.3), coords "8763, -6695", HP, corpseYd 29.3; drop the prose
+- 81 F: corpse_unreachable FAILED with next spirit_healer; regex pins whole sentences; keep toContain "34 yd" and "resurrection sickness" (healer label), drop "No resurrection offer..." prose
 - 103 R: too_far refusal for spirit healer out of range
-- 118 R: self-res from ghost DONE via self with spell name and place
-- 165 C packages/harness/src/tools/recover.test.ts:118: same selfResurrect flow, only the dead-versus-ghost wording differs
-- 208 F: reason/status asserted; body toContain "Other ways:" is prose, drop it
-- 222 F: asserts reason self_res_unanswered; body[1] toContain prose "no-resurrection aura", drop it
+- 118 R: asserts DONE, via self, looked-up spell name "Reincarnation" and place "at 8766, -6560"; values only, no sentence pinned
+- 165 R: "where you died" is the dead-vs-ghost branch label and no status code tells those branches apart; keep with "Reincarnation" (looked-up name)
+- 208 F: reason/status asserted; body toContain "Other ways:" is prose beside reason no_self_res; drop it
+- 222 F: asserts reason self_res_unanswered; body[1] toContain prose "no-resurrection aura" beside that reason code; drop it
 - 239 R: alive refusal
 - 247 R: new attacker gives FAILED interrupted with engage next
-- 277 R: human text yields RUNNING and run stays active
+- 277 F: RUNNING and active run kept; body toEqual pins prose "The human wrote a message..." beside status RUNNING; drop the body assertion
 
 ### packages/harness/src/tools/registry.test.ts
 - 5 R: duplicate tool names would collide at registration
 
 ### packages/harness/src/tools/rest.test.ts
-- 108 R: drinks, confirms aura, stops at threshold
-- 146 R: no food runs past 30 s to threshold
-- 170 R: time_limit PARTLY at REST_MAX_MS
-- 197 R: no_regen PARTLY after 10 s with no food
+- 108 F: toBe pins the whole sentence; keep toContain "0 s", "Refreshing Spring Water" (item name from state), "HP 200/200", "mana 285/300 (95%)", "4 food"; drop prose
+- 146 F: toMatch pins whole detail; keep status DONE, durationMs, "HP 180/200", "mana 300/300 (100%)"; drop the sentence
+- 170 F: time_limit PARTLY kept; toStartWith pins prose; keep only toContain(`${REST_MAX_MS / 1000} s`) computed seconds
+- 197 F: no_regen PARTLY kept; toBe pins whole detail; keep values "10 s", "HP 100/200", "mana 150/300 (50%)", projected "90%"; drop sentences
 - 217 R: eats again when aura ends
 - 248 R: no second use when aura never came
-- 273 R: no_regen projection rows (full stat does not block, slow stat short)
-- 304 R: interrupted FAILED with engage next for each attack/hit ordering
-- 357 R: breath_low interrupts with look next
+- 273 F: no_regen projection rows; keep computed values per row ("mana 240/300 (80%)", "reaches 90%" vs "about 70%"); drop "rested N s without" and "Nothing rose" prose
+- 304 F: interrupted FAILED and next engage kept; detail toBe pins the sentence; keep ref, hp value and mapped verb (hit/attack) via toContain, drop the rest
+- 357 F: breath_low interrupted with look next kept; detail toBe pins the sentence; keep toContain("8 s") computed breath seconds
 - 372 R: in_combat refusal
 - 391 R: dead refusal with recover next
 - 398 R: mounted rest dismounts first
 - 420 R: taxi mount refuses in_flight
-- 435 R: human text yields RUNNING with vitals
+- 435 F: RUNNING kept; detail toStartWith pins prose; keep toContain "0 s so far", "HP 100/200", "mana 300/300 (100%)", "at 0, 0"; drop the sentence
 
 ### packages/harness/src/tools/social-emote.test.ts
 - 49 R: ref resolves, text emote sent, self echo confirms
@@ -12064,36 +12072,36 @@ at the baseline commit.
 - 374 F: restates the declared kind flag; assert sequential execution behaviour instead
 
 ### packages/harness/src/tools/social.test.ts
-- 22 R: whisper confirmed by echo, spy call and after fields
-- 45 R: say confirmed by own echo
-- 59 R: UNCONFIRMED no_answer after 2 s
-- 70 R: player_not_found FAILED from system line
-- 89 R: secret refusal for account name or password, nothing sent
-- 101 R: missing_text and missing_name refusals
-- 111 R: invite DONE on server invite
-- 126 R: invite FAILED with party result word
-- 141 R: invite UNCONFIRMED after 3 s
-- 152 R: accept_invite reads nothing_to_accept system line
-- 166 R: accept_invite DONE on group list
-- 183 R: not_in_group refusal sends nothing
+- 22 F: toBe pins whole DONE sentence with echoed name and text; assert status DONE and the after fields (already toEqual), drop the sentence
+- 45 F: toBe pins 'DONE said: "hello" (echo confirmed)'; echoed text is in after; assert status DONE and after, drop the sentence
+- 59 F: toBe pins whole sentence; keep status UNCONFIRMED reason no_answer, toContain("2 s") and the next journal call; drop prose
+- 70 F: toBe pins prose with echoed name; assert status FAILED reason player_not_found via result (after already asserted), drop the sentences
+- 89 F: toBe pins prose beside reason secret; assert REFUSED reason secret and nothing sent, drop the sentence
+- 101 F: toBe pins whole refusals; assert reasons missing_text and missing_name via result, plus next call for whisper; drop prose
+- 111 F: toBe pins sentence with echoed name; assert status DONE for the server invite, drop the sentence
+- 126 F: toBe pins the sentence; party result word is reason code already_in_group, assert FAILED reason already_in_group, drop prose
+- 141 F: toBe pins whole sentence; keep status UNCONFIRMED reason no_answer and toContain("3 s"), drop the prose
+- 152 F: toBe pins sentence beside reason nothing_to_accept; assert FAILED reason nothing_to_accept, drop prose
+- 166 F: toBe pins sentence; keep status DONE and toContain("Kaelyn") (leader name looked up from group list), drop the sentence
+- 183 F: toBe pins prose beside reason not_in_group; assert REFUSED reason not_in_group with leaveGroup not called, drop sentences
 - 191 R: worst-case whisper fits line and byte caps
 
 ### packages/harness/src/tools/stop.test.ts
-- 64 R: stop by run id aborts run and halts
-- 78 R: default stops everything
-- 87 R: nothing running reported
-- 94 R: no_such_run refusal
-- 101 R: danger line kept after stop
+- 64 F: toBe pins whole sentence; keep toContain "r1", "engage, 1 of 3 kills" (computed count), "HP 190/217" and the abort; drop prose
+- 78 F: toBe pins whole sentence; keep toContain "r1", "1 of 3 kills", "HP 190/217" and halt call; drop prose
+- 87 F: toBe pins whole sentence; keep toContain("nothing was running") (branch label, status DONE for both) and "HP 190/217"; drop the rest
+- 94 F: toBe pins whole refusal sentence; assert REFUSED reason no_such_run and next stop() via result; drop prose with echoed r7
+- 101 F: toEqual of lines pins prose; keep toContain "Springpaw Stalker u1", "0 yd", "88% HP", "HP 190/217" (computed) plus after attackers; drop sentences
 - 121 R: stop works while human message waits
-- 128 F: asserts only the sentence "Channelling spell 5143"; assert a structured field or drop
+- 128 F: pins "Channelling spell 5143"; keep only fallback id value toContain("spell 5143") (no definition, id substituted), add a looked-up name case; drop "Channelling"
 
 ### packages/harness/src/tools/travel-explore.test.ts
-- 49 R: explore reports new units in view
-- 67 R: explore passes gray and critter units to a worthwhile hostile
-- 120 R: for questgiver ignores hostiles
+- 49 F: toMatch pins the sentence prefix; keep status DONE and toContain "20 yd", "north", "Springpaw Stalker L7", "22 yd" (computed values); drop prose
+- 67 F: toBe pins whole sentence; keep values "80 yd", "Bristleback L15 30 yd N", boar/larva/gray refs and levels, "2 gray or critter units"; drop prose
+- 120 F: toStartWith "explored 40 yd north." duplicates after.traveledYd 40; drop the prose assertion, keep traveledYd and the questgiver stop
 - 157 R: for a name stops only on that unit
-- 184 R: explored ground names an unexplored bearing
-- 203 R: three blocked legs end PARTLY obstructed
+- 184 F: detail toStartWith pins prose; keep branch label toContain("explored already") with bearing "north" and "0 yd"; drop the sentence
+- 203 F: three blocked legs end PARTLY obstructed; toStartWith pins sentence; keep status PARTLY reason obstructed, "3 legs", "0 yd"; drop prose
 - 224 F: name claims three bearings, one leg refusal driven; same assertions as 203, assert legs or bearings set
 - 240 R: all bearings blocked asks the human
 - 263 R: second blocked bearing from same cell asks the human
@@ -12102,7 +12110,7 @@ at the baseline commit.
 - 321 R: new attacker interrupts within leg
 
 ### packages/harness/src/tools/travel-floors.test.ts
-- 20 R: failed floor retry reports ambiguous_floor/no_ground with second goTo on nearest floor
+- 20 R: asserts cause value, "floor retry" label, ask-human next beside FAILED reason; failed floor retry reports second goTo on nearest floor
 
 ### packages/harness/src/tools/travel-fly-stop.test.ts
 - 55 R: stop while map reply pending never activates
@@ -12158,10 +12166,10 @@ at the baseline commit.
 
 ### packages/harness/src/tools/travel-ride.test.ts
 - 104 R: board, ride, leave order
-- 129 R: docked wait updates
+- 129 F: keep "Thunder Bluff", the "waiting at the dock" branch label (status RUNNING in both) and the ETA number; drop "expected in about" and "keep waiting" prose
 - 161 R: riding updates
-- 177 R: yielded result at dock keeps wait text
-- 199 R: human yield at dock keeps wait text
+- 177 F: yielded dock result; keep status RUNNING, "Thunder Bluff", "waiting at the dock", after.wait; drop "expected in about" and next "keep waiting" prose
+- 199 F: human yield at dock; keep RUNNING, "Thunder Bluff", "waiting at the dock"; drop "expected in about" prose
 - 222 R: yielded result while aboard keeps riding text
 - 238 C packages/harness/src/tools/travel-ride.test.ts:271: same dock-wait-then-board script; 271 adds the decoy transport
 - 256 R: walks to dock out of range
@@ -12176,9 +12184,9 @@ at the baseline commit.
 - 361 R: board refusal reported with reason
 
 ### packages/harness/src/tools/travel-structural.test.ts
-- 37 R: unsupported map asks the human, no travel step
-- 53 R: explore on unsupported map asks the human
-- 66 R: same-fault explore legs try moving off then ask
+- 37 F: detail toBe pins sentence; keep "unsupported map 0" and "530" values plus next MAP_ASK and no "travel("; drop prose
+- 53 F: next toBe pins whole ask sentence; assert next startsWith 'ask the human:' and no "travel(" in text; drop the sentence
+- 66 F: detail toBe pins sentence; keep "3 legs", "0 yd", "position_disagrees_with" (fault code); drop prose, keep the ask next
 
 ### packages/harness/src/tools/travel-triggers.test.ts
 - 37 R: next trigger named while quest unfinished
@@ -12191,26 +12199,26 @@ at the baseline commit.
 - 49 R: yard refusal matches coordinate refusal
 - 67 R: invalid yard inputs refused before any walk
 - 83 R: 200 yd cap accepted
-- 90 D: asserts only substring "110" in text; point sent is asserted at packages/harness/src/tools/travel-yards.test.ts:19
+- 90 F: toContain("110") is the rendered point computed from yards; keep it as a value, tighten to "110, 200"
 
 ### packages/harness/src/tools/travel.test.ts
 - 47 R: arrives at unit
 - 59 R: start_off_mesh FAILED with unstick and remembered goal
-- 77 R: no_ground FAILED ask-human step
-- 93 R: planner twice line after floor retry
+- 77 F: toEqual of lines pins prose; keep toContain "UNKNOWN_HEIGHT", "Marniel Amberlight" and "Walked 0 yd"; drop sentences
+- 93 F: toBe pins whole sentence; keep toContain "planner twice" label and "UNKNOWN_HEIGHT"; drop prose
 - 127 R: core refusal codes with step and not-tried lines
 - 178 R: two-floor coordinates refuse with floors
-- 199 R: retry on own floor then offer other
-- 219 R: unstick names refused goal next
+- 199 F: detail toBe pins sentence; keep floors "72.6, 80.1", "8764, -6683" and next on own floor; drop prose
+- 219 F: toBe pins 'DONE moved 4.8 yd.' sentence; keep toContain("4.8 yd") and next travel(to: "u4"); drop prose
 - 243 R: unstick moving 0 yd fails as stuck
 - 274 R: failed unstick asks the human
 - 292 R: bad_direction refusal before run
 - 300 R: corpse while alive refuses
-- 307 R: corpse as ghost hands over to recovery
-- 321 R: human text yields RUNNING with vitals
+- 307 F: ghost hands over to recovery; toStartWith pins sentence; keep status DONE, "0.0 s", "HP 200/200"; drop prose
+- 321 F: RUNNING and active run kept; body toEqual and next toBe pin prose; keep HP/mana/at values and run id in next; drop prose
 - 346 R: new attacker interrupts
-- 361 R: root interrupts with look step
-- 385 R: death fails with recover step
+- 361 F: toEqual of lines pins prose; keep "rooted" (cause label), "0 yd" and next look(); drop sentence
+- 385 F: toStartWith pins "you died on the way."; assert status FAILED reason died and the recover next; drop prose
 - 403 R: walks to object and stops in range, send kind
 - 425 R: flat wide object above walk plane still plans
 - 479 R: unit name wins over object name

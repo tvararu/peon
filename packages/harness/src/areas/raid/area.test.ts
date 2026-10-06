@@ -142,7 +142,7 @@ describe("raid harness rules", () => {
 });
 
 describe("raid roster row detail", () => {
-  test("a flag gained names the flag and that it was gained", () => {
+  test("a flag gained names the flag and says gained", () => {
     const [row] = rows({
       changes: [{ flag: "main_tank", kind: "flag", name: "Tom", on: true }],
       group: GROUP,
@@ -222,6 +222,10 @@ describe("ready check harness rules", () => {
       data: { notReady: ["Tom"], offline: 1, pending: 0, ready: 1 },
       event: "raid/ready_done",
     });
+    expect(row?.text).toContain("1 ready");
+    expect(row?.text).toContain("not ready: Tom");
+    expect(row?.text).toContain("1 offline");
+    expect(row?.text).not.toContain("did not answer");
   });
 });
 
@@ -262,7 +266,7 @@ describe("raid mark harness rules", () => {
     expect(row?.text).toContain("star");
   });
 
-  test("an explicit clear by a named member writes a mark row", () => {
+  test("an explicit clear by a named member writes a cleared mark row", () => {
     const [row] = rows({
       icon: 7,
       name: "Tom",
@@ -272,10 +276,11 @@ describe("raid mark harness rules", () => {
     });
     expect(row).toMatchObject({
       class: "passive",
-      data: { icon: 7, name: "Tom" },
+      data: { icon: 7, name: "Tom", target: "0" },
       event: "raid/mark",
     });
     expect(row?.text).toContain("cleared");
+    expect(row?.text).toContain("skull");
   });
 
   test("the server's own clear before a move writes no row", () => {
