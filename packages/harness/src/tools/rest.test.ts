@@ -208,7 +208,12 @@ describe("rest", () => {
         reason: "no_regen",
         status: "PARTLY",
       });
-      for (const value of ["10 s", "HP 100/200", "mana 150/300 (50%)", "90%"])
+      for (const value of [
+        "10 s",
+        "HP 100/200",
+        "mana 150/300 (50%)",
+        "will not reach 90%",
+      ])
         expect(res.detail).toContain(value);
     } finally {
       jest.useRealTimers();

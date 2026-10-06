@@ -51,12 +51,17 @@ describe("report text", () => {
     expect(body).toContain("`alpha`");
     expect(body).toContain("/x/alpha.patch");
     expect(body).not.toContain("- Issue:");
+    expect(body).not.toContain("factory:claim");
   });
 
   test("a branch that names an issue links it", () => {
     expect(issueOf("refs/heads/factory/103-factory-project-board")).toBe(103);
     expect(issueOf("OpenHubris/auto-work-run-177")).toBeNull();
     expect(reportBody(b)).toContain("- Issue: #103");
+    expect(reportBody(b)).toContain("`factory:claim`");
+    expect(reportBody({ ...b, owner: "maintainer" })).not.toContain(
+      "factory:claim",
+    );
   });
 });
 

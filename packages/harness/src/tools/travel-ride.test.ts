@@ -148,7 +148,7 @@ describe("travel ride", () => {
       );
       expect(waiting).toMatchObject({ status: "RUNNING" });
       expect(waiting?.detail).toContain("waiting at the dock");
-      expect(waiting?.detail).toContain("5 s");
+      expect(waiting?.detail).toMatch(/\b5 s\b/);
       pose.now = HERE;
       await elapse(2000);
       pose.now = THERE;
@@ -191,7 +191,7 @@ describe("travel ride", () => {
     expect(res.status).toBe("RUNNING");
     expect(res.detail).toContain("Thunder Bluff");
     expect(res.detail).toContain("waiting at the dock");
-    expect(res.detail).toContain("5 s");
+    expect(res.detail).toMatch(/\b5 s\b/);
     expect(res.after?.wait).toContain("waiting at the dock");
   });
   test("a human yield before the next publisher tick still names the wait and the ETA", async () => {
@@ -213,7 +213,7 @@ describe("travel ride", () => {
     expect(res.status).toBe("RUNNING");
     expect(res.detail).toContain("Thunder Bluff");
     expect(res.detail).toContain("waiting at the dock");
-    expect(res.detail).toContain("5 s");
+    expect(res.detail).toMatch(/\b5 s\b/);
     expect(res.after?.wait).toContain("waiting at the dock");
   });
   test("the result yielded while aboard still says the ride is going and progress keeps it", async () => {

@@ -86,6 +86,7 @@ describe("travel", () => {
     expect(res).toMatchObject({ reason: "no_ground", status: "FAILED" });
     const text = fit(res);
     expect(text).toContain("UNKNOWN_HEIGHT");
+    expect(res.next).toStartWith("ask the human:");
     expect(text).toContain("Marniel Amberlight");
     expect(text).toContain("Walked 0 yd");
   });
@@ -330,7 +331,8 @@ describe("travel", () => {
     expect(res.status).toBe("RUNNING");
     for (const value of ["HP 200/200", "mana 300/300 (100%)", "at 0, 0"])
       expect(res.detail).toContain(value);
-    expect(res.next).toContain(id);
+    expect(res.next).toContain(`stop(run: "${id}")`);
+    expect(res.next).toContain("end your turn");
     expect(t.rt.runs.active()?.id).toBe(id);
     expect(limitProblem(contentOf(res))).toBeUndefined();
     t.rt.runs.cancel(id, "tool");

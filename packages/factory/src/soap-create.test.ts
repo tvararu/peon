@@ -224,7 +224,7 @@ describe("createByProtocol", () => {
     expect(levelAtCreate).toBe(1);
     expect(levelAtStage).toBe(0);
     expect(level.value).toBe(0);
-    expect(service.calls.length).toBeGreaterThan(0);
+    expect(service.calls.map((c) => c.endpoint)).not.toContain("level");
   });
 
   test("the death knight demotes even when creation throws", async () => {
