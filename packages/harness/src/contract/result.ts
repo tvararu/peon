@@ -21,7 +21,8 @@ export type ToolName =
   | "guildbank"
   | "mail"
   | "vehicle"
-  | "guild";
+  | "guild"
+  | "channel";
 
 export type ToolKind = "read" | "action" | "run" | "control";
 

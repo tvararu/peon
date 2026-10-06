@@ -8,7 +8,12 @@ type ChannelAdminAction =
   | "unmoderator"
   | "mute"
   | "unmute"
-  | "invite";
+  | "invite"
+  | "kick"
+  | "ban"
+  | "unban"
+  | "announcements"
+  | "moderate";
 
 const ACTIONS: ChannelAdminAction[] = [
   "owner",
@@ -19,6 +24,11 @@ const ACTIONS: ChannelAdminAction[] = [
   "unmute",
   "set_owner",
   "invite",
+  "announcements",
+  "moderate",
+  "kick",
+  "ban",
+  "unban",
 ];
 
 type Args = Readonly<Record<string, string>>;
@@ -56,12 +66,17 @@ async function run({ handle, args, settle }: FlowContext): Promise<Json> {
       throw new Error(`never joined ${channel}: no you_joined notice.`);
     const rows: Json[] = [];
     const params: Record<ChannelAdminAction, string | undefined> = {
+      announcements: undefined,
+      ban: partner,
       invite: partner,
+      kick: partner,
+      moderate: undefined,
       moderator: partner,
       mute: partner,
       owner: undefined,
       password,
       set_owner: partner,
+      unban: partner,
       unmoderator: partner,
       unmute: partner,
     };
@@ -85,5 +100,5 @@ export const flow: ProbeFlow = {
   name: "channels-admin",
   run,
   usage:
-    "--flow channels-admin --arg channel=<name> --arg partner=<name> [--arg password=<pw>]: join the channel, run the eight admin actions (owner, moderator, unmoderator, mute, unmute, password, set_owner, invite), and print each server notice.",
+    "--flow channels-admin --arg channel=<name> --arg partner=<name> [--arg password=<pw>]: join the channel, run the thirteen admin actions (owner, moderator, unmoderator, mute, unmute, password, set_owner, invite, announcements, moderate, kick, ban, unban), and print each server notice.",
 };

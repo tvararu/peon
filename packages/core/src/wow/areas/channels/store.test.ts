@@ -294,4 +294,125 @@ describe("ChannelStore", () => {
     expect(first).toEqual([{ flags: 3, guid: ME }]);
     expect(store.snapshot().channels[0]?.members).toEqual([]);
   });
+
+  test("a userlist add merges the member and an update changes its flags", () => {
+    const { seen, store } = setup();
+    store.notice({
+      channel: "peonab12cd",
+      channelId: 7,
+      flags: 3,
+      type: "you_joined",
+    });
+    store.list({
+      channel: "peonab12cd",
+      flags: 3,
+      members: [{ flags: 3, guid: ME }],
+    });
+    store.userlist({
+      change: "add",
+      channel: "peonab12cd",
+      count: 2,
+      flags: 3,
+      guid: PARTNER,
+      memberFlags: 0,
+    });
+    expect(store.snapshot().channels[0]?.members).toEqual([
+      { flags: 3, guid: ME },
+      { flags: 0, guid: PARTNER },
+    ]);
+    store.userlist({
+      change: "update",
+      channel: "peonab12cd",
+      count: 2,
+      flags: 3,
+      guid: PARTNER,
+      memberFlags: 1,
+    });
+    expect(store.snapshot().channels[0]?.members).toEqual([
+      { flags: 3, guid: ME },
+      { flags: 1, guid: PARTNER },
+    ]);
+    expect(store.snapshot().channels[0]?.memberCount).toBe(2);
+    expect(seen.at(-1)).toEqual({
+      change: "update",
+      channel: "peonab12cd",
+      count: 2,
+      flags: 3,
+      guid: PARTNER,
+      memberFlags: 1,
+      type: "channel_userlist",
+    });
+  });
+
+  test("a userlist remove drops the member without a list", () => {
+    const { store } = setup();
+    store.notice({
+      channel: "peonab12cd",
+      channelId: 7,
+      flags: 3,
+      type: "you_joined",
+    });
+    store.list({
+      channel: "peonab12cd",
+      flags: 3,
+      members: [
+        { flags: 3, guid: ME },
+        { flags: 0, guid: PARTNER },
+      ],
+    });
+    store.userlist({
+      change: "remove",
+      channel: "peonab12cd",
+      count: 1,
+      flags: 3,
+      guid: PARTNER,
+      memberFlags: undefined,
+    });
+    expect(store.snapshot().channels[0]?.members).toEqual([
+      { flags: 3, guid: ME },
+    ]);
+    expect(store.snapshot().channels[0]?.memberCount).toBe(1);
+  });
+
+  test("a kick of another member drops them from the list; our own kick drops the row", () => {
+    const { store } = setup();
+    store.notice({
+      channel: "peonab12cd",
+      channelId: 7,
+      flags: 3,
+      type: "you_joined",
+    });
+    store.list({
+      channel: "peonab12cd",
+      flags: 3,
+      members: [
+        { flags: 3, guid: ME },
+        { flags: 0, guid: PARTNER },
+      ],
+    });
+    store.notice({
+      actor: ME,
+      channel: "peonab12cd",
+      target: PARTNER,
+      type: "player_kicked",
+    });
+    expect(store.snapshot().channels[0]?.members).toEqual([
+      { flags: 3, guid: ME },
+    ]);
+    store.notice({
+      actor: PARTNER,
+      channel: "peonab12cd",
+      target: ME,
+      type: "player_banned",
+    });
+    expect(store.snapshot().channels).toEqual([]);
+  });
+
+  test("declining an invite clears the pending invite", () => {
+    const { store } = setup();
+    store.notice({ channel: "peonab12cd", inviter: PARTNER, type: "invite" });
+    expect(store.snapshot().pendingInvite?.channel).toBe("peonab12cd");
+    store.declined("peonab12cd");
+    expect(store.snapshot().pendingInvite).toBeUndefined();
+  });
 });

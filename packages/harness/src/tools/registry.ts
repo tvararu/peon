@@ -1,3 +1,4 @@
+import { channelTool } from "#harness/areas/channels/tool";
 import { guildTool } from "#harness/areas/guildadmin/tool";
 import { guildbankTool } from "#harness/areas/guildbank/tool";
 import { dungeonTool } from "#harness/areas/instances/tool";
@@ -47,6 +48,7 @@ export const GAME_TOOLS = [
   mailTool,
   vehicleTool,
   guildTool,
+  channelTool,
 ] as const;
 
 type Listed = (typeof GAME_TOOLS)[number]["name"];
