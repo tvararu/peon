@@ -1,0 +1,38 @@
+{
+  "botRisk": "low",
+  "budget": {
+    "minutes": 8,
+    "tools": 16,
+    "turns": 8
+  },
+  "checks": [
+    {
+      "expect": "the stated total play time matches the played row in GL (character/played_time) to within 60 seconds",
+      "id": "played-time",
+      "source": "game_log"
+    },
+    {
+      "evidence": {
+        "events": ["character/played_time"]
+      },
+      "expect": "GL has a character/played_time row",
+      "id": "played-row",
+      "source": "game_log"
+    },
+    {
+      "expect": "the session shows the agent calling the character tool with do played, do sheathe, do helm and do cloak, not ending REFUSED",
+      "id": "verbs-called",
+      "source": "session"
+    }
+  ],
+  "id": "t0-character-appearance",
+  "navBound": false,
+  "needsWatcher": false,
+  "paneMinutes": 11,
+  "partner": null,
+  "preset": "eversong10",
+  "setup": [],
+  "steers": [],
+  "task": "How long have you played in total? Then draw your weapons, hide your helm, and hide your cloak. Tell me the play time and confirm each change.",
+  "tier": 0
+}

@@ -226,6 +226,7 @@ export const ROUND_1: readonly string[] = [
   "t9-bank-withdraw",
   "t9-bank-slot",
   "t8-vehicles-zeppelin",
+  "t0-character-appearance",
   "t9-mail-read",
   "t9-mail-collect",
   "t9-mail-send",
