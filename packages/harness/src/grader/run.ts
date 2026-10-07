@@ -11,6 +11,7 @@ import {
   sessionFile,
 } from "#harness/grader/accounts";
 import { recordBots } from "#harness/grader/bots";
+import { waitConsoleRead } from "#harness/grader/console-wait";
 import type { Exec } from "#harness/grader/exec";
 import { harnessCommand, openPane, type Pane } from "#harness/grader/pane";
 import {
@@ -454,6 +455,16 @@ async function play(run: Live): Promise<void> {
     setup: [...run.scenario.setup, ...(slots ? [slots.agent] : [])],
   });
   await placePartners(run, slots?.partner, run.scenario);
+  if (run.scenario.wait !== undefined)
+    await waitConsoleRead({
+      account: agent.account,
+      exec: run.exec,
+      log: (line) => run.init.log(line),
+      runDir: run.runDir,
+      wait: { ...run.scenario.wait, read: run.scenario.wait.read },
+    }).catch((error: Error) => {
+      throw new RunAbort("service_down", error.message);
+    });
   await baseline(run, agent.account);
   await startPartners(run);
   await launch(run);

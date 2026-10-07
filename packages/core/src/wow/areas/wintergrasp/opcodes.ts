@@ -17,6 +17,16 @@ export const WINTERGRASP_OPCODES = {
   ],
   uses: [],
   stubs: [],
-  dead: [],
-  unseen: [],
+  dead: [
+    "SMSG_BATTLEFIELD_MGR_EJECT_PENDING",
+    "SMSG_BATTLEFIELD_MGR_STATE_CHANGE",
+  ],
+  unseen: [
+    "SMSG_BATTLEFIELD_MGR_QUEUE_INVITE",
+    "SMSG_BATTLEFIELD_MGR_QUEUE_REQUEST_RESPONSE",
+    "SMSG_BATTLEFIELD_MGR_ENTRY_INVITE",
+    "SMSG_BATTLEFIELD_MGR_ENTERED",
+    "SMSG_BATTLEFIELD_MGR_EJECTED",
+    "SMSG_DESTRUCTIBLE_BUILDING_DAMAGE",
+  ],
 } as const satisfies AreaOpcodes;

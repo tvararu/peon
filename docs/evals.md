@@ -64,7 +64,7 @@ mise eval run <id> --round <n>
 
 `mise eval scenario` lists the round-1 scenario ids;
 `mise eval scenario <id>` prints one scenario. The scenario files are in
-`packages/harness/src/grader/scenarios/`. The run creates the accounts, sets them up, takes
+`packages/harness/src/grader/scenarios/`. The run creates the accounts, sets them up, waits on a read-only console read when the scenario names one (`wait`, a `bf-queue` match polled every 60 s before the baseline; a timeout aborts the run as infrastructure), takes
 the baseline truth, opens the harness in a pane with its default model and
 thinking level, types the task and the
 steers, ends on done, budget, stuck or abort, takes the final truth,
@@ -259,4 +259,5 @@ two scenarios closest to it. Every scenario appears in at least one row.
 | Guild vault (`guildbank` tool open, guildless refusal) | `t9-guildbank-guildless` |
 | Arena (`arena` tool queue join and leave) | `t9-arena-skirmish` |
 | Arena (`arena` tool inspect) | `t9-arena-inspect` (blocked by the staging gap: the server sends no inspect reply for teamless targets until an arena setup endpoint exists) |
+| Wintergrasp (`wintergrasp` tool accept and leave) | `t9-pvp-wintergrasp` |
 | Calendar (`calendar` tool create and update) | `t9-calendar-event` |
