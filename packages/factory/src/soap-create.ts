@@ -205,10 +205,16 @@ export async function createByProtocol(
   const config = deps.createConfig(deps.names);
   if (spec.gmLevelForCreate === 1) {
     try {
-      await setGmLevel(deps.run, deps.names, deps.sleep, 1, "raise");
+      await setGmLevel(deps.run, deps.names, deps.sleep, {
+        level: 1,
+        step: "raise",
+      });
       await deps.create(config, await authForCreate(config, deps), createSpec);
     } finally {
-      await setGmLevel(deps.run, deps.names, deps.sleep, 0, "demotion");
+      await setGmLevel(deps.run, deps.names, deps.sleep, {
+        level: 0,
+        step: "demotion",
+      });
     }
   } else {
     await deps.create(config, await authForCreate(config, deps), createSpec);
@@ -235,9 +241,9 @@ async function setGmLevel(
   run: Run,
   { account }: Names,
   sleep: CreateDeps["sleep"],
-  level: number,
-  step: string,
+  confirmed: { level: number; step: string },
 ): Promise<void> {
+  const { level, step } = confirmed;
   const identity = new RegExp(`Account:\\s*${account}\\b`);
   const applied = gmLevelLine(level);
   let set = "";
