@@ -33,6 +33,7 @@ import type {
 } from "#harness/loops/quest-objective";
 
 const DEFAULT_MAX_STARTS = 10;
+const DEFER = "defer";
 
 const progressKey = (progress: ObjectiveProgress | undefined) =>
   JSON.stringify(progress ?? null);
@@ -164,18 +165,35 @@ export class EncounterCycleRuntime {
     this.events.clear();
   }
 
+  private queueAttackers(): CycleStop | undefined {
+    const attackers = this.deps.attackers?.();
+    const stuck = stuckAttacker(this.state.queue, attackers);
+    if (stuck) return stuck;
+    attackerFirst(
+      this.state.queue,
+      this.state.currentIndex,
+      attackers,
+      (guid) => ({ guid, status: "queued" }),
+    );
+    return undefined;
+  }
+
+  private noteFailure(
+    record: CycleTargetRecord,
+    failed: CycleStop | undefined,
+  ): CycleStop | undefined {
+    if (!failed) return undefined;
+    if (!this.selfDead()) return failed;
+    record.cause = failed.cause;
+    return undefined;
+  }
+
   private async drive(signal: AbortSignal): Promise<void> {
     for (;;) {
       const recovered = await this.recoverIfDead(signal);
       if (recovered) return this.stop(recovered.cause, recovered.detail);
-      const stuck = stuckAttacker(this.state.queue, this.deps.attackers?.());
+      const stuck = this.queueAttackers();
       if (stuck) return this.stop(stuck.cause, stuck.detail);
-      attackerFirst(
-        this.state.queue,
-        this.state.currentIndex,
-        this.deps.attackers?.(),
-        (guid) => ({ guid, status: "queued" }),
-      );
       const record = this.state.queue[this.state.currentIndex];
       if (record === undefined) {
         const beset = besetStop(this.state.queue, this.deps.attackers?.());
@@ -183,12 +201,11 @@ export class EncounterCycleRuntime {
       }
       if (this.state.startsUsed >= this.state.maxStarts)
         return this.stop("max_starts_reached");
-      const failed = await this.engage(record, signal);
+      const failed = await this.engage(record, signal, true);
       signal.throwIfAborted();
-      if (failed) {
-        if (!this.selfDead()) return this.stop(failed.cause, failed.detail);
-        record.cause = failed.cause;
-      }
+      if (failed === DEFER) continue;
+      const halted = this.noteFailure(record, failed);
+      if (halted) return this.stop(halted.cause, halted.detail);
       this.state.currentIndex++;
       this.emit("target_done");
     }
@@ -310,10 +327,20 @@ export class EncounterCycleRuntime {
     return recovered;
   }
 
+  private engage(
+    record: CycleTargetRecord,
+    signal: AbortSignal,
+  ): Promise<CycleStop | undefined>;
+  private engage(
+    record: CycleTargetRecord,
+    signal: AbortSignal,
+    defer: true,
+  ): Promise<CycleStop | typeof DEFER | undefined>;
   private async engage(
     record: CycleTargetRecord,
     signal: AbortSignal,
-  ): Promise<CycleStop | undefined> {
+    defer = false,
+  ): Promise<CycleStop | typeof DEFER | undefined> {
     const beset = besetStop(this.state.queue, this.deps.attackers?.());
     if (beset) {
       signal.throwIfAborted();
@@ -331,12 +358,14 @@ export class EncounterCycleRuntime {
     const hold = {
       approach,
       attackers,
+      defer,
       queue: this.state.queue,
       vet,
       signal,
     };
     const held = await holdApproach(hold, record);
     if (held === "skip") return undefined;
+    if (held === "defer") return DEFER;
     if (held) return held;
     this.state.startsUsed++;
     const context = {
