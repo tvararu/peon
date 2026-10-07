@@ -198,3 +198,20 @@ export function channelsMemberCountBody(init: {
   w.uint32LE(init.count);
   return w.finish();
 }
+
+export function channelsUserlistBody(init: {
+  change: "add" | "update" | "remove";
+  guid: bigint;
+  memberFlags?: number;
+  flags: number;
+  count: number;
+  channel: string;
+}): Uint8Array {
+  const w = new PacketWriter();
+  w.uint64LE(init.guid);
+  if (init.change !== "remove") w.uint8(init.memberFlags ?? 0);
+  w.uint8(init.flags);
+  w.uint32LE(init.count);
+  w.cString(init.channel);
+  return w.finish();
+}

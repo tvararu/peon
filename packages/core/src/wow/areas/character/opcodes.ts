@@ -1,0 +1,35 @@
+import type { AreaOpcodes } from "#wow/areas/contract";
+
+export const CHARACTER_OPCODES = {
+  owns: [
+    "CMSG_PLAYED_TIME",
+    "SMSG_PLAYED_TIME",
+    "CMSG_SET_SHEATHED",
+    "CMSG_TOGGLE_HELM",
+    "CMSG_TOGGLE_CLOAK",
+    "CMSG_CHAR_DELETE",
+    "SMSG_CHAR_DELETE",
+    "CMSG_CHAR_RENAME",
+    "SMSG_CHAR_RENAME",
+    "CMSG_CHAR_CUSTOMIZE",
+    "SMSG_CHAR_CUSTOMIZE",
+    "CMSG_CHAR_FACTION_CHANGE",
+    "SMSG_CHAR_FACTION_CHANGE",
+    "CMSG_CHAR_RACE_CHANGE",
+    "CMSG_ALTER_APPEARANCE",
+    "SMSG_ENABLE_BARBER_SHOP",
+    "SMSG_BARBER_SHOP_RESULT",
+    "CMSG_WHOIS",
+    "SMSG_WHOIS",
+    "CMSG_SET_PLAYER_DECLINED_NAMES",
+    "SMSG_SET_PLAYER_DECLINED_NAMES_RESULT",
+    "SMSG_PLAY_TIME_WARNING",
+  ],
+  uses: [],
+  stubs: [],
+  dead: [
+    "CMSG_SET_PLAYER_DECLINED_NAMES",
+    "SMSG_SET_PLAYER_DECLINED_NAMES_RESULT",
+  ],
+  unseen: ["SMSG_PLAY_TIME_WARNING"],
+} as const satisfies AreaOpcodes;

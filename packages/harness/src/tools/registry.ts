@@ -1,3 +1,9 @@
+import { arenaTool } from "#harness/areas/arena/tool";
+import { calendarTool } from "#harness/areas/calendar/tool";
+import { channelTool } from "#harness/areas/channels/tool";
+import { characterTool } from "#harness/areas/character/tool";
+import { guildTool } from "#harness/areas/guildadmin/tool";
+import { guildbankTool } from "#harness/areas/guildbank/tool";
 import { dungeonTool } from "#harness/areas/instances/tool";
 import { gearTool } from "#harness/areas/items/tool";
 import { mailTool } from "#harness/areas/mail/tool";
@@ -40,9 +46,15 @@ export const GAME_TOOLS = [
   dungeonTool,
   groupTool,
   tradeTool,
+  guildbankTool,
+  characterTool,
   talentsTool,
   mailTool,
   vehicleTool,
+  guildTool,
+  channelTool,
+  arenaTool,
+  calendarTool,
 ] as const;
 
 type Listed = (typeof GAME_TOOLS)[number]["name"];

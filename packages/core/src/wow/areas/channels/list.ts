@@ -57,7 +57,8 @@ function awaitReply(
       event.type === "channel_notice"
         ? event.notice.type === "not_member" &&
           event.notice.channel.toLowerCase() === wanted
-        : event.channel.toLowerCase() === wanted &&
+        : event.type === "channel_members" &&
+          event.channel.toLowerCase() === wanted &&
           (event.members !== undefined) === wantMembers,
     { signal: signal ?? cancel.signal, timeoutMs: CHANNEL_LIST_MS },
   );

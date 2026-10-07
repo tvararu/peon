@@ -1,0 +1,51 @@
+{
+  "botRisk": "low",
+  "budget": {
+    "minutes": 8,
+    "tools": 12,
+    "turns": 6
+  },
+  "checks": [
+    {
+      "evidence": {
+        "events": ["channels/kicked"]
+      },
+      "expect": "GL has a channels/kicked row on peonroom whose target names the partner character: the agent owned the channel and kicked the partner off it",
+      "id": "partner-kicked",
+      "source": "game_log"
+    },
+    {
+      "expect": "the session shows the agent calling the channel tool with do kick on peonroom, not ending REFUSED",
+      "id": "kick-called",
+      "source": "session"
+    }
+  ],
+  "id": "t2-channels-kick",
+  "navBound": false,
+  "needsWatcher": false,
+  "paneMinutes": 11,
+  "partner": null,
+  "partnerActions": [
+    {
+      "actor": 1,
+      "argv": ["call", "joinChannel", "[\"peonroom\"]"],
+      "at": {
+        "kind": "elapsed",
+        "ms": 45000
+      },
+      "windowMs": 120000
+    }
+  ],
+  "partners": [
+    {
+      "preset": "eversong10",
+      "role": "partner"
+    }
+  ],
+  "preset": "eversong10",
+  "setup": [],
+  "spawn": "fairbreeze-emotes",
+  "steers": [],
+  "task": "Join the channel peonroom with the channel tool, so you own it. The other player joins about 45 seconds after you do; keep checking the member list with list until they join, then remove them with kick. Do not answer until you have kicked them.",
+  "tier": 2
+}

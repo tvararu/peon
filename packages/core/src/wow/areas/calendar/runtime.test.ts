@@ -9,20 +9,20 @@ import {
 import { fakeTimed } from "#test-support/fake-time";
 import { GameOpcode } from "#wow/protocol/opcodes";
 
-const ZONE = {
-  year: 2026,
-  month: 7,
-  day: 4,
-  weekday: 6,
-  hour: 19,
-  minute: 0,
-};
 const START = {
   year: 2026,
   month: 7,
   day: 4,
   weekday: 6,
   hour: 12,
+  minute: 0,
+};
+const ZONE = {
+  year: 2026,
+  month: 7,
+  day: 4,
+  weekday: 6,
+  hour: 19,
   minute: 0,
 };
 
@@ -54,7 +54,7 @@ function fullBody() {
   });
 }
 
-function eventBody(id: bigint) {
+function eventBody(id: bigint, sendType = 0) {
   return calendarSendEventBody({
     creator: 0x0100_0000_0000_0001n,
     description: "details",
@@ -62,7 +62,7 @@ function eventBody(id: bigint) {
     eventId: id,
     flags: 0,
     guildId: 0,
-    sendType: 0,
+    sendType,
     time: START,
     title: "Draft",
     type: 0,
@@ -70,7 +70,7 @@ function eventBody(id: bigint) {
   });
 }
 
-describe("calendar runtime", () => {
+describe("calendar runtime reads", () => {
   test("get sends an empty CMSG_CALENDAR_GET_CALENDAR and resolves with the reply state", async () => {
     const rig = areaRig("calendar");
     try {

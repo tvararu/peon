@@ -32,6 +32,10 @@ export const CHANNELS_OPCODES = {
   ],
   uses: ["SMSG_CHANNEL_NOTIFY", "CMSG_JOIN_CHANNEL", "CMSG_LEAVE_CHANNEL"],
   stubs: [],
-  dead: [],
+  dead: [
+    "CMSG_VOICE_SESSION_ENABLE",
+    "CMSG_SET_ACTIVE_VOICE_CHANNEL",
+    "CMSG_CHANNEL_VOICE_ON",
+  ],
   unseen: [],
 } as const satisfies AreaOpcodes;

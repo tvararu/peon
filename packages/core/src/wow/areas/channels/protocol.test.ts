@@ -4,22 +4,34 @@ import {
   channelsChannelPlayerBody,
   channelsListBody,
   channelsMemberCountBody,
+  channelsUserlistBody,
 } from "#test-support/areas/channels";
 import {
+  buildChannelAnnouncements,
+  buildChannelBan,
+  buildChannelClearWatch,
+  buildChannelDeclineInvite,
   buildChannelDisplayList,
   buildChannelInvite,
+  buildChannelKick,
   buildChannelList,
   buildChannelMemberCountQuery,
+  buildChannelModerate,
   buildChannelModerator,
   buildChannelMute,
   buildChannelOwnerQuery,
   buildChannelPassword,
   buildChannelSetOwner,
+  buildChannelUnban,
   buildChannelUnmoderator,
   buildChannelUnmute,
+  buildChannelWatch,
   CHANNEL_ADMIN_OPCODES,
   parseChannelList,
   parseChannelMemberCount,
+  parseUserlistAdd,
+  parseUserlistRemove,
+  parseUserlistUpdate,
 } from "#wow/areas/channels/protocol";
 import { GameOpcode } from "#wow/protocol/opcodes";
 import { PacketReader } from "#wow/protocol/packet";
@@ -36,12 +48,17 @@ function pairOf(body: Uint8Array): [string, string] {
 describe("channel admin sends", () => {
   test("admin sends use the ChannelHandler opcodes", () => {
     expect(CHANNEL_ADMIN_OPCODES).toEqual({
+      announcements: GameOpcode.CMSG_CHANNEL_ANNOUNCEMENTS,
+      ban: GameOpcode.CMSG_CHANNEL_BAN,
       invite: GameOpcode.CMSG_CHANNEL_INVITE,
+      kick: GameOpcode.CMSG_CHANNEL_KICK,
+      moderate: GameOpcode.CMSG_CHANNEL_MODERATE,
       moderator: GameOpcode.CMSG_CHANNEL_MODERATOR,
       mute: GameOpcode.CMSG_CHANNEL_MUTE,
       owner: GameOpcode.CMSG_CHANNEL_OWNER,
       password: GameOpcode.CMSG_CHANNEL_PASSWORD,
       set_owner: GameOpcode.CMSG_CHANNEL_SET_OWNER,
+      unban: GameOpcode.CMSG_CHANNEL_UNBAN,
       unmoderator: GameOpcode.CMSG_CHANNEL_UNMODERATOR,
       unmute: GameOpcode.CMSG_CHANNEL_UNMUTE,
     });
@@ -96,6 +113,92 @@ describe("channel admin sends", () => {
       "peonab12cd",
       "Partner",
     ]);
+  });
+
+  test("kick, ban and unban write the channel and player names", () => {
+    expect(pairOf(buildChannelKick("peonab12cd", "Partner"))).toEqual([
+      "peonab12cd",
+      "Partner",
+    ]);
+    expect(pairOf(buildChannelBan("peonab12cd", "Partner"))).toEqual([
+      "peonab12cd",
+      "Partner",
+    ]);
+    expect(pairOf(buildChannelUnban("peonab12cd", "Partner"))).toEqual([
+      "peonab12cd",
+      "Partner",
+    ]);
+    expect(buildChannelKick("peonab12cd", "Partner")).toEqual(
+      channelsChannelPlayerBody({ channel: "peonab12cd", player: "Partner" }),
+    );
+  });
+
+  test("announcements and moderate write only the channel name", () => {
+    const expected = channelsChannelNameBody({ channel: "peonab12cd" });
+    expect(buildChannelAnnouncements("peonab12cd")).toEqual(expected);
+    expect(buildChannelModerate("peonab12cd")).toEqual(expected);
+  });
+
+  test("watch, clear watch and decline invite write only the channel name", () => {
+    const expected = channelsChannelNameBody({ channel: "peonab12cd" });
+    expect(buildChannelWatch("peonab12cd")).toEqual(expected);
+    expect(buildChannelClearWatch("peonab12cd")).toEqual(expected);
+    expect(buildChannelDeclineInvite("peonab12cd")).toEqual(expected);
+  });
+});
+
+describe("channel userlist wire", () => {
+  test("add and update read guid, both flags, count and name", () => {
+    const add = channelsUserlistBody({
+      change: "add",
+      channel: "peonab12cd",
+      count: 2,
+      flags: 3,
+      guid: 0xab2n,
+      memberFlags: 1,
+    });
+    expect(parseUserlistAdd(new PacketReader(add))).toEqual({
+      change: "add",
+      channel: "peonab12cd",
+      count: 2,
+      flags: 3,
+      guid: 0xab2n,
+      memberFlags: 1,
+    });
+    const update = channelsUserlistBody({
+      change: "update",
+      channel: "peonab12cd",
+      count: 2,
+      flags: 3,
+      guid: 0xab2n,
+      memberFlags: 2,
+    });
+    expect(parseUserlistUpdate(new PacketReader(update))).toEqual({
+      change: "update",
+      channel: "peonab12cd",
+      count: 2,
+      flags: 3,
+      guid: 0xab2n,
+      memberFlags: 2,
+    });
+  });
+
+  test("remove reads guid, flags, count and name with no member flags", () => {
+    const body = channelsUserlistBody({
+      change: "remove",
+      channel: "peonab12cd",
+      count: 1,
+      flags: 3,
+      guid: 0xab2n,
+    });
+    expect(parseUserlistRemove(new PacketReader(body))).toEqual({
+      change: "remove",
+      channel: "peonab12cd",
+      count: 1,
+      flags: 3,
+      guid: 0xab2n,
+      memberFlags: undefined,
+    });
   });
 });
 

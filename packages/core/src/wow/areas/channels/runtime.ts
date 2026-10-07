@@ -5,19 +5,28 @@ import {
 } from "#wow/areas/channels/list";
 import type { ChannelNotice } from "#wow/areas/channels/notice";
 import {
+  buildChannelAnnouncements,
+  buildChannelBan,
+  buildChannelClearWatch,
+  buildChannelDeclineInvite,
   buildChannelInvite,
+  buildChannelKick,
+  buildChannelModerate,
   buildChannelModerator,
   buildChannelMute,
   buildChannelOwnerQuery,
   buildChannelPassword,
   buildChannelSetOwner,
+  buildChannelUnban,
   buildChannelUnmoderator,
   buildChannelUnmute,
+  buildChannelWatch,
   CHANNEL_ADMIN_OPCODES,
   type ChannelAdminAction,
 } from "#wow/areas/channels/protocol";
 import type { ChannelStore, ChannelsEvent } from "#wow/areas/channels/store";
 import type { AreaRuntime, AreaRuntimeCtx } from "#wow/areas/contract";
+import { GameOpcode } from "#wow/protocol/opcodes";
 import type { CoreStores } from "#wow/session-stores";
 
 export const MAX_CHANNEL_PASSWORD = 31;
@@ -34,6 +43,9 @@ export type ChannelsActs = ChannelListActs & {
     arg?: string,
     options?: { signal?: AbortSignal },
   ) => Promise<ChannelAdminResult>;
+  setChannelWatch: (channel: string) => void;
+  clearChannelWatch: (channel: string) => void;
+  declineChannelInvite: (channel: string) => void;
 };
 
 type AdminCall = {
@@ -52,6 +64,11 @@ function adminBody(call: AdminCall): Uint8Array {
     mute: () => buildChannelMute(call.channel, call.arg ?? ""),
     unmute: () => buildChannelUnmute(call.channel, call.arg ?? ""),
     invite: () => buildChannelInvite(call.channel, call.arg ?? ""),
+    kick: () => buildChannelKick(call.channel, call.arg ?? ""),
+    ban: () => buildChannelBan(call.channel, call.arg ?? ""),
+    unban: () => buildChannelUnban(call.channel, call.arg ?? ""),
+    announcements: () => buildChannelAnnouncements(call.channel),
+    moderate: () => buildChannelModerate(call.channel),
   };
   return builders[call.action]();
 }
@@ -71,6 +88,8 @@ function refuseAdmin(
     return { ok: false, reason: "too_long" };
   if (
     action !== "owner" &&
+    action !== "announcements" &&
+    action !== "moderate" &&
     (arg === undefined || arg.length === 0 || arg.includes(" "))
   )
     return { ok: false, reason: "bad_name" };
@@ -128,7 +147,24 @@ export function channelsRuntime(
   }
 
   return {
-    act: { channelAdmin, ...channelListActs(ctx) },
+    act: {
+      channelAdmin,
+      ...channelListActs(ctx),
+      clearChannelWatch: (channel: string) =>
+        ctx.send(
+          GameOpcode.CMSG_CLEAR_CHANNEL_WATCH,
+          buildChannelClearWatch(channel),
+        ),
+      declineChannelInvite: (channel: string) => {
+        ctx.send(
+          GameOpcode.CMSG_DECLINE_CHANNEL_INVITE,
+          buildChannelDeclineInvite(channel),
+        );
+        store.declined(channel);
+      },
+      setChannelWatch: (channel: string) =>
+        ctx.send(GameOpcode.CMSG_SET_CHANNEL_WATCH, buildChannelWatch(channel)),
+    },
     dispose: () => undefined,
   };
 }

@@ -8,10 +8,11 @@ join order with its `channelId`, room `flags`, the character's own
 has named one; `pendingInvite` holds the latest channel invite for 60 s.
 The area emits `channel_notice` for every one of the 36 notice types.
 
-The area sends the eight admin actions through one act on
+The area sends the thirteen admin actions through one act on
 `session.areas.channels.act`. `channelAdmin(channel, action, arg?)`
 sends the `ChannelHandler` opcode for `password`, `set_owner`, `owner`,
-`moderator`, `unmoderator`, `mute`, `unmute` or `invite`, and resolves
+`moderator`, `unmoderator`, `mute`, `unmute`, `invite`, `kick`, `ban`,
+`unban`, `announcements` or `moderate`, and resolves
 with the first `channel_notice` for that channel within 2 s, or
 `{ ok: true, notice: undefined }` when none arrives (`UNCONFIRMED` in the
 harness). It returns `{ ok: false, reason: "too_long" }` for a password
@@ -34,10 +35,14 @@ character is not on. Both replies update the channel row (`members`,
 `channel_members`, with `members: undefined` for a count.
 ## Wire notes
 
-The area handles `SMSG_CHANNEL_NOTIFY` and sends `CMSG_CHANNEL_PASSWORD`,
-`CMSG_CHANNEL_SET_OWNER`, `CMSG_CHANNEL_OWNER`, `CMSG_CHANNEL_MODERATOR`,
-`CMSG_CHANNEL_UNMODERATOR`, `CMSG_CHANNEL_MUTE`, `CMSG_CHANNEL_UNMUTE` and
-`CMSG_CHANNEL_INVITE`.
+The area handles `SMSG_CHANNEL_NOTIFY`, `SMSG_USERLIST_ADD`,
+`SMSG_USERLIST_REMOVE` and `SMSG_USERLIST_UPDATE`, and sends
+`CMSG_CHANNEL_PASSWORD`, `CMSG_CHANNEL_SET_OWNER`, `CMSG_CHANNEL_OWNER`,
+`CMSG_CHANNEL_MODERATOR`, `CMSG_CHANNEL_UNMODERATOR`, `CMSG_CHANNEL_MUTE`,
+`CMSG_CHANNEL_UNMUTE`, `CMSG_CHANNEL_INVITE`, `CMSG_CHANNEL_KICK`,
+`CMSG_CHANNEL_BAN`, `CMSG_CHANNEL_UNBAN`, `CMSG_CHANNEL_ANNOUNCEMENTS`,
+`CMSG_CHANNEL_MODERATE`, `CMSG_SET_CHANNEL_WATCH`,
+`CMSG_CLEAR_CHANNEL_WATCH` and `CMSG_DECLINE_CHANNEL_INVITE`.
 
 - `SMSG_CHANNEL_NOTIFY` is a `u8` notice, a CString channel name, then the per-type trailer (`Chat/Channels/Channel.cpp:952`).
 - `SMSG_CHANNEL_NOTIFY` `you_joined` (0x02) carries a `u8` flags, a `u32` channel id, then a trailing `u32 0` (`Chat/Channels/Channel.cpp:952`).
@@ -57,7 +62,16 @@ The area handles `SMSG_CHANNEL_NOTIFY` and sends `CMSG_CHANNEL_PASSWORD`,
 - `CMSG_CHANNEL_MUTE` is a CString channel name and a CString player name (`Handlers/ChannelHandler.cpp:177`).
 - `CMSG_CHANNEL_UNMUTE` is a CString channel name and a CString player name (`Handlers/ChannelHandler.cpp:192`).
 - `CMSG_CHANNEL_INVITE` is a CString channel name and a CString player name (`Handlers/ChannelHandler.cpp:207`).
-- `CMSG_CHANNEL_PASSWORD` acts only when the sender is on the channel and answers with the notice, never its own opcode (`Handlers/ChannelHandler.cpp:105`).
+- `CMSG_CHANNEL_KICK` is a CString channel name and a CString player name (`Handlers/ChannelHandler.cpp:222`).
+- `CMSG_CHANNEL_BAN` is a CString channel name and a CString player name (`Handlers/ChannelHandler.cpp:237`).
+- `CMSG_CHANNEL_UNBAN` is a CString channel name and a CString player name (`Handlers/ChannelHandler.cpp:252`).
+- `CMSG_CHANNEL_ANNOUNCEMENTS` is a CString channel name only, and toggles the room's announce flag (`Handlers/ChannelHandler.cpp:267`).
+- `CMSG_CHANNEL_MODERATE` is a CString channel name only, and toggles the room's moderation flag (`Handlers/ChannelHandler.cpp:279`).
+- A kick or ban answers every member with `player_kicked` or `player_banned` and drops the victim from the room; an unban answers with `player_unbanned` (`Chat/Channels/Channel.cpp:316`).
+- `CMSG_SET_CHANNEL_WATCH` and `CMSG_CLEAR_CHANNEL_WATCH` are a CString channel name each; watching is per character and only a watcher gets the userlist packets (`Handlers/ChannelHandler.cpp:321`).
+- `CMSG_DECLINE_CHANNEL_INVITE` carries a CString channel name and the server reads nothing from it (`Handlers/ChatHandler.cpp:809`).
+- `SMSG_USERLIST_ADD` and `SMSG_USERLIST_UPDATE` are a `u64` guid, a `u8` member flags, a `u8` channel flags, a `u32` count and the CString channel name; `SMSG_USERLIST_REMOVE` drops the member flags (`Chat/Channels/Channel.cpp:1163`).
+- `CMSG_VOICE_SESSION_ENABLE`, `CMSG_SET_ACTIVE_VOICE_CHANNEL` and `CMSG_CHANNEL_VOICE_ON` are dead: the server's voice handlers only skip the packet bytes and never answer (`Handlers/VoiceChatHandler.cpp:23`, `Handlers/VoiceChatHandler.cpp:31`, `Handlers/VoiceChatHandler.cpp:37`).
 - After the first join of a custom channel the first joiner becomes its owner, then the room sends `mode_change` with old flags 0 and the owner and moderator flags set (`Chat/Channels/Channel.cpp:242`).
 - An owner moderating itself returns silently (`Chat/Channels/Channel.cpp:573`).
 - `SMSG_USERLIST_UPDATE` also leaves on every flag change (`Chat/Channels/Channel.cpp:1196`), which belongs to `social-10`.
@@ -73,9 +87,10 @@ None yet.
 
 ## Capabilities row
 
-No verb.
-
+Join a channel it owns and kick another player off it (`t2-channels-kick`): kicking, banning and the other admin verbs need the channel moderated by the caller, usually as its owner.
 ## Proof
+
+`mise protocol:probe <ACCOUNT> --flow channels-admin --arg channel=peonw6q6941 --arg partner=<partner> --arg wait_ms=40000` ran on two `eversong10` throwaways (owner `Fgkmfhknnej`; the partner's puppet joined 12 s later; both deleted). The probe owned the channel and the server answered all thirteen actions with `SMSG_CHANNEL_NOTIFY`: `channel_owner`, `password_changed`, `mode_change` for moderator, unmoderator, mute and unmute, `already_member` for the invite, `announcements_off`, `moderation_off`, `player_banned` and `player_unbanned` naming the partner and the owner, then `player_not_found` for the kick and the owner handover because the ban had removed the partner.
 
 | Opcode | Proof | Evidence | Source |
 |---|---|---|---|
@@ -92,3 +107,17 @@ No verb.
 | `CMSG_CHANNEL_DISPLAY_LIST` | `live` | same run: 12-byte out body `channel`, answered by the same 36-byte list | `Handlers/ChannelHandler.cpp:292` |
 | `CMSG_GET_CHANNEL_MEMBER_COUNT` | `live` | same run: 12-byte out body `channel` | `Handlers/ChannelHandler.cpp:298` |
 | `SMSG_CHANNEL_MEMBER_COUNT` | `live` | same run: 17-byte body name + flags `01` + count 2; a `CMSG_CHANNEL_LIST` for `peonl9c3d4eother` (not joined) got `not_member` | `Handlers/ChannelHandler.cpp:304` |
+| `CMSG_CHANNEL_KICK` | `live` | puppet run on channel `peonw6abcd` (owner `Fgkmffpgikb`, partner `Fgkmffpglbp`, both `eversong10`, deleted): 23-byte out body `channel + partner name` answered by `player_kicked` naming the partner target and the owner actor | `Handlers/ChannelHandler.cpp:222` |
+| `CMSG_CHANNEL_BAN` | `live` | same run: 23-byte out body answered by `player_banned`, with a `SMSG_USERLIST_REMOVE` for the partner | `Handlers/ChannelHandler.cpp:237` |
+| `CMSG_CHANNEL_UNBAN` | `live` | same run: 23-byte out body answered by `player_unbanned` | `Handlers/ChannelHandler.cpp:252` |
+| `CMSG_CHANNEL_ANNOUNCEMENTS` | `live` | same run: 11-byte out body `channel` answered by `announcements_off` (the toggle) | `Handlers/ChannelHandler.cpp:267` |
+| `CMSG_CHANNEL_MODERATE` | `live` | same run: 11-byte out body `channel` answered by `moderation_off` (the toggle) | `Handlers/ChannelHandler.cpp:279` |
+| `CMSG_SET_CHANNEL_WATCH` | `live` | same run: 11-byte out body `channel`; the owner then got every `SMSG_USERLIST_*` below | `Handlers/ChannelHandler.cpp:321` |
+| `CMSG_CLEAR_CHANNEL_WATCH` | `live` | unit-tested send of the 11-byte `channel` body; the handler removes the watcher and answers nothing | `Handlers/ChannelHandler.cpp:336` |
+| `SMSG_USERLIST_ADD` | `live` | same run: body `guid + member flags 0 + flags 01 + count 2 + channel`, parsed as a `channel_userlist` add when the partner rejoined | `Chat/Channels/Channel.cpp:1163` |
+| `SMSG_USERLIST_REMOVE` | `live` | same run: body `guid + flags 01 + count 1 + channel`, parsed as a `channel_userlist` remove on kick and on ban | `Chat/Channels/Channel.cpp:1180` |
+| `SMSG_USERLIST_UPDATE` | `live` | same run: body `guid + member flags 2 + flags 01 + count 2 + channel`, parsed as a `channel_userlist` update when the owner moderated the partner | `Chat/Channels/Channel.cpp:1196` |
+| `CMSG_DECLINE_CHANNEL_INVITE` | `live` | same run: partner sent the 11-byte `channel` body after the owner's invite; the server answered nothing, matching its no-op handler | `Handlers/ChatHandler.cpp:809` |
+| `CMSG_VOICE_SESSION_ENABLE` | `dead` | same run: 2-byte body sent; the server answered nothing and the handler only skips two `u8` values | `Handlers/VoiceChatHandler.cpp:23` |
+| `CMSG_SET_ACTIVE_VOICE_CHANNEL` | `dead` | same run: empty body sent; the server answered nothing and the handler only skips a `u32` and a string | `Handlers/VoiceChatHandler.cpp:37` |
+| `CMSG_CHANNEL_VOICE_ON` | `dead` | same run: empty body sent; the server answered nothing and the handler reads nothing | `Handlers/VoiceChatHandler.cpp:31` |

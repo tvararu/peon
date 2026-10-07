@@ -3,6 +3,7 @@ import { areaRig } from "#test-support/area-rig";
 import {
   channelsListBody,
   channelsMemberCountBody,
+  channelsUserlistBody,
   channelsYouJoinedBody,
 } from "#test-support/areas/channels";
 import type { ChannelsEvent } from "#wow/areas/channels/store";
@@ -87,6 +88,50 @@ describe("channels area", () => {
         "channel_members",
         "channel_members",
       ]);
+    } finally {
+      rig.dispose();
+    }
+  });
+
+  test("userlist add updates the row and emits channel_userlist", () => {
+    const rig = rigWithEvents();
+    try {
+      rig.inject(
+        GameOpcode.SMSG_CHANNEL_NOTIFY,
+        channelsYouJoinedBody({
+          channel: "peonab12cd",
+          channelId: 7,
+          flags: 3,
+        }),
+      );
+      rig.inject(
+        GameOpcode.SMSG_CHANNEL_LIST,
+        channelsListBody({
+          channel: "peonab12cd",
+          flags: 3,
+          members: [{ flags: 3, guid: ME }],
+        }),
+      );
+      rig.inject(
+        GameOpcode.SMSG_USERLIST_ADD,
+        channelsUserlistBody({
+          change: "add",
+          channel: "peonab12cd",
+          count: 2,
+          flags: 3,
+          guid: 0xab2n,
+          memberFlags: 0,
+        }),
+      );
+      expect(rig.snapshot().channels[0]?.members).toEqual([
+        { flags: 3, guid: ME },
+        { flags: 0, guid: 0xab2n },
+      ]);
+      expect(rig.seen.at(-1)).toMatchObject({
+        change: "add",
+        channel: "peonab12cd",
+        type: "channel_userlist",
+      });
     } finally {
       rig.dispose();
     }

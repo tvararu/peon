@@ -21,12 +21,15 @@ const PRESETS = [
   "max80",
 ];
 const ROUNDS = [ROUND_1];
+const STAGED_OUT: Record<string, true> = { "t9-arena-inspect": true };
 
 describe("scenario files", () => {
   test("every file sits in a round and every round id has a file", () => {
     const listed = ROUNDS.flat();
     expect(listed.filter((id) => !SCENARIO_IDS.includes(id))).toEqual([]);
-    expect(SCENARIO_IDS.filter((id) => !listed.includes(id))).toEqual([]);
+    expect(
+      SCENARIO_IDS.filter((id) => !(listed.includes(id) || STAGED_OUT[id])),
+    ).toEqual([]);
     for (const round of ROUNDS) expect(new Set(round).size).toBe(round.length);
   });
 

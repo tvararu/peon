@@ -16,7 +16,7 @@ function context(args: Record<string, string>): FlowContext & {
 }
 
 describe("channels-admin flow", () => {
-  test("joins, then runs the eight admin actions and prints each notice", async () => {
+  test("joins, then runs the thirteen admin actions and prints each notice", async () => {
     const ctx = context({ channel: "peonab12cd", partner: "Partner" });
     const join = spyOn(ctx.handle, "joinChannel").mockImplementation(
       (channel: string) => {
@@ -56,11 +56,16 @@ describe("channels-admin flow", () => {
       "unmoderator",
       "mute",
       "unmute",
-      "set_owner",
       "invite",
+      "announcements",
+      "moderate",
+      "ban",
+      "unban",
+      "kick",
+      "set_owner",
     ]);
     expect(result.channel).toBe("peonab12cd");
-    expect(result.notices).toHaveLength(8);
+    expect(result.notices).toHaveLength(13);
   });
   test("needs the channel and partner names", async () => {
     await expect(flow.run(context({ partner: "P" }))).rejects.toThrow(

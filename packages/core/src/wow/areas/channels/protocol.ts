@@ -9,7 +9,12 @@ export type ChannelAdminAction =
   | "unmoderator"
   | "mute"
   | "unmute"
-  | "invite";
+  | "invite"
+  | "kick"
+  | "ban"
+  | "unban"
+  | "announcements"
+  | "moderate";
 
 export const CHANNEL_ADMIN_OPCODES: Record<ChannelAdminAction, number> = {
   password: GameOpcode.CMSG_CHANNEL_PASSWORD,
@@ -20,6 +25,11 @@ export const CHANNEL_ADMIN_OPCODES: Record<ChannelAdminAction, number> = {
   mute: GameOpcode.CMSG_CHANNEL_MUTE,
   unmute: GameOpcode.CMSG_CHANNEL_UNMUTE,
   invite: GameOpcode.CMSG_CHANNEL_INVITE,
+  kick: GameOpcode.CMSG_CHANNEL_KICK,
+  ban: GameOpcode.CMSG_CHANNEL_BAN,
+  unban: GameOpcode.CMSG_CHANNEL_UNBAN,
+  announcements: GameOpcode.CMSG_CHANNEL_ANNOUNCEMENTS,
+  moderate: GameOpcode.CMSG_CHANNEL_MODERATE,
 };
 
 function nameOnly(channel: string): Uint8Array {
@@ -132,4 +142,80 @@ export function parseChannelMemberCount(r: PacketReader): ChannelMemberCount {
   const channel = r.cString();
   const flags = r.uint8();
   return { channel, flags, count: r.uint32LE() };
+}
+
+export function buildChannelKick(channel: string, player: string): Uint8Array {
+  return nameAndPlayer(channel, player);
+}
+
+export function buildChannelBan(channel: string, player: string): Uint8Array {
+  return nameAndPlayer(channel, player);
+}
+
+export function buildChannelUnban(channel: string, player: string): Uint8Array {
+  return nameAndPlayer(channel, player);
+}
+
+export function buildChannelAnnouncements(channel: string): Uint8Array {
+  return nameOnly(channel);
+}
+
+export function buildChannelModerate(channel: string): Uint8Array {
+  return nameOnly(channel);
+}
+
+export function buildChannelWatch(channel: string): Uint8Array {
+  return nameOnly(channel);
+}
+
+export function buildChannelClearWatch(channel: string): Uint8Array {
+  return nameOnly(channel);
+}
+
+export function buildChannelDeclineInvite(channel: string): Uint8Array {
+  return nameOnly(channel);
+}
+
+export type UserlistChange = "add" | "update" | "remove";
+
+export type Userlist = {
+  change: UserlistChange;
+  guid: bigint;
+  memberFlags: number | undefined;
+  flags: number;
+  count: number;
+  channel: string;
+};
+
+export function parseUserlistAdd(r: PacketReader): Userlist {
+  return parseUserlistWithFlags(r, "add");
+}
+
+export function parseUserlistUpdate(r: PacketReader): Userlist {
+  return parseUserlistWithFlags(r, "update");
+}
+
+function parseUserlistWithFlags(
+  r: PacketReader,
+  change: "add" | "update",
+): Userlist {
+  const guid = r.uint64LE();
+  const memberFlags = r.uint8();
+  const flags = r.uint8();
+  const count = r.uint32LE();
+  return { change, channel: r.cString(), count, flags, guid, memberFlags };
+}
+
+export function parseUserlistRemove(r: PacketReader): Userlist {
+  const guid = r.uint64LE();
+  const flags = r.uint8();
+  const count = r.uint32LE();
+  return {
+    change: "remove",
+    channel: r.cString(),
+    count,
+    flags,
+    guid,
+    memberFlags: undefined,
+  };
 }

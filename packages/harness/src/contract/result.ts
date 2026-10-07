@@ -17,9 +17,15 @@ export type ToolName =
   | "dungeon"
   | "group"
   | "trade"
+  | "character"
   | "talents"
+  | "guildbank"
   | "mail"
-  | "vehicle";
+  | "vehicle"
+  | "guild"
+  | "channel"
+  | "arena"
+  | "calendar";
 
 export type ToolKind = "read" | "action" | "run" | "control";
 

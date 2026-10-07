@@ -142,6 +142,94 @@ describe("channels runtime", () => {
     }
   });
 
+  test("kick sends 0x0a4 and ban sends 0x0a5 without a store check of the target", async () => {
+    const { before, rig } = joined();
+    try {
+      const kicked = rig.handle.act.channelAdmin(
+        "peonab12cd",
+        "kick",
+        "Partner",
+      );
+      rig.inject(
+        GameOpcode.SMSG_CHANNEL_NOTIFY,
+        channelsNotifyBareBody({ channel: "peonab12cd", type: "muted" }),
+      );
+      expect((await kicked).ok).toBe(true);
+      const banned = rig.handle.act.channelAdmin(
+        "peonab12cd",
+        "ban",
+        "Partner",
+      );
+      rig.inject(
+        GameOpcode.SMSG_CHANNEL_NOTIFY,
+        channelsNotifyBareBody({ channel: "peonab12cd", type: "muted" }),
+      );
+      expect((await banned).ok).toBe(true);
+      expect(rig.sent.slice(before).map((packet) => packet.opcode)).toEqual([
+        GameOpcode.CMSG_CHANNEL_KICK,
+        GameOpcode.CMSG_CHANNEL_BAN,
+      ]);
+    } finally {
+      rig.dispose();
+    }
+  });
+
+  test("announcements and moderate send their opcodes with no player arg", async () => {
+    const { before, rig } = joined();
+    try {
+      const announced = rig.handle.act.channelAdmin(
+        "peonab12cd",
+        "announcements",
+      );
+      rig.inject(
+        GameOpcode.SMSG_CHANNEL_NOTIFY,
+        channelsNotifyGuidBody({
+          channel: "peonab12cd",
+          guid: ME,
+          type: "announcements_on",
+        }),
+      );
+      expect((await announced).ok).toBe(true);
+      const moderated = rig.handle.act.channelAdmin("peonab12cd", "moderate");
+      rig.inject(
+        GameOpcode.SMSG_CHANNEL_NOTIFY,
+        channelsNotifyGuidBody({
+          channel: "peonab12cd",
+          guid: ME,
+          type: "moderation_on",
+        }),
+      );
+      expect((await moderated).ok).toBe(true);
+      expect(rig.sent.slice(before).map((packet) => packet.opcode)).toEqual([
+        GameOpcode.CMSG_CHANNEL_ANNOUNCEMENTS,
+        GameOpcode.CMSG_CHANNEL_MODERATE,
+      ]);
+    } finally {
+      rig.dispose();
+    }
+  });
+
+  test("watch, clear watch and decline invite send their opcodes", () => {
+    const { before, rig } = joined();
+    try {
+      rig.handle.act.setChannelWatch("peonab12cd");
+      rig.handle.act.clearChannelWatch("peonab12cd");
+      rig.handle.act.declineChannelInvite("peonab12cd");
+      expect(rig.sent.slice(before).map((packet) => packet.opcode)).toEqual([
+        GameOpcode.CMSG_SET_CHANNEL_WATCH,
+        GameOpcode.CMSG_CLEAR_CHANNEL_WATCH,
+        GameOpcode.CMSG_DECLINE_CHANNEL_INVITE,
+      ]);
+      expect(rig.sent.slice(before).map((packet) => packet.body)).toEqual([
+        new TextEncoder().encode("peonab12cd\0"),
+        new TextEncoder().encode("peonab12cd\0"),
+        new TextEncoder().encode("peonab12cd\0"),
+      ]);
+    } finally {
+      rig.dispose();
+    }
+  });
+
   test("no notice within 2 s resolves UNCONFIRMED", async () => {
     await withFakeTimers(async () => {
       const { rig } = joined();

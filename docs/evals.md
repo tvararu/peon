@@ -226,9 +226,10 @@ two scenarios closest to it. Every scenario appears in at least one row.
 | Vendors and money | `t5-vendor-buy-goldshire` |
 | Economy (`interact` buyback, bank, auction; `trade`; `mail`) | `t5-buyback-vendor`, `t9-trade-give`, `t9-trade-receive`, `t9-trade-swap`, `t9-trade-cancel`, `t9-bank-deposit`, `t9-bank-withdraw`, `t9-bank-slot`, `t9-mail-read`, `t9-mail-collect`, `t9-mail-send` |
 | Chat and whispers (`social`, pushed chat events) | `t2-whisper-reply` |
-| Social verbs (`social` emote, channels, inspect) | `t2-emotes-partner` |
+| Social verbs (`social` emote, `channel` channel admin, inspect) | `t2-emotes-partner`, `t2-channels-kick` |
 | Nearby units and relations (`look`, entity state) | `t0-who-is-near`, `t0-hostiles` |
 | Self state (level, money, bags, `journal`) | `t0-self-state` |
+| Play time and appearance (`character`) | `t0-character-appearance` |
 | Death and recovery (`recover`) | `t6-die-and-recover` |
 | Self-state (recover how:self; spell mount/dismount) | `t6-selfstate-res`, `t9-selfstate-mount` |
 | Stopping and steering (`stop`, the stop reflex, human messages while a tool runs) | `t7-halt-resume`, `t7-question-while-acting` |
@@ -245,3 +246,8 @@ two scenarios closest to it. Every scenario appears in at least one row.
 | Vehicles (`vehicle`, `travel ride`) | `t8-vehicles-board`, `t8-vehicles-zeppelin`, `t8-vehicles-drive` |
 | Instances and dungeon finder (`dungeon`) | `t9-instances-difficulty`, `t9-lfg-queue`, `t9-lfg-run` |
 | Groups and raids (`group` tool) | `t9-raid-kick`, `t9-raid-convert`, `t9-raid-master-loot`, `t9-raid-ready`, `t9-raid-answer`, `t9-raid-summon`, `t9-raid-mark` |
+| Guild (`guild` tool tabard designer and emblem) | `t9-guild-tabard` |
+| Guild vault (`guildbank` tool open, guildless refusal) | `t9-guildbank-guildless` |
+| Arena (`arena` tool queue join and leave) | `t9-arena-skirmish` |
+| Arena (`arena` tool inspect) | `t9-arena-inspect` (blocked by the staging gap: the server sends no inspect reply for teamless targets until an arena setup endpoint exists) |
+| Calendar (`calendar` tool create and update) | `t9-calendar-event` |

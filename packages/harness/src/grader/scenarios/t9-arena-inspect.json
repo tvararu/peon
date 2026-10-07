@@ -1,0 +1,50 @@
+{
+  "botRisk": "low",
+  "budget": {
+    "minutes": 8,
+    "tools": 16,
+    "turns": 8
+  },
+  "checks": [
+    {
+      "evidence": {
+        "events": ["arena/inspect"]
+      },
+      "expect": "GL has an arena/inspect row for the partner",
+      "id": "inspect-row",
+      "source": "game_log"
+    },
+    {
+      "expect": "the session shows the agent reading the partner's arena teams with the arena tool (do inspect)",
+      "id": "inspected",
+      "source": "session"
+    }
+  ],
+  "id": "t9-arena-inspect",
+  "navBound": false,
+  "needsWatcher": false,
+  "paneMinutes": 11,
+  "partner": null,
+  "partnerActions": [
+    {
+      "argv": ["call", "walkToPlayer", "[\"<AGENT>\"]"],
+      "at": {
+        "kind": "elapsed",
+        "ms": 5000
+      },
+      "windowMs": 90000
+    }
+  ],
+  "partners": [
+    {
+      "preset": "eversong10-mage",
+      "role": "partner"
+    }
+  ],
+  "preset": "eversong10",
+  "setup": [],
+  "spawn": "eversong-trade",
+  "steers": [],
+  "task": "A player will walk up to you. Inspect their arena teams with the arena tool and tell me what you find.",
+  "tier": 9
+}

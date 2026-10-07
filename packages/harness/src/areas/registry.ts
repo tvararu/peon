@@ -2,18 +2,21 @@ import type { AreaName } from "@peon/core";
 import { accountHarness } from "#harness/areas/account/area";
 import { achievementsHarness } from "#harness/areas/achievements/area";
 import { ambienceHarness } from "#harness/areas/ambience/area";
+import { arenaHarness } from "#harness/areas/arena/area";
 import { auctionHarness } from "#harness/areas/auction/area";
 import { bankHarness } from "#harness/areas/bank/area";
 import { battlegroundsHarness } from "#harness/areas/battlegrounds/area";
 import { buybackHarness } from "#harness/areas/buyback/area";
 import { calendarHarness } from "#harness/areas/calendar/area";
 import { channelsHarness } from "#harness/areas/channels/area";
+import { characterHarness } from "#harness/areas/character/area";
 import { chartersHarness } from "#harness/areas/charters/area";
 import { combatlogHarness } from "#harness/areas/combatlog/area";
 import { complaintsHarness } from "#harness/areas/complaints/area";
 import { contactsHarness } from "#harness/areas/contacts/area";
 import { emotesHarness } from "#harness/areas/emotes/area";
 import { guildadminHarness } from "#harness/areas/guildadmin/area";
+import { guildbankHarness } from "#harness/areas/guildbank/area";
 import { inspectHarness } from "#harness/areas/inspect/area";
 import { instancesHarness } from "#harness/areas/instances/area";
 import { itemsHarness } from "#harness/areas/items/area";
@@ -41,18 +44,21 @@ export const HARNESS_AREAS = {
   account: accountHarness,
   achievements: achievementsHarness,
   ambience: ambienceHarness,
+  arena: arenaHarness,
   auction: auctionHarness,
   bank: bankHarness,
   battlegrounds: battlegroundsHarness,
   buyback: buybackHarness,
   calendar: calendarHarness,
   channels: channelsHarness,
+  character: characterHarness,
   charters: chartersHarness,
   combatlog: combatlogHarness,
   complaints: complaintsHarness,
   contacts: contactsHarness,
   emotes: emotesHarness,
   guildadmin: guildadminHarness,
+  guildbank: guildbankHarness,
   inspect: inspectHarness,
   instances: instancesHarness,
   items: itemsHarness,

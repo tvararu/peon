@@ -1,4 +1,9 @@
-import type { FlowContext, Json, ProbeFlow } from "#tools/probe-flows";
+import {
+  type FlowContext,
+  type Json,
+  type ProbeFlow,
+  settleWithin,
+} from "#tools/probe-flows";
 
 type ChannelAdminAction =
   | "password"
@@ -8,7 +13,12 @@ type ChannelAdminAction =
   | "unmoderator"
   | "mute"
   | "unmute"
-  | "invite";
+  | "invite"
+  | "kick"
+  | "ban"
+  | "unban"
+  | "announcements"
+  | "moderate";
 
 const ACTIONS: ChannelAdminAction[] = [
   "owner",
@@ -17,8 +27,13 @@ const ACTIONS: ChannelAdminAction[] = [
   "unmoderator",
   "mute",
   "unmute",
-  "set_owner",
   "invite",
+  "announcements",
+  "moderate",
+  "ban",
+  "unban",
+  "kick",
+  "set_owner",
 ];
 
 type Args = Readonly<Record<string, string>>;
@@ -54,14 +69,24 @@ async function run({ handle, args, settle }: FlowContext): Promise<Json> {
     );
     if (joined === undefined)
       throw new Error(`never joined ${channel}: no you_joined notice.`);
+    const waitMs = Number(args["wait_ms"] ?? 0);
+    if (waitMs > 0)
+      await settleWithin(waitMs)(() =>
+        seen.find((row) => row["type"] === "joined"),
+      );
     const rows: Json[] = [];
     const params: Record<ChannelAdminAction, string | undefined> = {
+      announcements: undefined,
+      ban: partner,
       invite: partner,
+      kick: partner,
+      moderate: undefined,
       moderator: partner,
       mute: partner,
       owner: undefined,
       password,
       set_owner: partner,
+      unban: partner,
       unmoderator: partner,
       unmute: partner,
     };
@@ -85,5 +110,5 @@ export const flow: ProbeFlow = {
   name: "channels-admin",
   run,
   usage:
-    "--flow channels-admin --arg channel=<name> --arg partner=<name> [--arg password=<pw>]: join the channel, run the eight admin actions (owner, moderator, unmoderator, mute, unmute, password, set_owner, invite), and print each server notice.",
+    "--flow channels-admin --arg channel=<name> --arg partner=<name> [--arg password=<pw>] [--arg wait_ms=<ms>]: join the channel, wait up to wait_ms for another player to join, run the thirteen admin actions (owner, password, moderator, unmoderator, mute, unmute, invite, announcements, moderate, ban, unban, kick, set_owner), and print each server notice.",
 };

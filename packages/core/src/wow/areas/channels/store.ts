@@ -4,6 +4,8 @@ import type {
   ChannelList,
   ChannelMember,
   ChannelMemberCount,
+  Userlist,
+  UserlistChange,
 } from "#wow/areas/channels/protocol";
 import type { SessionDeps } from "#wow/session-stores";
 
@@ -38,6 +40,15 @@ export type ChannelsEvent =
       flags: number;
       count: number;
       members: readonly ChannelMember[] | undefined;
+    }
+  | {
+      type: "channel_userlist";
+      channel: string;
+      change: UserlistChange;
+      guid: bigint;
+      memberFlags: number | undefined;
+      flags: number;
+      count: number;
     };
 
 export const INVITE_VISIBLE_MS = 60_000;
@@ -104,6 +115,10 @@ export class ChannelStore {
           inviter: notice.inviter,
         };
         break;
+      case "player_kicked":
+      case "player_banned":
+        this.applyRemoved(key, notice.target);
+        break;
       default:
         break;
     }
@@ -136,6 +151,64 @@ export class ChannelStore {
       members: undefined,
       type: "channel_members",
     });
+  }
+
+  userlist(change: Userlist): void {
+    const key = change.channel.toLowerCase();
+    const row = this.rows.get(key);
+    if (row !== undefined) {
+      row.flags = change.flags;
+      row.memberCount = change.count;
+      if (row.members !== undefined)
+        row.members = this.applyUserlistMembers(
+          row.members,
+          change.change,
+          change.guid,
+          change.memberFlags,
+        );
+    }
+    this.events.emit({
+      change: change.change,
+      channel: change.channel,
+      count: change.count,
+      flags: change.flags,
+      guid: change.guid,
+      memberFlags: change.memberFlags,
+      type: "channel_userlist",
+    });
+  }
+
+  declined(channel: string): void {
+    if (
+      this.invite !== undefined &&
+      this.invite.channel.toLowerCase() === channel.toLowerCase()
+    )
+      this.invite = undefined;
+  }
+
+  private applyUserlistMembers(
+    members: readonly ChannelMember[],
+    change: UserlistChange,
+    guid: bigint,
+    flags: number | undefined,
+  ): readonly ChannelMember[] {
+    if (change === "remove")
+      return members.filter((member) => member.guid !== guid);
+    if (flags === undefined) return members;
+    return [
+      ...members.filter((member) => member.guid !== guid),
+      { flags, guid },
+    ];
+  }
+
+  private applyRemoved(key: string, target: bigint): void {
+    if (target === this.selfGuid()) {
+      this.rows.delete(key);
+      return;
+    }
+    const row = this.rows.get(key);
+    if (row?.members !== undefined)
+      row.members = row.members.filter((member) => member.guid !== target);
   }
 
   private applyModeChange(key: string, guid: bigint, flags: number): void {

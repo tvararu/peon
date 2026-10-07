@@ -124,3 +124,61 @@ export function guildadminCommandResultBody(
   w.uint32LE(input.result);
   return w.finish();
 }
+
+export type GuildadminPermissionsInput = {
+  rank: number;
+  rights: number;
+  goldPerDay: number;
+  tabCount: number;
+  tabs: { flags: number; slots: number }[];
+};
+
+export function guildadminPermissionsBody(
+  input: GuildadminPermissionsInput,
+): Uint8Array {
+  const w = new PacketWriter();
+  w.uint32LE(input.rank);
+  w.uint32LE(input.rights >>> 0);
+  w.uint32LE(input.goldPerDay >>> 0);
+  w.uint8(input.tabCount);
+  for (let i = 0; i < 6; i++) {
+    w.uint32LE((input.tabs[i]?.flags ?? 0) >>> 0);
+    w.uint32LE((input.tabs[i]?.slots ?? 0) >>> 0);
+  }
+  return w.finish();
+}
+
+export type GuildadminEventLogInput = {
+  type: number;
+  player: bigint;
+  other?: bigint;
+  rank?: number;
+  secondsAgo: number;
+};
+
+export function guildadminEventLogBody(
+  entries: GuildadminEventLogInput[],
+): Uint8Array {
+  const w = new PacketWriter();
+  w.uint8(entries.length);
+  for (const entry of entries) {
+    w.uint8(entry.type);
+    w.uint64LE(entry.player);
+    if (entry.type !== 2 && entry.type !== 6) w.uint64LE(entry.other ?? 0n);
+    if (entry.type === 3 || entry.type === 4) w.uint8(entry.rank ?? 0);
+    w.uint32LE(entry.secondsAgo);
+  }
+  return w.finish();
+}
+
+export function guildadminSaveEmblemResultBody(code: number): Uint8Array {
+  const w = new PacketWriter();
+  w.uint32LE(code >>> 0);
+  return w.finish();
+}
+
+export function guildadminTabardVendorBody(npc: bigint): Uint8Array {
+  const w = new PacketWriter();
+  w.uint64LE(npc);
+  return w.finish();
+}

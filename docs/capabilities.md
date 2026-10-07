@@ -19,6 +19,7 @@ or the page names one that does not exist.
 | Walk to a named NPC | `t1-walk-to-npc` | Routes come from the Namigator navmesh, which is built from the game's data files, not observed. A route across swim-depth water swims across and climbs out. |
 | Answer whispers from another player | `t2-whisper-reply` | A chat line with no echo within 2 s is `UNCONFIRMED`. |
 | Emote at a player or NPC | `t2-emotes-partner` | Only emotes the server lists; none while dead; no ready check. |
+| Join a channel it owns and kick another player off it | `t2-channels-kick` | Kicking, banning and the other admin verbs need the channel moderated by the caller, usually as its owner. An admin call the server does not answer is `UNCONFIRMED`. |
 | Kill creatures at its level, one at a time, with Jev choosing the actions | `t3-ghostlands-kill` | Needs Jev: after repeated failed Jev calls the fight ends as `jev_unavailable`. A hunter can end up in melee range, because `travel` stops 3 yd from a unit, so no scenario proves ranged hunter play. |
 | Move with Jev choosing every input: run a circle, walk around an obstacle, jump a low fence (`pilot`) | `t3-pilot-circle`, `t3-pilot-detour`, `t3-pilot-fence`, `t3-pilot-circle-holdout`, `t3-pilot-detour-holdout`, `t3-pilot-fence-holdout` | Rounds 7687 and 7702 (with creatures in the frame) each passed 18 of 18 replicas: about 4.5 decisions a second at a 200–225 ms Jev p50, no server corrections. Needs Jev and namigator data for the map. |
 | Walk past hostile creatures without drawing aggro, with Jev steering (`pilot`) | `t3-pilot-camp`, `t3-pilot-camp-holdout`; baselines `t3-pilot-camp-travel`, `t3-pilot-camp-holdout-travel`, `t3-pilot-camp-greedy`, `t3-pilot-camp-holdout-greedy` | Round 7702 passed 6 of 6 camp replicas; on the same camps the greedy chooser passed 1 of 4 and `travel` 1 of 4. Aggro ranges are inferred from levels, not observed: the server's aggro rate, detection auras and line of sight are unknown to the client. Gray creatures add no danger; any other creature that attacks ends the pilot run. |
@@ -72,19 +73,33 @@ or the page names one that does not exist.
 | Refuse or cancel a trade | `t9-trade-cancel` | |
 | Store items in the bank and take them out | `t9-bank-deposit`, `t9-bank-withdraw` | The bank verbs talk to a banker in range; `journal` `about: bank` reads the stored contents from the login snapshot anywhere. |
 | Buy a bank bag slot | `t9-bank-slot` | The first slot of a fresh character costs 1000 copper. |
+| Use the guild vault: open it, read and rename tabs, move copper and items, set tab text, and read the log and limits | `t9-guildbank-guildless` | Run guildless: the vault refuses with not in a guild. The member verbs are proven by the `guildbank-vault` probe flow, not a scenario: an eval cannot stage a guild. |
 | Read mail | `t9-mail-read` | The letter is staged by an offline quest reward; the answer quotes its fixed body. |
 | Collect gold and items from mail | `t9-mail-collect` | Takes money then attachments in order at a mailbox. |
 | Send gold or items by mail | `t9-mail-send` | Postage is 30 copper per item, 30 with no item. |
+| Open the tabard designer and try to save a guild emblem | `t9-guild-tabard` | Run guildless: the server refuses the save with code 2 and takes no gold. A leader's save, ranks, notes, the info text and the event log are proven by probe flows, not a scenario: an eval cannot stage a guild. |
+| Read play time, draw weapons, hide helm and cloak | `t0-character-appearance` | Sheathe, helm and cloak sends get no server reply. |
 | Share a quest with the group and take one shared back | `t8-quests-share`, `t8-quests-accept-shared` | A share with no member answer is `UNCONFIRMED` after 3 s. |
+| Create and rename a personal calendar event | `t9-calendar-event` | Needs no guild. The server allows one create or copy every 5 s and 30 events per player. Invites, rsvp and status need a second player and are proven by tests only. |
 | Set loot rules and give master loot | `t9-raid-master-loot` | Needs a corpse that holds an item; the scenario allows three kills. `roll` and `pass_loot` are not shown: a group roll needs an uncommon drop and `pass_loot` has no server reply. |
 | Run and answer ready checks | `t9-raid-ready`, `t9-raid-answer` | Peon ends its own checks after 30 s. |
 | Answer a meeting-stone summon | `t9-raid-summon` | Two partners use the Stormwind stone 179595 and its summoning portal; the agent answers with `group` `summon`. The stone needs a group with both members at level 15. |
 | Mark targets | `t9-raid-mark` | Icon names are unconfirmed. |
 | Spend pet talent points | `t8-pets-talent` | Hunter only; spends one point of the pet's own talent tree at owner level 25. |
+| Join and leave an arena skirmish queue (`arena` `queue`) | `t9-arena-skirmish` | Unrated 2v2 at battlemaster Gargok in the Barrens, with no team. Rated joins, teams, rosters and invites need a staged team (eval staging gap) and are proven by the probe flow `arena-team`. |
+| Inspect a nearby player's arena teams (`arena` `inspect`) | `t9-arena-inspect` | Shows the partner's teams from `MSG_INSPECT_ARENA_TEAMS`. Shows teams only: the agent's own teams, the roster, invites and the queue need a staged team (eval staging gap: needs an arena setup endpoint; `soap gm` is banned in evals) and are proven by the probe flow `arena-team`. |
 
 ## Not shown by any scenario
 
 These have tools or code but no scenario that checks them live:
+- Changing ranks, member notes and the info text, and reading permissions and
+  the event log (`guild` `rank`, `note`, `officer_note`, `info_text`,
+  `permissions`, `log`), and saving an emblem as a leader: a scenario needs
+  a guild, and neither the realm setup nor an eval may create one (`soap gm`
+  is banned in evals). The probe flows `guildadmin-ranks` and
+  `guildadmin-tabard` prove the server replies on a staged guild
+  ([guildadmin.md](areas/guildadmin.md#proof)). Needs a guild setup endpoint.
+
 - Resetting its own dungeons (`dungeon` `reset`): offline setup cannot place
   the character inside a dungeon (the realm position setup accepts only
   maps 0, 1, 530 and 571, and evals may not teleport with a GM command).

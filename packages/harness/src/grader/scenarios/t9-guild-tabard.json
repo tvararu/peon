@@ -1,0 +1,57 @@
+{
+  "botRisk": "low",
+  "budget": {
+    "minutes": 8,
+    "tools": 16,
+    "turns": 8
+  },
+  "checks": [
+    {
+      "evidence": {
+        "events": ["guildadmin/tabard_vendor"]
+      },
+      "expect": "GL has a guildadmin/tabard_vendor row: the agent opened the tabard designer of the guild master Andrew Matthews",
+      "id": "designer-opened",
+      "source": "game_log"
+    },
+    {
+      "evidence": {
+        "events": ["guildadmin/emblem_result"],
+        "ids": [2]
+      },
+      "expect": "GL has a guildadmin/emblem_result row with code 2 (not in a guild): the agent tried to save an emblem and the server refused it",
+      "id": "emblem-refused",
+      "source": "game_log"
+    },
+    {
+      "evidence": {
+        "delta": ["money"]
+      },
+      "expect": "The money delta is 0: a refused emblem costs nothing",
+      "id": "no-charge",
+      "source": "truth"
+    }
+  ],
+  "id": "t9-guild-tabard",
+  "navBound": false,
+  "needsWatcher": false,
+  "paneMinutes": 11,
+  "partner": null,
+  "preset": "max80",
+  "setup": [
+    {
+      "body": {
+        "map": 571,
+        "o": 0.6,
+        "x": 5765.5,
+        "y": 625.5,
+        "z": 650.3,
+        "zone": 4395
+      },
+      "endpoint": "position"
+    }
+  ],
+  "steers": [],
+  "task": "You are not in a guild. Open the tabard designer of the guild master next to you, then try to save a guild emblem with style 3, color 2, border style 1, border color 4 and background 5, confirming the 10 gold cost. Tell me what the server said.",
+  "tier": 9
+}
