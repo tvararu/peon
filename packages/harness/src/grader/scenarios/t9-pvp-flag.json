@@ -8,9 +8,7 @@
   "checks": [
     {
       "evidence": {
-        "events": [
-          "battlegrounds/flag"
-        ]
+        "events": ["battlegrounds/flag"]
       },
       "expect": "GL has a battlegrounds/flag row with wants true, then one with wants false",
       "id": "flag-toggle",

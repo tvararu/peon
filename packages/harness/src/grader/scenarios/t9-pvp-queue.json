@@ -8,9 +8,7 @@
   "checks": [
     {
       "evidence": {
-        "events": [
-          "battlegrounds/queued"
-        ]
+        "events": ["battlegrounds/queued"]
       },
       "expect": "GL has a battlegrounds/queued row with bg type 2: the server confirmed the Warsong Gulch queue",
       "id": "queued",
@@ -18,9 +16,7 @@
     },
     {
       "evidence": {
-        "events": [
-          "battlegrounds/queue_left"
-        ]
+        "events": ["battlegrounds/queue_left"]
       },
       "expect": "GL has a battlegrounds/queue_left row after the queued row: the queue emptied",
       "id": "queue-emptied",
