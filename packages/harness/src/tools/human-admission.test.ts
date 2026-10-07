@@ -11,6 +11,7 @@ import { runTool } from "#test-support/tool-harness";
 
 const params = Type.Object({ text: Type.Optional(Type.String()) });
 type Run = GameToolSpec<typeof params, "social", SocialAfter>["run"];
+type Counter = { runs: number };
 
 function emptySocial(): SocialAfter {
   return {
@@ -32,6 +33,14 @@ function probe(run: Run, kind: ToolKind = "action") {
     run,
   });
 }
+function counting(counter: Counter): Run {
+  return () => {
+    counter.runs += 1;
+    return Promise.resolve(
+      result("DONE", { after: emptySocial(), detail: "ok" }),
+    );
+  };
+}
 
 const said: Run = () =>
   Promise.resolve(result("DONE", { after: emptySocial(), detail: "said hi." }));
@@ -43,12 +52,16 @@ describe("acting-tool admission", () => {
     const refused = (await runTool(probe(said).definition(rt), {})).text;
     expect(refused).toContain("REFUSED human_waiting");
     expect(refused).toContain("reply to the human now in plain text");
-    expect((await runTool(probe(said, "read").definition(rt), {})).text).toBe(
-      "DONE said hi.",
-    );
+    const reads: Counter = { runs: 0 };
     expect(
-      (await runTool(probe(said, "control").definition(rt), {})).text,
-    ).toBe("DONE said hi.");
+      (await runTool(probe(counting(reads), "read").definition(rt), {})).details
+        .result.status,
+    ).toBe("DONE");
+    expect(reads.runs).toBe(1);
+    expect(
+      (await runTool(probe(said, "control").definition(rt), {})).details.result
+        .status,
+    ).toBe("DONE");
   });
 
   test("refuses an action while the human drives; a read still runs", async () => {
@@ -60,14 +73,17 @@ describe("acting-tool admission", () => {
       reason: "human_driving",
       status: "REFUSED",
     });
-    expect((await runTool(probe(said, "read").definition(rt), {})).text).toBe(
-      "DONE said hi.",
-    );
+    const reads: Counter = { runs: 0 };
+    expect(
+      (await runTool(probe(counting(reads), "read").definition(rt), {})).details
+        .result.status,
+    ).toBe("DONE");
+    expect(reads.runs).toBe(1);
     expect(rt.control.owner()).toBe("human");
     if (human.granted) rt.control.release(human.grant, "hand_back");
-    expect((await runTool(probe(said).definition(rt), {})).text).toBe(
-      "DONE said hi.",
-    );
+    expect(
+      (await runTool(probe(said).definition(rt), {})).details.result.status,
+    ).toBe("DONE");
     expect(rt.control.owner()).toBe("agent");
   });
 
@@ -80,11 +96,35 @@ describe("acting-tool admission", () => {
       toolCallId: "t0",
     });
     rt.control.claim("loop", "run_outlived_turn");
-    expect((await runTool(probe(said).definition(rt), {})).text).toBe(
-      "DONE said hi.",
-    );
+    const actions: Counter = { runs: 0 };
+    expect(
+      (await runTool(probe(counting(actions)).definition(rt), {})).details
+        .result.status,
+    ).toBe("DONE");
+    expect(actions.runs).toBe(1);
     expect(rt.runs.get(run.id)?.status).toBe("running");
     expect(rt.control.owner()).toBe("loop");
+  });
+
+  test("refuses an action while the human's stop holds; reads run", async () => {
+    const { rt } = await createTestRuntime();
+    const actions: Counter = { runs: 0 };
+    const reads: Counter = { runs: 0 };
+    rt.session.stopped = true;
+    expect(
+      (await runTool(probe(counting(actions)).definition(rt), {})).details
+        .result,
+    ).toMatchObject({
+      next: "end your turn and wait for the human.",
+      reason: "stopped",
+      status: "REFUSED",
+    });
+    expect(actions.runs).toBe(0);
+    expect(
+      (await runTool(probe(counting(reads), "read").definition(rt), {})).details
+        .result.status,
+    ).toBe("DONE");
+    expect(reads.runs).toBe(1);
   });
 
   test("the human_waiting refusal quotes the pending message", async () => {

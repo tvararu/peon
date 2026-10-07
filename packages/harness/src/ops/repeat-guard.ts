@@ -15,6 +15,7 @@ export const TIME_CODES: readonly string[] = [
   "turn_budget",
   "busy",
   "human_waiting",
+  "stopped",
   "no_summon",
 ];
 export const CONTINUES: readonly string[] = [

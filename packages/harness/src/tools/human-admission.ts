@@ -15,6 +15,14 @@ function wroteText(texts: readonly string[]): string {
   return `the human wrote ${texts.length} messages: ${texts.map(quote).join(", then ")}`;
 }
 
+function stopped(): Refusal {
+  return new Refusal({
+    detail: "the human stopped you. Start nothing new.",
+    next: "end your turn and wait for the human.",
+    reason: "stopped",
+  });
+}
+
 function humanWaiting(texts: readonly string[]): Refusal {
   return new Refusal({
     detail: `${wroteText(texts)} Answer it before you act.`,
@@ -23,7 +31,12 @@ function humanWaiting(texts: readonly string[]): Refusal {
   });
 }
 
-export function admitAgent(rt: HarnessRuntime, tool: string): void {
+export function admitAgent(
+  rt: HarnessRuntime,
+  tool: string,
+  stopOk = false,
+): void {
+  if (rt.session.stopped && !stopOk) throw stopped();
   if (rt.session.humanWaiting) throw humanWaiting(rt.session.humanTexts);
   const { control, session } = rt;
   const holder = control.owner();

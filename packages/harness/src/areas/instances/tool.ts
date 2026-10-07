@@ -471,6 +471,7 @@ export const dungeonSpec: GameToolSpec<
   "dungeon",
   DungeonAfter
 > = {
+  allowStopped: (args) => args.do === undefined || args.do === "status",
   fallback: emptyDungeon,
   kind: "action",
   minimalArgs: {},

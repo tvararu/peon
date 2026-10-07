@@ -29,7 +29,23 @@ function blockingRun(signal: AbortSignal): Promise<RunEnd<undefined>> {
 describe("createHarnessRuntime", () => {
   test("starts with idle session flags and wake from the flags", async () => {
     const { rt } = await createTestRuntime({ flags: { wake: false } });
-    expect(rt.session).toMatchObject({ agent: "idle", wake: false });
+
+    expect(rt.session).toEqual({
+      agent: "idle",
+      agentGrant: undefined,
+      deliveredTexts: [],
+      humanTexts: [],
+      humanWaiting: false,
+      lastNow: undefined,
+      lastToolCallAt: undefined,
+      previousTurnStartSeq: undefined,
+      stopped: false,
+      tool: undefined,
+      turnStartSeq: 0,
+      turnToolCalls: 0,
+      unreadWhispers: 0,
+      wake: false,
+    });
   });
 
   test("connect attaches ready, router, sightings, attacks, progress, snapshots in that order", async () => {

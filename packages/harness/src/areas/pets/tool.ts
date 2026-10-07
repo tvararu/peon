@@ -105,6 +105,13 @@ function petRun(args: PetArgs, ctx: PetCtx): Promise<ToolResult<PetAfter>> {
   });
 }
 
+export function readsPetStatus(args: PetArgs): boolean {
+  return (
+    args.do === undefined ||
+    (args.do === "talent" && (args.what ?? "").trim() === "")
+  );
+}
+
 function petCall(args: unknown, theme: CallInit["theme"]): string {
   return callLine({
     icon: "friendly",
@@ -127,6 +134,7 @@ const petRenderers: ToolRenderers<"pet", PetAfter> = {
 };
 
 export const petSpec: GameToolSpec<typeof petParams, "pet", PetAfter> = {
+  allowStopped: readsPetStatus,
   fallback: emptyPet,
   kind: "action",
   maxLines: 30,

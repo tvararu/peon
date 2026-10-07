@@ -29,6 +29,7 @@ export type GameToolSpec<P extends TSchema, N extends ToolName, A> = {
   run: (args: Static<P>, ctx: ToolCtx<A>) => Promise<ToolResult<A>>;
   maxLines?: number;
   prepareArguments?: (args: unknown) => Static<P>;
+  allowStopped?: (args: Static<P>) => boolean;
 };
 
 export type GameToolModule<N extends ToolName, P extends TSchema, A> = {

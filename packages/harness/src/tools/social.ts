@@ -407,7 +407,16 @@ function social(
     : group({ action, to }, ctx);
 }
 
+export function admitsChatReply(args: SocialArgs): boolean {
+  const to = args.to?.trim() || undefined;
+  const action =
+    SOCIAL_ACTIONS.find((known) => known === args.do) ??
+    (to ? "whisper" : "say");
+  return isChat(action) && (args.text?.trim() ?? "") !== "";
+}
+
 export const socialTool = defineGameTool({
+  allowStopped: admitsChatReply,
   fallback: emptySocial,
   kind: "action",
   minimalArgs: { text: "hello" },

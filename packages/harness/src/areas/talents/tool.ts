@@ -132,6 +132,7 @@ export const talentsSpec: GameToolSpec<
   "talents",
   TalentsAfter
 > = {
+  allowStopped: (args) => args.do === "show",
   fallback: () => ({ do: "show", freePoints: undefined, learned: 0 }),
   kind: "action",
   maxLines: 30,

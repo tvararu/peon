@@ -298,10 +298,9 @@ The game log records `pilot/started` (objective and position), one
 - Type `stop` (or `Stop!`, `halt`, `freeze`, `hold`, at most five words).
   The harness stops every run and halts the character before the model
   reads the message.
-- `/stop` does the same.
-- `F9` or `Ctrl+\` does the same from any screen, in PLAY too.
-- `Esc` aborts the model's turn. The harness then stops every run and
-  halts the character.
+- `/stop` does the same. `F9` or `Ctrl+\` does the same from any screen, in PLAY too.
+- After a stop the agent holds still: acting tools refuse with `stopped` until the next human message arrives, even when the world is still loading when the stop came. Read-only modes (look, journal, status, `group` status, `trade show`, pet status, talents show, dungeon status, `gear` read, `character` played, `calendar` list and read, `guild` status, permissions and log) stay allowed, and a reply with social stays allowed.
+- `Esc` aborts the model's turn. The harness then stops every run and halts the character.
 
 Other human text while the agent works goes to the agent at the next
 step. Action tools refuse with `human_waiting` until the agent answers the human

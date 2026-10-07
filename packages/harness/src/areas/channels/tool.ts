@@ -90,6 +90,7 @@ export const channelSpec: GameToolSpec<
   "channel",
   ChannelAfter
 > = {
+  allowStopped: (args) => ["list", "count", "owner"].includes(args.do),
   fallback: () => ({ channel: undefined, do: "list", player: undefined }),
   kind: "action",
   minimalArgs: { do: "list" },

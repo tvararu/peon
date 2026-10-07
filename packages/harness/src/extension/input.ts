@@ -39,6 +39,7 @@ export function humanStop(init: {
   via: Via;
   text: string;
 }): RunRecord[] {
+  init.rt.session.stopped = true;
   const stopped = stopAsHuman(init.rt, init.via);
   appendHuman(init.rt, {
     stoppedRuns: stopped.map((run) => run.id),
@@ -122,13 +123,15 @@ function onInput(rt: HarnessRuntime, event: InputEvent): InputEventResult {
   if (event.source === "extension") return { action: "continue" };
   if (rt.flags.stopReflex && isStopReflex(event.text))
     humanStop({ rt, text: event.text, via: "reflex" });
-  else
+  else {
+    rt.session.stopped = false;
     appendHuman(rt, {
       stoppedRuns: [],
       stopReflex: false,
       text: event.text,
       via: "input",
     });
+  }
   if (rt.session.agent !== "idle") {
     rt.session.humanWaiting = true;
     rt.session.humanTexts = [...rt.session.humanTexts, event.text];
