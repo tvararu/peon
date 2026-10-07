@@ -3,11 +3,15 @@ import type { RaidGroup } from "#wow/areas/raid/protocol";
 export type ReadyAnswer = "ready" | "not_ready" | "offline";
 
 export type ReadyCheck = {
+  id: number;
+  names: ReadonlyMap<bigint, string>;
+  silent: readonly string[] | undefined;
   initiator: bigint;
   startedAt: number;
   answers: ReadonlyMap<bigint, ReadyAnswer>;
   ownAnswer: ReadyAnswer | undefined;
   finishedAt: number | undefined;
+  seen: boolean;
 };
 
 export type ReadyEvent =
@@ -26,6 +30,7 @@ export type ReadyEvent =
       pending: number;
     };
 
+const ASSISTANT_FLAG = 0x01;
 const STATUS_ONLINE = 0x01;
 
 function nameOf(group: RaidGroup | undefined, guid: bigint): string {
@@ -34,6 +39,16 @@ function nameOf(group: RaidGroup | undefined, guid: bigint): string {
 
 export function isOnline(status: number): boolean {
   return (status & STATUS_ONLINE) !== 0;
+}
+
+export function seesAnswers(
+  group: RaidGroup | undefined,
+  selfGuid: bigint,
+): boolean {
+  if (group?.leader === selfGuid) return true;
+  const me = group?.members.find((member) => member.guid === selfGuid);
+  const flags = me ? me.flags : (group?.self.flags ?? 0);
+  return Math.floor(flags / ASSISTANT_FLAG) % 2 === 1;
 }
 
 export function pendingGuids(
@@ -79,6 +94,7 @@ function answerFor(ready: boolean, status: number): ReadyAnswer {
 
 export class ReadyStore {
   private check: ReadyCheck | undefined;
+  private lastId = 0;
 
   current(): ReadyCheck | undefined {
     return this.check;
@@ -88,12 +104,20 @@ export class ReadyStore {
     group: RaidGroup | undefined,
     initiator: bigint,
     now: number,
+    selfGuid: bigint,
   ): ReadyEvent {
+    this.lastId += 1;
     this.check = {
       answers: new Map(),
       finishedAt: undefined,
+      id: this.lastId,
       initiator,
+      names: new Map(
+        (group?.members ?? []).map((member) => [member.guid, member.name]),
+      ),
       ownAnswer: undefined,
+      seen: seesAnswers(group, selfGuid),
+      silent: undefined,
       startedAt: now,
     };
     return {
@@ -115,6 +139,7 @@ export class ReadyStore {
     this.check = {
       ...check,
       answers: new Map(check.answers).set(guid, answer),
+      names: new Map(check.names).set(guid, member.name),
     };
     return { answer, guid, name: member.name, type: "ready_check_answer" };
   }
@@ -128,8 +153,18 @@ export class ReadyStore {
   finish(group: RaidGroup | undefined, now: number): ReadyEvent | undefined {
     const check = this.check;
     if (!check || check.finishedAt !== undefined) return undefined;
-    this.check = { ...check, finishedAt: now };
+    const silent = pendingGuids(group, check).map((guid) =>
+      nameOf(group, guid),
+    );
+    this.check = { ...check, finishedAt: now, silent };
     return summary(group, this.check);
+  }
+
+  rankChanged(group: RaidGroup | undefined, selfGuid: bigint): void {
+    const check = this.check;
+    if (!check?.seen || check.finishedAt !== undefined) return;
+    if (seesAnswers(group, selfGuid)) return;
+    this.check = { ...check, seen: false };
   }
 
   clear(): void {

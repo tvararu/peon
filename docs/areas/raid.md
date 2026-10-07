@@ -50,7 +50,28 @@ empty answers and emits `ready_check_started`; a confirm records
 `ready`, `not_ready` or `offline` (state 0 for a member whose roster
 status is offline) and emits `ready_check_answer`; a finish stamps
 `finishedAt` and emits `ready_check_finished` with the ready count, the
-names not ready, the offline count and the pending count. Confirms with
+waits for that finish, which the server sends once every online member answered
+or after the runtime's own 30 s finish, and its `DONE` detail names who was
+ready, not ready, offline or silent; `group status` puts one line before the
+member rows naming the open check's waiting and answered members, or the last
+check's outcome. The server builds each answer as `MSG_RAID_READY_CHECK_CONFIRM`
+and sends it only to the leader and the assistants
+(`Handlers/GroupHandler.cpp:796-800`, `Groups/Group.cpp:1993-2006`), then
+broadcasts the `MSG_RAID_READY_CHECK_FINISHED` finish to the whole group
+(`Handlers/GroupHandler.cpp:810-814`), so an ordinary member
+never learns peers' answers: the outcome names those peers as unknown, not
+silent, hides the answers it never received from the open check's waiting and
+answered names, and still shows the member's own locally recorded answer. Each
+check carries an `id`, the member names seen while it ran
+(`names`), whether the member saw every answer (`seen`), and,
+once finished, the names that never answered (`silent`), so a
+later join or departure never changes a finished outcome. A check that was
+not seen throughout names its unanswered peers as unknown, not silent. The server accepts a
+start from any leader or assistant without looking for an open check
+(`Handlers/GroupHandler.cpp:783-787`, `MSG_RAID_READY_CHECK`), so a second
+start replaces the check; `group do=ready_check` then returns `UNCONFIRMED`
+with reason `superseded` instead of reporting the replacement's outcome.
+Confirms with
 no open check, from a guid outside the roster, or after the finish are
 ignored. Every act names another member: a name outside the roster throws
 `not in your party`, and the caller's own name throws too because the
@@ -62,6 +83,14 @@ their number (`result_<n>`, `operation_<n>`). The harness writes one
 when the change makes the receiving character the leader, `passive`
 otherwise, except `joined` and `left`, which the legacy `group/roster` row
 already says; `invite_blocked` writes one `log` row.
+
+The server routes each answer by the recipient's rank at the moment it
+arrives (`Groups/Group.cpp:1982-1989`), and the leader can change an
+assistant's rank mid-check (`Handlers/GroupHandler.cpp:709-725`). So `seen`
+starts true only for the leader or an assistant, with no exception for the
+initiator, and turns false when a roster update takes the rank away or gives
+it while the check is open, because a roster update never replays past
+answers. A finished check keeps its `seen`.
 
 The area also keeps `marks`, eight guids where `0` is an empty slot. A
 kind 0 `MSG_RAID_TARGET_UPDATE` sets one slot, clears the same target
