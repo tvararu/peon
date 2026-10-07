@@ -42,7 +42,7 @@ describe("acting-tool admission", () => {
     rt.session.humanWaiting = true;
     const refused = (await runTool(probe(said).definition(rt), {})).text;
     expect(refused).toContain("REFUSED human_waiting");
-    expect(refused).toContain("read the human's message");
+    expect(refused).toContain("reply to the human now in plain text");
     expect((await runTool(probe(said, "read").definition(rt), {})).text).toBe(
       "DONE said hi.",
     );
@@ -94,7 +94,7 @@ describe("acting-tool admission", () => {
       "Get back to your body. Don't use the spirit healer.",
     ];
     expect((await runTool(probe(said).definition(rt), {})).text).toBe(
-      "REFUSED human_waiting: the human wrote: \"Get back to your body. Don't use the spirit healer.\" Read it before you act.\nNext: end your turn and read the human's message.",
+      "REFUSED human_waiting: the human wrote: \"Get back to your body. Don't use the spirit healer.\" Answer it before you act.\nNext: reply to the human now in plain text, as an agent message and not a tool call such as social, then act.",
     );
     rt.session.humanTexts = ["x".repeat(300)];
     expect((await runTool(probe(said).definition(rt), {})).text).toContain(
@@ -102,7 +102,7 @@ describe("acting-tool admission", () => {
     );
     rt.session.humanTexts = ["rest first", "then  sell\nthe fangs"];
     expect((await runTool(probe(said).definition(rt), {})).text).toBe(
-      'REFUSED human_waiting: the human wrote 2 messages: "rest first", then "then sell the fangs" Read it before you act.\nNext: end your turn and read the human\'s message.',
+      'REFUSED human_waiting: the human wrote 2 messages: "rest first", then "then sell the fangs" Answer it before you act.\nNext: reply to the human now in plain text, as an agent message and not a tool call such as social, then act.',
     );
   });
 });
