@@ -24,6 +24,7 @@ type Report = ToolResult<RecoverAfter>;
 const HOWS = new Map<string, RecoverHow>([
   ["corpse", "corpse"],
   ["spirit_healer", "spirit_healer"],
+  ["spirit_guide", "spirit_guide"],
   ["accept", "accept"],
   ["self", "self"],
 ]);
@@ -82,6 +83,7 @@ function viaText(
   const { via } = op;
   if (via === "corpse") return aliveWhere(op.corpseYd, poseView(ctx));
   if (via === "spirit_healer") return `at the spirit healer${whereText(ctx)}`;
+  if (via === "spirit_guide") return `at the spirit guide${whereText(ctx)}`;
   if (via === "self") {
     const place = self.released
       ? `at ${Math.round(poseView(ctx)?.x ?? 0)}, ${Math.round(poseView(ctx)?.y ?? 0)}`
@@ -271,7 +273,12 @@ async function runRecover(
       next: askHuman("Am I dead? The game has not told me yet."),
       reason: "life_unknown",
     });
-  const how = HOWS.get(args.how ?? "corpse") ?? "corpse";
+  const fallback =
+    ctx.handle.battlegrounds.state().match.current !== undefined ||
+    ctx.handle.battlegrounds.state().match.spirit !== undefined
+      ? "spirit_guide"
+      : "corpse";
+  const how = HOWS.get(args.how ?? fallback) ?? "corpse";
   const run = ctx.rt.runs.start<Report>({
     args,
     kind: "recover",
