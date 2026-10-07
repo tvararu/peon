@@ -1,7 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import type { AreaEvent } from "@peon/core";
 import { areaDrafts, areaRuleSet } from "#harness/areas/rules";
-import { tradeHarness } from "#harness/areas/trade/area";
 import { noteHuman } from "#harness/events/dealings";
 import { testLookup, testRuleInput } from "#test-support/rule-fixtures";
 
