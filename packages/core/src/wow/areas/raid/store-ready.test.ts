@@ -257,4 +257,76 @@ describe("ready check store", () => {
       rig.dispose();
     }
   });
+
+  describe("rank changes during a check", () => {
+    function roster(counter: number, peonFlags: number) {
+      return raidGroupListBody({
+        counter,
+        leader: TOM,
+        members: [
+          { flags: peonFlags, guid: PEON, name: "Peon" },
+          { guid: TOM, name: "Tom" },
+          { guid: ANN, name: "Ann" },
+        ],
+        type: 0,
+      });
+    }
+
+    function rigAs(peonFlags: number) {
+      const rig = areaRig("raid", { selfGuid: PEON });
+      rig.inject(GameOpcode.SMSG_GROUP_LIST, roster(1, peonFlags));
+      return rig;
+    }
+
+    test("a demotion mid-check leaves later answers unheard", () => {
+      const rig = rigAs(1);
+      try {
+        start(rig);
+        expect(rig.handle.state().readyCheck?.seen).toBe(true);
+        rig.inject(GameOpcode.SMSG_GROUP_LIST, roster(2, 0));
+        expect(rig.handle.state().readyCheck?.seen).toBe(false);
+        rig.inject(GameOpcode.MSG_RAID_READY_CHECK_FINISHED, new Uint8Array(0));
+        const done = rig.handle.state().readyCheck;
+        expect(done?.seen).toBe(false);
+        expect(done?.silent).toEqual(["Peon", "Ann"]);
+      } finally {
+        rig.dispose();
+      }
+    });
+
+    test("a promotion mid-check does not make earlier answers seen", () => {
+      const rig = rigAs(0);
+      try {
+        start(rig);
+        rig.inject(GameOpcode.SMSG_GROUP_LIST, roster(2, 1));
+        rig.inject(GameOpcode.MSG_RAID_READY_CHECK_FINISHED, new Uint8Array(0));
+        expect(rig.handle.state().readyCheck?.seen).toBe(false);
+      } finally {
+        rig.dispose();
+      }
+    });
+
+    test("an assistant who keeps the rank hears the whole check", () => {
+      const rig = rigAs(1);
+      try {
+        start(rig);
+        rig.inject(GameOpcode.SMSG_GROUP_LIST, roster(2, 1));
+        rig.inject(GameOpcode.MSG_RAID_READY_CHECK_FINISHED, new Uint8Array(0));
+        expect(rig.handle.state().readyCheck?.seen).toBe(true);
+      } finally {
+        rig.dispose();
+      }
+    });
+
+    test("the initiator keeps seeing answers after a demotion", () => {
+      const rig = rigAs(1);
+      try {
+        start(rig, PEON);
+        rig.inject(GameOpcode.SMSG_GROUP_LIST, roster(2, 0));
+        expect(rig.handle.state().readyCheck?.seen).toBe(true);
+      } finally {
+        rig.dispose();
+      }
+    });
+  });
 });

@@ -224,7 +224,7 @@ describe("group tool", () => {
           initiator: TOM,
           names: new Map(),
           ownAnswer: "ready",
-          seen: true,
+          seen: false,
           silent: undefined,
           startedAt: 1,
         },

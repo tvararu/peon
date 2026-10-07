@@ -63,11 +63,10 @@ never learns peers' answers: the outcome names those peers as unknown, not
 silent, hides the answers it never received from the open check's waiting and
 answered names, and still shows the member's own locally recorded answer. Each
 check carries an `id`, the member names seen while it ran
-(`names`), whether the member saw answers when the check started (`seen`), and,
+(`names`), whether the member saw every answer (`seen`), and,
 once finished, the names that never answered (`silent`), so a
-later join, departure or promotion never changes a finished outcome. A later
-promotion sends a group roster update (`Groups/Group.cpp:1901`, `SMSG_GROUP_LIST`),
-not past confirmations. The server accepts a
+later join or departure never changes a finished outcome. A check that was
+not seen throughout names its unanswered peers as unknown, not silent. The server accepts a
 start from any leader or assistant without looking for an open check
 (`Handlers/GroupHandler.cpp:783-787`, `MSG_RAID_READY_CHECK`), so a second
 start replaces the check; `group do=ready_check` then returns `UNCONFIRMED`
@@ -84,6 +83,13 @@ their number (`result_<n>`, `operation_<n>`). The harness writes one
 when the change makes the receiving character the leader, `passive`
 otherwise, except `joined` and `left`, which the legacy `group/roster` row
 already says; `invite_blocked` writes one `log` row.
+
+The server routes each answer by the recipient's rank at the moment it
+arrives (`Groups/Group.cpp:1982-1989`), and the leader can change an
+assistant's rank mid-check (`Handlers/GroupHandler.cpp:709-725`). So `seen`
+starts true only for the initiator, the leader or an assistant, and turns
+false for good when a roster update takes the rank away or gives it after the
+start, because a roster update never replays past answers.
 
 The area also keeps `marks`, eight guids where `0` is an empty slot. A
 kind 0 `MSG_RAID_TARGET_UPDATE` sets one slot, clears the same target

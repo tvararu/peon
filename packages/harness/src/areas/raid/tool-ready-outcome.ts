@@ -1,10 +1,4 @@
-import {
-  type GroupCtx,
-  isAssistant,
-  isLeader,
-  type RaidGroup,
-  type RaidState,
-} from "#harness/areas/raid/tool-shared";
+import type { RaidGroup, RaidState } from "#harness/areas/raid/tool-shared";
 
 export type ReadyCheck = NonNullable<RaidState["readyCheck"]>;
 
@@ -17,27 +11,13 @@ function answeredNames(check: ReadyCheck, wanted: string): string[] {
     .filter((name) => name !== "");
 }
 
-export function seesAnswers(
-  group: RaidGroup,
-  check: ReadyCheck,
-  ctx: GroupCtx,
-): boolean {
-  if (check.finishedAt !== undefined) return check.seen;
-  const self = ctx.handle.getControlState().selfGuid;
-  if (check.initiator === self) return true;
-  return isLeader(group, ctx) || isAssistant(group, ctx);
-}
-
 type PeerView = {
   silent: string[];
   unknown: string[];
 };
 
-function peerView(
-  group: RaidGroup,
-  check: ReadyCheck,
-  seen: boolean,
-): PeerView {
+function peerView(group: RaidGroup, check: ReadyCheck): PeerView {
+  const seen = check.seen;
   const silent: string[] = [];
   const unknown: string[] = [];
   if (check.silent !== undefined) {
@@ -61,23 +41,11 @@ function ownAnswer(check: ReadyCheck): string | undefined {
   return "you: not ready";
 }
 
-export function silentNames(
-  group: RaidGroup,
-  check: ReadyCheck,
-  seen = true,
-): string[] {
-  return peerView(group, check, seen).silent;
-}
-
-export function readyOutcome(
-  group: RaidGroup,
-  check: ReadyCheck,
-  seen = true,
-): string {
+export function readyOutcome(group: RaidGroup, check: ReadyCheck): string {
   const ready = answeredNames(check, "ready");
   const notReady = answeredNames(check, "not_ready");
   const offline = answeredNames(check, "offline");
-  const { silent, unknown } = peerView(group, check, seen);
+  const { silent, unknown } = peerView(group, check);
   const own = ownAnswer(check);
   const parts = [
     `ready: ${ready.length === 0 && unknown.length === 0 ? "none" : ready.join(", ") || "unknown"}`,
@@ -91,14 +59,10 @@ export function readyOutcome(
   return parts.join("; ");
 }
 
-export function readyCheckLine(
-  group: RaidGroup,
-  check: ReadyCheck,
-  seen = true,
-): string {
+export function readyCheckLine(group: RaidGroup, check: ReadyCheck): string {
   if (check.finishedAt !== undefined)
-    return `Last ready check: ${readyOutcome(group, check, seen)}.`;
-  const peers = peerView(group, check, seen);
+    return `Last ready check: ${readyOutcome(group, check)}.`;
+  const peers = peerView(group, check);
   const waiting = [
     ...peers.silent,
     ...peers.unknown.map((name) => `${name} (unknown to you)`),
@@ -106,7 +70,7 @@ export function readyCheckLine(
   const bits = [
     `waiting on ${waiting.length === 0 ? "no one" : waiting.join(", ")}`,
   ];
-  if (seen) {
+  if (check.seen) {
     const heard = [...check.answers]
       .map(([guid]) => check.names.get(guid) ?? "")
       .filter((name) => name !== "");

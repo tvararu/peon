@@ -163,6 +163,12 @@ export class ReadyStore {
     return summary(group, this.check);
   }
 
+  rankChanged(group: RaidGroup | undefined, selfGuid: bigint): void {
+    const check = this.check;
+    if (!check?.seen || seesAnswers(group, check, selfGuid)) return;
+    this.check = { ...check, seen: false };
+  }
+
   clear(): void {
     this.check = undefined;
   }

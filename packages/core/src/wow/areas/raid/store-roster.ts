@@ -230,6 +230,7 @@ export class RaidStore {
     const before = this.group;
     if (before && before.groupGuid !== packet.groupGuid) this.markStore.clear();
     this.group = packet;
+    this.ready.rankChanged(packet, this.selfGuid());
     this.pruneStats(packet);
     const changes = flagChanges(before, packet);
     if (before && !sameLoot(before.loot, packet.loot))
