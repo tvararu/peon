@@ -25,6 +25,24 @@ export function besetStop(
     : cycleStop("attacker_unreachable", { ref: victim.guid });
 }
 
+export function stuckAttacker(
+  queue: readonly BesetRecord[],
+  attackers: readonly bigint[] | undefined,
+): CycleStop | undefined {
+  const guid = attackers?.find((candidate) => {
+    const tries = queue.filter(
+      (entry) => entry.guid === candidate && entry.status !== "queued",
+    );
+    return (
+      tries.length >= MAX_TRIES &&
+      !tries.some((entry) => entry.status === "done")
+    );
+  });
+  return guid === undefined
+    ? undefined
+    : cycleStop("attacker_unreachable", { ref: guid });
+}
+
 function unreachable(entry: BesetRecord): boolean {
   return entry.cause === UNREACHABLE || entry.outcome?.reason === UNREACHABLE;
 }
