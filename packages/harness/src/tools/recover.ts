@@ -274,10 +274,9 @@ async function runRecover(
       reason: "life_unknown",
     });
   const fallback =
-    ctx.handle.battlegrounds.state().match.current !== undefined ||
-    ctx.handle.battlegrounds.state().match.spirit !== undefined
-      ? "spirit_guide"
-      : "corpse";
+    ctx.handle.battlegrounds.state().match.current === undefined
+      ? "corpse"
+      : "spirit_guide";
   const how = HOWS.get(args.how ?? fallback) ?? "corpse";
   const run = ctx.rt.runs.start<Report>({
     args,

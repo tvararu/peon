@@ -28,6 +28,27 @@ function healerAt(distance: number) {
 }
 
 describe("recover", () => {
+  test("a stale spirit countdown without a match defaults to the corpse", async () => {
+    const t = await createTestRuntime();
+    setSelf(t.handle, { hp: 0, life: "ghost", maxHp: 217 });
+    jest.spyOn(t.handle.battlegrounds, "state").mockReturnValue({
+      match: {
+        current: undefined,
+        spirit: { guide: 0x0d00n, nextAt: 29_500 },
+      },
+    } as never);
+    let corpses = 0;
+    t.handle.recoverCorpse = async () => {
+      corpses += 1;
+      setSelf(t.handle, { hp: 108, life: "alive", maxHp: 217 });
+      return { detail: { legs: 3 }, ok: true, outcome: "reclaimed" };
+    };
+    const res = await recoverSpec.run({}, toolCtx<RecoverAfter>(t));
+    expect(contentOf(res)).toContain("DONE");
+    expect(corpses).toBe(1);
+    expect(res.after.via).toBe("corpse");
+  });
+
   test("corpse run: alive again at the corpse", async () => {
     const t = await createTestRuntime();
     setSelf(t.handle, { hp: 0, life: "ghost", maxHp: 217 });

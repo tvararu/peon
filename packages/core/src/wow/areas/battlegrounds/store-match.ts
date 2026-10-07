@@ -116,6 +116,7 @@ export class BattlegroundsMatchTracker {
     if (live !== undefined) {
       if (live.mapId === mapId) return;
       this.current = undefined;
+      this.spirit = undefined;
       this.emit({ mapId: live.mapId, type: "bg_left_match" });
       return;
     }
