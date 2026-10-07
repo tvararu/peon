@@ -312,7 +312,6 @@ async function admit<P extends TSchema, N extends ToolName, A>(
   const handle = rt.requireHandle();
   const acting = ACTING.has(spec.kind);
   const stopOk = spec.allowStopped?.(call.args) === true;
-  if (acting) admitAgent(rt, spec.name, stopOk);
   const ready = await rt.ready.whenReady(READY_WAIT_MS);
   if (acting) admitAgent(rt, spec.name, stopOk);
   if (!ready) {
