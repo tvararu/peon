@@ -15,6 +15,7 @@ import { combatlogHarness } from "#harness/areas/combatlog/area";
 import { complaintsHarness } from "#harness/areas/complaints/area";
 import { contactsHarness } from "#harness/areas/contacts/area";
 import { emotesHarness } from "#harness/areas/emotes/area";
+import { guardHarness } from "#harness/areas/guard/area";
 import { guildadminHarness } from "#harness/areas/guildadmin/area";
 import { guildbankHarness } from "#harness/areas/guildbank/area";
 import { inspectHarness } from "#harness/areas/inspect/area";
@@ -28,17 +29,20 @@ import { objectsHarness } from "#harness/areas/objects/area";
 import { petsHarness } from "#harness/areas/pets/area";
 import { questsHarness } from "#harness/areas/quests/area";
 import { raidHarness } from "#harness/areas/raid/area";
+import { referralHarness } from "#harness/areas/referral/area";
 import { reputationHarness } from "#harness/areas/reputation/area";
 import { selfstateHarness } from "#harness/areas/selfstate/area";
 import { spellsHarness } from "#harness/areas/spells/area";
 import { talentsHarness } from "#harness/areas/talents/area";
 import { threatHarness } from "#harness/areas/threat/area";
+import { ticketsHarness } from "#harness/areas/tickets/area";
 import { timeHarness } from "#harness/areas/time/area";
 import { tradeHarness } from "#harness/areas/trade/area";
 import { transportsHarness } from "#harness/areas/transports/area";
 import { travelHarness } from "#harness/areas/travel/area";
 import { unitmotionHarness } from "#harness/areas/unitmotion/area";
 import { vehiclesHarness } from "#harness/areas/vehicles/area";
+import { wintergraspHarness } from "#harness/areas/wintergrasp/area";
 
 export const HARNESS_AREAS = {
   account: accountHarness,
@@ -57,6 +61,7 @@ export const HARNESS_AREAS = {
   complaints: complaintsHarness,
   contacts: contactsHarness,
   emotes: emotesHarness,
+  guard: guardHarness,
   guildadmin: guildadminHarness,
   guildbank: guildbankHarness,
   inspect: inspectHarness,
@@ -70,17 +75,20 @@ export const HARNESS_AREAS = {
   pets: petsHarness,
   quests: questsHarness,
   raid: raidHarness,
+  referral: referralHarness,
   reputation: reputationHarness,
   selfstate: selfstateHarness,
   spells: spellsHarness,
   talents: talentsHarness,
   threat: threatHarness,
+  tickets: ticketsHarness,
   time: timeHarness,
   trade: tradeHarness,
   transports: transportsHarness,
   travel: travelHarness,
   unitmotion: unitmotionHarness,
   vehicles: vehiclesHarness,
+  wintergrasp: wintergraspHarness,
 };
 export const HARNESS_AREAS_TOTAL: [
   Exclude<AreaName, keyof typeof HARNESS_AREAS>,

@@ -1,9 +1,7 @@
 import { GameOpcode } from "#wow/protocol/opcodes";
 import type { OpcodeDispatch } from "#wow/protocol/world";
 
-export const STUBS: [opcode: number, label: string][] = [
-  [GameOpcode.SMSG_WARDEN_DATA, "Warden anti-cheat"],
-];
+export const STUBS: [opcode: number, label: string][] = [];
 
 export type StubNotice = { opcode: number; label: string; text: string };
 

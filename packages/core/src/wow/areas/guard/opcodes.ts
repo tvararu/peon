@@ -1,0 +1,23 @@
+import type { AreaOpcodes } from "#wow/areas/contract";
+
+export const GUARD_OPCODES = {
+  owns: [
+    "CMSG_WORLD_TELEPORT",
+    "CMSG_SET_FACTION_CHEAT",
+    "SMSG_WARDEN_DATA",
+    "CMSG_WARDEN_DATA",
+    "TC9_CMSG_PREPARE_FOR_REDIRECT",
+    "TC9_SMSG_READY_FOR_REDIRECT",
+    "CMSG_BOOTME",
+    "CMSG_DBLOOKUP",
+    "CMSG_TELEPORT_TO_UNIT",
+    "MSG_MOVE_TELEPORT_CHEAT",
+    "CMSG_MOVE_SET_RAW_POSITION",
+    "SMSG_KICK_REASON",
+    "SMSG_REDIRECT_CLIENT",
+  ],
+  uses: [],
+  stubs: [["SMSG_WARDEN_DATA", "Warden anti-cheat"]],
+  dead: [],
+  unseen: [],
+} as const satisfies AreaOpcodes;
