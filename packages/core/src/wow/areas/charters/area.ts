@@ -1,6 +1,6 @@
-import { parseTeamCommandResult } from "#wow/areas/arena/protocol";
 import { CHARTERS_OPCODES } from "#wow/areas/charters/opcodes";
 import {
+  parseArenaTeamError,
   parseDecline,
   parseQueryResponse,
   parseRename,
@@ -83,8 +83,8 @@ export const chartersArea = defineArea({
         store.receiveCommandResult(result.command, result.result);
     });
     wire.peek(GameOpcode.SMSG_ARENA_TEAM_COMMAND_RESULT, (reader) => {
-      const result = parseTeamCommandResult(reader);
-      if (result.error !== 0) store.receiveArenaCommandResult(result.error);
+      const error = parseArenaTeamError(reader);
+      if (error !== 0) store.receiveArenaCommandResult(error);
     });
     wire.peek(GameOpcode.SMSG_INVENTORY_CHANGE_FAILURE, (reader) => {
       const failure = parseInventoryChangeFailure(reader);

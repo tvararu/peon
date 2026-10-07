@@ -253,3 +253,10 @@ export function parseDecline(r: PacketReader): bigint {
 export function parseTurnInResult(r: PacketReader): number {
   return r.uint32LE();
 }
+
+export function parseArenaTeamError(r: PacketReader): number {
+  r.uint32LE();
+  r.cString();
+  r.cString();
+  return r.uint32LE();
+}
