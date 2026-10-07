@@ -79,32 +79,19 @@ through the realm service.
 `soap create ... --trace-create <dir>` also writes every packet of that
 create connection, bodies included, to `<dir>/packets.jsonl`.
 Only the death knight raises the new account to security 1 inside its own
-creation step, and demotes it to 0 with a confirmed `GMLevel: 0` readback
-from `account info` before staging; the other created presets never raise privileges. The
+creation step, confirming the raise with a `GMLevel: 1` readback from
+`account info` (resending the set until it reads back) and demoting it to 0
+with a confirmed `GMLevel: 0` readback before staging; the other created presets never raise privileges. The
 `eversong10-fishing` preset copies its template (honoring the same
 `soap.env` override) and then stages item 6256 plus one online login that
 learns 7733.
 
-`eversong55-deathknight` is selectable, but the realm refuses its create
-with `0x33` (`CHAR_CREATE_DISABLED`), so `soap create eversong55-deathknight`
-exits non-zero with `Character create: disabled (0x33)`, demotes the
-account and deletes it. Observed (trace not committed): a `--trace-create`
-`packets.jsonl`
-holds the outgoing `CMSG_CHAR_CREATE` (name, race 10, class 6, gender 0) and
-the incoming `SMSG_CHAR_CREATE` with body `33`; the same account type, race
-and path create a rogue and a warlock live. Source chain (AzerothCore
-`Handlers/CharacterHandler.cpp`): `CHAR_CREATE_DISABLED` is sent at lines 286,
-329 and 339 (the `CharacterCreating.Disabled*` masks) and at line 436 (the
-`CanAccountCreateCharacter` script hook). At security 1 the RBAC role 194
-skips the three mask checks, so only line 436 can answer `0x33`. The only
-hook in the deployed tree is `mod-individual-progression`
-(`IndividualProgressionPlayer.cpp:1326-1360`): it refuses a death knight
-while `IndividualProgression.DeathKnightUnlockProgression` (shipped default
-13) is non-zero and the account has not rewarded that progression quest;
-accounts matching `BotAccountsRegex` or `ExcludedAccountsRegex` pass. The
-deployed values of those settings are not observed (the worldserver config is
-not readable from the factory host); only the shipped defaults are cited. The
-death knight starts at 55 with no level stage if the realm ever accepts it.
+`soap create eversong55-deathknight` succeeds: the create connection sends
+`CMSG_CHAR_CREATE` (name, race 10, class 6, gender 0) at security 1, where
+RBAC role 194 holds permission 18
+(`SKIP_CHECK_CHARACTER_CREATION_DEATH_KNIGHT`), and the incoming
+`SMSG_CHAR_CREATE` carries body `2f`. The death knight starts at 55 with no
+level stage.
 
 Fishing proof (traces not committed): `soap create
 eversong10-fishing` gives a pole in the pack and spell 7620. After

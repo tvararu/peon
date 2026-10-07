@@ -168,6 +168,15 @@ grades the first self-resurrection from the game log: it is met when a
 between them. A later death, which the single Ankh cannot cover, does not
 unmeet it.
 
+`t4-spells-death-runes` runs on the `eversong55-deathknight` preset, a
+level-55 Blood Elf death knight created over the protocol at security 1.
+Its setup teaches Blood Tap (45529). The task asks for one cast; the
+`rune-converted` check is met when the game log holds a
+`spells/rune_converted` row with index 0, from 0 and to 3. The run also
+draws a second conversion when the aura fades. The `journal about:spells`
+rune lines name readiness only, so the check reads the wire event, not
+the journal.
+
 `t9-lfg-queue` keeps `queued` and `left` required and grades the wait on the rows the server sends in either case. An `lfg/queue` row that arrived before the answer is authoritative, with its reported wait matching the row's queuedTime: the proposal path calls LFGQueue::RemoveFromQueue with partial true (src/server/game/DungeonFinding/LFGQueue.cpp:469-471), which keeps the QueueDataStore entry (src/server/game/DungeonFinding/LFGQueue.cpp:50-84), so UpdateQueueTimers still sends the status for it (src/server/game/DungeonFinding/LFGQueue.cpp:478-576).
 
 The queued status the timers send through WorldSession::SendLfgQueueStatus is `SMSG_LFG_QUEUE_STATUS` (src/server/game/Handlers/LFGHandler.cpp:456-473). Only a run with no `lfg/queue` row before the answer falls back to an `lfg/queued` row followed within seconds by an `lfg/proposal` row, grounded in the join/proposal timing, which is 0 s.
@@ -238,7 +247,7 @@ two scenarios closest to it. Every scenario appears in at least one row.
 | Items and gear (`gear`, `journal` bags) | `t8-items-equip-upgrade`, `t8-items-unequip`, `t8-items-move`, `t8-items-split`, `t8-items-open`, `t8-items-read`, `t8-items-ammo`, `t8-items-socket` |
 | Game objects (`use`) | `t0-objects-read-shrine` |
 | Game objects (area triggers) | `t4-objects-explore-fargodeep` |
-| Spells (spell tool, stop on channels) | `t4-spells-cancel-aura`, `t4-spells-action-bar`, `t4-spells-stop-channel`, `t4-spells-unlearn-profession` |
+| Spells (spell tool, stop on channels) | `t4-spells-cancel-aura`, `t4-spells-action-bar`, `t4-spells-stop-channel`, `t4-spells-unlearn-profession`, `t4-spells-death-runes` |
 | Reputation and hostility (journal reputation, reputation rows, unit relations) | `t4-reputation-gain`, `t0-hostiles` |
 | Travel (`interact` bind, `travel` hearth and fly) | `t8-travel-bind-inn`, `t8-travel-hearth-home`, `t8-travel-fly` |
 | Pets (pet, interact stable) | `t8-pets-command`, `t8-pets-spells`, `t8-pets-rename`, `t8-pets-abandon`, `t8-pets-stable`, `t8-pets-talent` |
