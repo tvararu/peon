@@ -1,10 +1,11 @@
 import type { SpellDefinition } from "@peon/core";
 import type { TravelAfter } from "#harness/contract/details";
-import type { ToolResult } from "#harness/contract/result";
 import type { ToolCtx } from "#harness/contract/services";
 import { distanceTo } from "#harness/ops/range";
+import { Refusal } from "#harness/ops/refusal";
 import { poseView } from "#harness/ops/views";
 import { nextCall } from "#harness/tools/next-call";
+import type { TravelArgs } from "#harness/tools/params-travel";
 import type { Goal } from "#harness/tools/travel-report";
 
 export const MOUNT_HINT_YD = 100;
@@ -59,24 +60,28 @@ function distanceOf(ctx: ToolCtx<TravelAfter>, goal: Goal): number | undefined {
   return Math.hypot(pose.x - goal.x, pose.y - goal.y);
 }
 
-export async function mountHint(
-  ctx: ToolCtx<TravelAfter>,
-  goal: Goal,
-): Promise<string | undefined> {
-  if (ctx.handle.selfstate.state().mounted) return undefined;
+function isLongOutdoorWalk(ctx: ToolCtx<TravelAfter>, goal: Goal): boolean {
+  if (ctx.handle.selfstate.state().mounted) return false;
   const pose = poseView(ctx);
-  if (!(pose && OPEN_WORLD_MAPS.includes(pose.mapId))) return undefined;
+  if (!(pose && OPEN_WORLD_MAPS.includes(pose.mapId))) return false;
   const distance = distanceOf(ctx, goal);
-  if (distance === undefined || distance <= MOUNT_HINT_YD) return undefined;
-  const spell = await bestGroundMount(ctx);
-  if (!spell) return undefined;
-  return `a ground mount is ready: ${nextCall("spell", { do: "mount", spell: spell.name })}.`;
+  return distance !== undefined && distance > MOUNT_HINT_YD;
 }
 
-export function withMountHint(
-  report: ToolResult<TravelAfter>,
-  hint: string | undefined,
-): ToolResult<TravelAfter> {
-  if (hint === undefined) return report;
-  return { ...report, body: [hint, ...report.body] };
+export function mountRefusal(
+  ctx: ToolCtx<TravelAfter>,
+  goal: Goal,
+  args: TravelArgs,
+): Promise<Refusal | undefined> | undefined {
+  if (args.on_foot || !isLongOutdoorWalk(ctx, goal)) return undefined;
+  return bestGroundMount(ctx).then(
+    (spell) =>
+      spell &&
+      new Refusal({
+        detail: `a ground mount is ready and this walk is long; ${nextCall("travel", { on_foot: true, to: args.to })} walks it on foot.`,
+        next: nextCall("spell", { do: "mount", spell: spell.name }),
+        reason: "mount_available",
+      }),
+    () => undefined,
+  );
 }

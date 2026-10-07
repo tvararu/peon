@@ -1,8 +1,8 @@
 import { describe, expect, jest, test } from "bun:test";
 import type { SpellDefinition } from "@peon/core";
-import { flushMicrotasks } from "@peon/core/test-support/microtasks";
 import type { TravelAfter } from "#harness/contract/details";
 import { createRefTable } from "#harness/ops/refs";
+import { Refusal } from "#harness/ops/refusal";
 import { travelSpec } from "#harness/tools/travel";
 import { MOUNT_HINT_YD } from "#harness/tools/travel-mount";
 import {
@@ -102,104 +102,83 @@ async function world(init: Init = {}): Promise<TestRuntime> {
 
 async function travelText(t: TestRuntime, to: string) {
   const res = await travelSpec.run({ to }, toolCtx<TravelAfter>(t));
-  return (res.body ?? []).join("\n");
+  return (res.body ?? []).join("\n") + (res.detail ?? "");
 }
 
-describe("travel mount hint", () => {
-  test("a long outdoor unit walk on foot names the mount call", async () => {
+async function offer(t: TestRuntime, to: string, onFoot = false) {
+  const refused = await travelSpec
+    .run({ on_foot: onFoot, to }, toolCtx<TravelAfter>(t))
+    .then(() => undefined)
+    .catch((error: unknown) => error);
+  return refused instanceof Refusal ? refused : undefined;
+}
+
+describe("travel mount offer", () => {
+  test("a long outdoor unit walk is refused with the mount call", async () => {
     const t = await world();
-    expect(await travelText(t, "Far Innkeeper")).toContain(
-      'spell(do: "mount", spell: "Brown Horse")',
-    );
+    const refusal = await offer(t, "Far Innkeeper");
+    expect(refusal?.reason).toBe("mount_available");
+    expect(refusal?.next).toBe('spell(do: "mount", spell: "Brown Horse")');
   });
 
-  test("a long outdoor point walk names the mount call", async () => {
+  test("a long outdoor point walk is refused with the mount call", async () => {
     const t = await world();
-    expect(await travelText(t, `${MOUNT_HINT_YD + 50} yd north`)).toContain(
-      'spell(do: "mount"',
-    );
+    const refusal = await offer(t, `${MOUNT_HINT_YD + 50} yd north`);
+    expect(refusal?.next).toContain('spell(do: "mount"');
   });
 
-  test("a short walk, exactly the threshold, gets no hint", async () => {
+  test("on_foot walks the long route instead of refusing", async () => {
+    const t = await world();
+    expect(await offer(t, "Far Innkeeper", true)).toBeUndefined();
+    expect(await offer(t, "Far Innkeeper")).toBeDefined();
+  });
+
+  test("the refusal moves nothing and starts no run", async () => {
+    const t = await world();
+    const before = t.handle.getControlState().pose;
+    await offer(t, "Far Innkeeper");
+    expect(t.handle.getControlState().pose).toEqual(before);
+    expect(t.rt.runs.active()).toBeUndefined();
+  });
+
+  test("a short walk, exactly the threshold, is not refused", async () => {
     const t = await world({ distance: MOUNT_HINT_YD });
-    expect(await travelText(t, "Far Innkeeper")).not.toContain("mount");
+    expect(await offer(t, "Far Innkeeper")).toBeUndefined();
     const far = await world({ distance: MOUNT_HINT_YD + 1 });
-    expect(await travelText(far, "Far Innkeeper")).toContain("mount");
+    expect(await offer(far, "Far Innkeeper")).toBeDefined();
   });
 
   test("a route on an instance map gets no hint", async () => {
     const t = await world({ mapId: 36 });
-    expect(await travelText(t, "Far Innkeeper")).not.toContain("mount");
+    expect(await offer(t, "Far Innkeeper")).toBeUndefined();
   });
 
   test("a route on each continent map gets the hint", async () => {
     for (const mapId of [0, 1, 530, 571]) {
       const t = await world({ mapId });
-      expect(await travelText(t, "Far Innkeeper")).toContain("mount");
+      expect(await offer(t, "Far Innkeeper")).toBeDefined();
     }
   });
 
-  test("a failing spellbook lookup while the walk runs leaks no rejection", async () => {
-    const unhandled: unknown[] = [];
-    const listener = (reason: unknown) => unhandled.push(reason);
-    process.on("unhandledRejection", listener);
-    try {
-      const t = await world({ spellbookFailure: "missing Spell.dbc" });
-      driveGoto(t.handle, [{ hold: true }]);
-      const pending = travelSpec.run(
-        { to: "Far Innkeeper" },
-        toolCtx<TravelAfter>(t),
-      );
-      await flushMicrotasks();
-      expect(unhandled).toEqual([]);
-      t.rt.yields.trigger();
-      const res = await pending;
-      expect((res.body ?? []).join("\n")).not.toContain("mount");
-      const id = res.runId ?? "";
-      t.rt.runs.cancel(id, "tool");
-    } finally {
-      process.off("unhandledRejection", listener);
-    }
-  });
-
-  test("a refused run start still settles the failing lookup", async () => {
-    const unhandled: unknown[] = [];
-    const listener = (reason: unknown) => unhandled.push(reason);
-    process.on("unhandledRejection", listener);
-    try {
-      const t = await world({ spellbookFailure: "missing Spell.dbc" });
-      driveGoto(t.handle, [{ hold: true }]);
-      const started = t.rt.runs.start({
-        args: {},
-        kind: "travel",
-        launch: () => new Promise<never>(() => {}),
-        toolCallId: "call-busy",
-      });
-      t.rt.runs.release(started.id);
-      await expect(
-        travelSpec.run({ to: "Far Innkeeper" }, toolCtx<TravelAfter>(t)),
-      ).rejects.toMatchObject({ reason: "busy" });
-      await flushMicrotasks();
-      expect(unhandled).toEqual([]);
-      t.rt.runs.cancel(started.id, "tool");
-    } finally {
-      process.off("unhandledRejection", listener);
-    }
-  });
-
-  test("a mounted character gets no hint", async () => {
-    const t = await world({ mounted: true });
+  test("a failing spellbook lookup does not block the walk", async () => {
+    const t = await world({ spellbookFailure: "missing Spell.dbc" });
+    expect(await offer(t, "Far Innkeeper")).toBeUndefined();
     expect(await travelText(t, "Far Innkeeper")).not.toContain("mount");
   });
 
-  test("no mount spell, an unlearned one, or only a flying one gets no hint", async () => {
+  test("a mounted character is not refused", async () => {
+    const t = await world({ mounted: true });
+    expect(await offer(t, "Far Innkeeper")).toBeUndefined();
+  });
+
+  test("no mount spell, an unlearned one, or only a flying one is not refused", async () => {
     for (const init of [
       { book: [FIREBALL] },
       { book: [HORSE, FIREBALL], learned: [133] },
       { book: [GRYPHON, FIREBALL] },
     ]) {
       const t = await world(init);
-      expect(await travelText(t, "Far Innkeeper")).not.toContain("mount");
+      expect(await offer(t, "Far Innkeeper")).toBeUndefined();
     }
   });
 });

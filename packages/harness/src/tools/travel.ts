@@ -38,7 +38,7 @@ import {
   YARDS,
 } from "#harness/tools/travel-goal";
 import { hearthWork } from "#harness/tools/travel-hearth";
-import { mountHint, withMountHint } from "#harness/tools/travel-mount";
+import { mountRefusal } from "#harness/tools/travel-mount";
 import { noteTravel, noteUnstick } from "#harness/tools/travel-recovery";
 import {
   exploreReport,
@@ -416,25 +416,18 @@ function refuseUnderAttack(ctx: ToolCtx<TravelAfter>): void {
   });
 }
 
-function startHint(
-  ctx: ToolCtx<TravelAfter>,
-  goal: Goal,
-): Promise<string | undefined> {
-  return (
-    goal.kind === "unit" || goal.kind === "point"
-      ? mountHint(ctx, goal)
-      : Promise.resolve(undefined)
-  ).catch(() => undefined);
-}
-
 async function runTravel(
   args: TravelArgs,
   ctx: ToolCtx<TravelAfter>,
 ): Promise<Report> {
   const goal = parseGoal(ctx, args.to);
   refuseUnderAttack(ctx);
+  if (goal.kind === "unit" || goal.kind === "point") {
+    const pending = mountRefusal(ctx, goal, args);
+    const refusal = pending && (await pending);
+    if (refusal) throw refusal;
+  }
   noteTravel(ctx, args.to);
-  const hintPromise = startHint(ctx, goal);
   if (goal.kind === "corpse" && selfView(ctx).life === "alive")
     throw new Refusal({
       detail: "you are alive; there is no corpse to reach.",
@@ -477,13 +470,8 @@ async function runTravel(
   });
   runId = run.id;
   const waited = await awaitRun({ rt: ctx.rt, run });
-  const hint = await hintPromise;
-  if (waited.kind === "ended")
-    return withMountHint({ ...waited.end.value, runId }, hint);
-  return withMountHint(
-    yieldTravel({ ctx, goal, held, latest, runId, waited }),
-    hint,
-  );
+  if (waited.kind === "ended") return { ...waited.end.value, runId };
+  return yieldTravel({ ctx, goal, held, latest, runId, waited });
 }
 
 export const travelSpec: GameToolSpec<
