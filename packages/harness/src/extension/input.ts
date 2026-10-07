@@ -63,13 +63,13 @@ export function installInput(pi: ExtensionAPI, rt: HarnessRuntime): void {
   pi.on("message_start", (event) => {
     if (!session.humanWaiting) return;
     const text = userText(event.message);
-    if (text === undefined || !session.humanTexts.includes(text)) return;
-    const delivered = session.deliveredTexts.filter(
-      (seen) => seen === text,
-    ).length;
-    const pending = session.humanTexts.filter((seen) => seen === text).length;
-    if (delivered >= pending) return;
-    session.deliveredTexts = [...session.deliveredTexts, text];
+    if (text === undefined) return;
+    if (session.humanTexts.includes(text)) armDelivered(rt, text);
+    for (const entry of session.humanTexts) {
+      if (entry === text || entry.length === 0 || !text.includes(entry))
+        continue;
+      armDelivered(rt, entry);
+    }
   });
   pi.on("tool_execution_start", (event) => {
     Object.assign(session, {
@@ -161,12 +161,33 @@ function userText(message: AgentMessage): string | undefined {
   return text.length === 0 ? undefined : text;
 }
 
+function armDelivered(rt: HarnessRuntime, text: string): void {
+  const { session } = rt;
+  const delivered = session.deliveredTexts.filter(
+    (seen) => seen === text,
+  ).length;
+  const pending = session.humanTexts.filter((seen) => seen === text).length;
+  if (delivered >= pending) return;
+  session.deliveredTexts = [...session.deliveredTexts, text];
+}
+
 function noteAssistant(rt: HarnessRuntime, message: AgentMessage): void {
   if (!("role" in message) || message.role !== "assistant") return;
   const text = message.content
     .flatMap((part) => (part.type === "text" ? [part.text] : []))
     .join("");
+  if (hasToolCall(message)) {
+    rt.log.append({
+      class: "log",
+      data: { text },
+      domain: "agent",
+      event: "agent/message",
+      text,
+    });
+    return;
+  }
   if (text.trim().length === 0) return;
+  if (failedAssistant(message)) return;
   if (rt.session.deliveredTexts.length > 0) {
     const outstanding = [...rt.session.deliveredTexts];
     rt.session.humanTexts = rt.session.humanTexts.filter((item) => {
@@ -188,3 +209,14 @@ function noteAssistant(rt: HarnessRuntime, message: AgentMessage): void {
     text,
   });
 }
+
+function hasToolCall(message: AgentMessage): boolean {
+  if (!("role" in message) || message.role !== "assistant") return false;
+  return message.content.some((part) => part.type === "toolCall");
+}
+
+function failedAssistant(message: AgentMessage): boolean {
+  if (!("role" in message) || message.role !== "assistant") return false;
+  return message.stopReason === "error" || message.stopReason === "aborted";
+}
+

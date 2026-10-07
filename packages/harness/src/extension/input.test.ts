@@ -135,8 +135,13 @@ describe("installInput", () => {
       message: { content: [], role: "assistant" },
       type: "message_start",
     };
-    const said = (text: string) => ({
-      message: { content: [{ text, type: "text" }], role: "assistant" },
+    const said = (text: string, extra: Record<string, unknown> = {}) => ({
+      message: {
+        content: [{ text, type: "text" }],
+        role: "assistant",
+        stopReason: "stop",
+        ...extra,
+      },
       type: "message_end",
     });
     const call = (toolName: string, type: string) => ({
@@ -225,6 +230,53 @@ describe("installInput", () => {
       expect(() => admitAgent(rt, "engage")).toThrow("human_waiting");
       await fake.emit(started);
       await fake.emit(said("I have 80% health."));
+      expect(() => admitAgent(rt, "engage")).not.toThrow();
+    });
+
+    test("a text preamble before a tool call keeps the gate until the answer", async () => {
+      const { fake, rt } = await pending();
+      await fake.emit(delivered("how much health do you have?"));
+      await fake.emit(started);
+      await fake.emit({
+        message: {
+          content: [
+            { text: "Let me check your health and mana.", type: "text" },
+            {
+              arguments: {},
+              id: "c1",
+              name: "look",
+              type: "toolCall",
+            },
+          ],
+          role: "assistant",
+          stopReason: "toolUse",
+        },
+        type: "message_end",
+      });
+      expect(rt.session.humanWaiting).toBe(true);
+      expect(() => admitAgent(rt, "engage")).toThrow("human_waiting");
+    });
+
+    test("a failed assistant response keeps the gate", async () => {
+      const { fake, rt } = await pending();
+      await fake.emit(delivered("how much health do you have?"));
+      await fake.emit(started);
+      await fake.emit(said("Your health is", { stopReason: "error" }));
+      expect(rt.session.humanWaiting).toBe(true);
+      expect(() => admitAgent(rt, "engage")).toThrow("human_waiting");
+      await fake.emit(said("I have 80% health and 40% mana."));
+      expect(() => admitAgent(rt, "engage")).not.toThrow();
+    });
+
+    test("an Esc-joined resubmission arms every queued question", async () => {
+      const { fake, rt } = await pending();
+      await fake.emit(human("and your mana?"));
+      await fake.emit(
+        delivered("how much health do you have?\n\nand your mana?"),
+      );
+      await fake.emit(started);
+      await fake.emit(said("Health 80%, mana 40%."));
+      expect(rt.session).toMatchObject({ humanTexts: [], humanWaiting: false });
       expect(() => admitAgent(rt, "engage")).not.toThrow();
     });
 
