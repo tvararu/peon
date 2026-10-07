@@ -1,3 +1,4 @@
+import { describe, expect, jest, test } from "bun:test";
 import { ChatType, ObjectType, type UnitEntity } from "@peon/core";
 import { dungeonTool } from "#harness/areas/instances/tool";
 import { gearTool } from "#harness/areas/items/tool";
