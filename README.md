@@ -121,8 +121,9 @@ truth. See [docs/evals.md](docs/evals.md).
 - **Capabilities,** each proven by a scenario in
 [docs/capabilities.md](docs/capabilities.md):
   - questing from level 1 to level 5, walking with Namigator navigation,
-  Jev-chosen fights and movement, and Jev steering past hostile camps
-  without drawing aggro;
+  Jev-chosen fights and movement, Jev steering past hostile camps
+  without drawing aggro, and Jev kiting a melee creature on pilot moves
+  (`engage` with `kite: true`);
   - items, bags, the bank, mail, vendors and trades;
   - talents and glyphs, pets, vehicles, flight paths and zeppelins;
   - raids: convert, subgroups, ready checks and marks.

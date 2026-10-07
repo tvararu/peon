@@ -208,6 +208,9 @@ streams its progress. When the human types, when chat wakes the agent,
 or after 120 seconds, the tool returns `RUNNING`, the run continues,
 and a `[game]` message tells the agent when it ends.
 
+`engage` takes `kite: true` for a ranged character that should keep its
+distance; see [Fight moves](#fight-moves).
+
 `UNCONFIRMED` means the game did not answer in time, so the action may or
 may not have happened. It never permits a blind resend: a quest accept or
 turn-in, a buy or sale, a chat line or a group action that goes
@@ -294,6 +297,41 @@ the decisions taken, the jumps, the yards walked and the final distance.
 The game log records `pilot/started` (objective and position), one
 `pilot/decision` per applied option (call, action, position, airborne) and
 `pilot/ended` (status, reason, decisions, jumps and yards walked).
+
+## Fight moves
+
+`engage` offers Jev the pilot's moves in a fight (`run_ahead`, the veers,
+the turns, the strafes, `back_up` and `stop`) beside the spells; the blind
+forward, back and strafe moves with no collision check are gone. Each move
+faces its heading and drives it under the pilot's 1.5 s dead-man lease, so
+the character stops 1.5 s after the last decision.
+The options come from the pilot's collision and ground data, so a wall, a
+drop or a low obstacle removes the option, and an option names its free
+distance. The goal of the options is the target: each heading is described
+by how it changes the distance to it.
+
+The fight frame carries a `melee` field. `gapYd` is the distance to the
+target minus its melee reach (5 yd), negative inside the reach and `null`
+when a position is unobserved. `closing` is `closing`, `opening` or
+`holding` against the previous frame, or `unknown` without one. `snares`
+lists the names of the slows and roots the character's own auras put on the
+target, as observed. The `danger` line names the units in view and says
+whether the way to the target enters an inferred aggro range.
+
+Danger counts every creature that attacks first, whatever the frame lists
+(the frame keeps its five). The fight's own target and every creature that
+attacks the character add no range, because the fight already accepts
+them. Gray creatures add none either, as in the pilot.
+
+`engage` with `kite: true` tells Jev to keep the target outside its melee
+reach: slow it, back away and cast at range. Jev decides each move; code
+only removes the options that the ground or a range forbids. Without
+`kite`, a fight keeps the same moves and the same frame.
+
+Every melee swing at the character, hit or miss, is a `combatlog/swing_in`
+row: the attacker, the outcome (`hits` when the log gives none) and the
+amount. Rows from the character itself and from unknown sources are not
+logged.
 
 ## Stopping the agent
 

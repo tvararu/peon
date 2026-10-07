@@ -159,6 +159,17 @@ few milliseconds later, so each match allows an applied stamp up to
 `packets.jsonl` or `jev.jsonl` input, or a missing `pilot/ended` row
 leaves the measure unmet with a `reason`.
 
+`pilot_kite` is met when a kill credit exists for the scenario's target
+creature, zero `combatlog/swing_in` rows aimed at the character occur
+between the first `engage` call and the kill, and the character is alive at
+the end. It also reports `endHealthPct` and `movesAway`: the number of the
+character's server-recorded moves during the fight that increase distance
+from the target. `t3-pilot-kite` puts a level 10 mage by a lone Springpaw
+Stalker east of Fairbreeze Village in Eversong Woods, and
+`t3-pilot-kite-holdout` puts the same mage by a lone Elder Mottled Boar
+(entry 3100, levels 8-9) in Durotar; the bar is 3/3 on training and at
+least 2/3 held-out.
+
 `t6-selfstate-res` runs on the `eversong1-shaman` preset, a level-1 Orc
 shaman. Its setup teaches Reincarnation (20608) and adds one Ankh
 (17030), because the server only keeps a stored Reincarnation row for a
@@ -229,7 +240,7 @@ two scenarios closest to it. Every scenario appears in at least one row.
 |---|---|
 | Navigation and movement (`travel`, routes, namigator) | `t1-walk-to-npc` |
 | Combat and Jev (`engage`, spells) | `t3-ghostlands-kill`, `t7-halt-resume` |
-| Jev pilot (`pilot`, Jev-driven movement; the `-holdout` scenarios are the held-out split for hill-climbing; `-travel` and `-greedy` are the baselines, with `travel` and with the deterministic chooser) | `t3-pilot-circle`, `t3-pilot-detour`, `t3-pilot-fence`, `t3-pilot-circle-holdout`, `t3-pilot-detour-holdout`, `t3-pilot-fence-holdout`, `t3-pilot-camp`, `t3-pilot-camp-holdout`, `t3-pilot-camp-travel`, `t3-pilot-camp-holdout-travel`, `t3-pilot-camp-greedy`, `t3-pilot-camp-holdout-greedy` |
+| Jev pilot (`pilot`, Jev-driven movement; the `-holdout` scenarios are the held-out split for hill-climbing; `-travel` and `-greedy` are the baselines, with `travel` and with the deterministic chooser) | `t3-pilot-circle`, `t3-pilot-detour`, `t3-pilot-fence`, `t3-pilot-circle-holdout`, `t3-pilot-detour-holdout`, `t3-pilot-fence-holdout`, `t3-pilot-camp`, `t3-pilot-camp-holdout`, `t3-pilot-camp-travel`, `t3-pilot-camp-holdout-travel`, `t3-pilot-camp-greedy`, `t3-pilot-camp-holdout-greedy`, `t3-pilot-kite`, `t3-pilot-kite-holdout` |
 | Quest marks, objective regions, greetings and sharing (look, journal, interact, group) | `t4-quests-find-giver`, `t4-quests-poi-walk`, `t1-quests-read-greeting`, `t1-quests-guard-directions`, `t8-quests-share`, `t8-quests-accept-shared` |
  | Quests (`interact` quest dialogs, quest log, rewards) | `t4-quest-first`, `t4-alliance-first`, `t4-quests-level-five` |
 | Vendors and money | `t5-vendor-buy-goldshire` |
