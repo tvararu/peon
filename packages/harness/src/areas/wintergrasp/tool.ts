@@ -96,24 +96,23 @@ async function runAcceptDecline(
   });
 }
 
-function runLeave(ctx: WintergraspCtx): Promise<ToolResult<WintergraspAfter>> {
+async function runLeave(ctx: WintergraspCtx): Promise<ToolResult<WintergraspAfter>> {
   const state = ctx.handle.wintergrasp.state();
-  if (state.phase === "at_war") return runLeaveWar(ctx);
+  if (state.phase === "at_war") return await runLeaveWar(ctx);
   if (state.phase !== "queue_offered" && state.phase !== "entry_offered")
     throw winterRefusal(
       "no_offer",
       "No Wintergrasp queue to leave.",
       "wait for the wintergrasp invitation.",
     );
-  return ctx.rt.mutex
-    .run(() => ctx.handle.wintergrasp.act.exitQueue())
-    .then((answer) =>
-      result(answer.status === "no_reply" ? "REFUSED" : "DONE", {
-        after: emptyWinter("leave"),
-        detail: answerDetail(answer),
-        reason: answer.status === "no_reply" ? "no_reply" : undefined,
-      }),
-    );
+  const answer = await ctx.rt.mutex.run(() =>
+    ctx.handle.wintergrasp.act.exitQueue(),
+  );
+  return result(answer.status === "no_reply" ? "REFUSED" : "DONE", {
+    after: emptyWinter("leave"),
+    detail: answerDetail(answer),
+    reason: answer.status === "no_reply" ? "no_reply" : undefined,
+  });
 }
 
 async function runLeaveWar(
