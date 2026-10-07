@@ -15,6 +15,7 @@ import {
   aggroRadiusYd,
   buildPilotUnits,
   dangerAlong,
+  dangerUnits,
   type PilotUnit,
   rayEntryYd,
   unitLine,
@@ -294,5 +295,25 @@ describe("unit line", () => {
     expect(line).toContain("Kobold Vermin, level 8");
     expect(line).toContain("(observed)");
     expect(line).toContain("Inferred aggro range 18 yd");
+  });
+});
+
+describe("danger ranges", () => {
+  test("danger considers units past the frame limit", () => {
+    const rows = [selfRow()];
+    for (let i = 0; i < 7; i += 1) rows.push(mob(BigInt(10 + i), 12, i));
+    const poseNow = pose();
+    const listed = buildPilotUnits(rows, poseNow);
+    expect(listed).toHaveLength(5);
+    const danger = dangerUnits(rows, poseNow);
+    expect(danger).toHaveLength(7);
+    const circles = aggroCircles(danger);
+    expect(dangerAlong({ x: 0, y: 0 }, 0, circles, 10)).toBeDefined();
+  });
+
+  test("danger skips units the caller excludes", () => {
+    const rows = [selfRow(), mob(2n, 12, 0), mob(3n, 0, 12)];
+    const danger = dangerUnits(rows, pose(), () => true, (unit) => unit.guid === 2n);
+    expect(danger.map((unit) => unit.guid)).toEqual([3n]);
   });
 });

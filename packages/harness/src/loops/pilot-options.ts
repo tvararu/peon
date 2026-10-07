@@ -14,7 +14,7 @@ import {
   relativeDeg,
   scanHeading,
 } from "#harness/loops/pilot-geometry";
-import type { PilotObjective } from "#harness/loops/pilot-types";
+import type { OptionGoal } from "#harness/loops/pilot-types";
 import {
   type AggroCircle,
   type DangerHit,
@@ -104,10 +104,11 @@ export function cachedScan(cache: ScanCache, heading: number): PilotScan {
 
 export type OptionBuild = {
   ground: GroundOracle | undefined;
-  objective: PilotObjective;
+  objective: OptionGoal;
   pose: PilotPose;
   cache?: ScanCache;
   circles?: readonly AggroCircle[];
+  jump?: boolean;
 };
 
 export function buildOptions({
@@ -116,12 +117,16 @@ export function buildOptions({
   pose,
   cache,
   circles = [],
+  jump = true,
 }: OptionBuild): PilotOption[] {
   if (pose.airborne) return [];
   const scans = cache ?? scanCache(ground, pose);
   const ahead = cachedScan(scans, pose.orientation);
   const canJump = jumpOffered(ground, pose, ahead);
-  return PILOT_OPTION_IDS.flatMap((id) => {
+  const offered = jump
+    ? PILOT_OPTION_IDS
+    : PILOT_OPTION_IDS.filter((id) => id !== "jump_ahead");
+  return offered.flatMap((id) => {
     if (id === "stop")
       return [
         {
@@ -151,7 +156,7 @@ type MoveBuild = {
   ahead: PilotScan;
   canJump: boolean;
   circles: readonly AggroCircle[];
-  objective: PilotObjective;
+  objective: OptionGoal;
   pose: PilotPose;
   scans: ScanCache;
 };
@@ -240,7 +245,7 @@ function joinLine(base: string, hazard: DangerHit | undefined): string {
 
 type OptionTextInput = {
   id: Exclude<PilotOptionId, "stop">;
-  objective: PilotObjective;
+  objective: OptionGoal;
   pose: PilotPose;
   scan: PilotScan;
   ahead: PilotScan;
@@ -295,15 +300,20 @@ function hazardWithinRange(
     : undefined;
 }
 
-function stopText(objective: PilotObjective, pose: PilotPose): string {
+function stopText(objective: OptionGoal, pose: PilotPose): string {
   return `Stop and stand still; ${goalAfterTurn(objective, pose, pose.orientation)}.`;
 }
 
 function goalAfterTurn(
-  objective: PilotObjective,
+  objective: OptionGoal,
   pose: PilotPose,
   facing: number,
 ): string {
+  if (objective.kind === "foe") {
+    const distance = Math.round(distance2d(pose, objective) * 10) / 10;
+    const bearing = Math.atan2(objective.y - pose.y, objective.x - pose.x);
+    return `the target would be ${distance} yd ${goalBearingText(relativeDeg(bearing, facing))}`;
+  }
   if (objective.kind === "reach") {
     const distance = Math.round(distance2d(pose, objective) * 10) / 10;
     const bearing = Math.atan2(objective.y - pose.y, objective.x - pose.x);
@@ -315,12 +325,14 @@ function goalAfterTurn(
 }
 
 export function goalDegAfterTurn(
-  objective: PilotObjective,
+  objective: OptionGoal,
   pose: PilotPose,
   facing: number,
 ): number {
   const target =
-    objective.kind === "reach" ? objective : lapPoint(objective, pose);
+    objective.kind === "circle"
+      ? lapPoint(objective, pose)
+      : { x: objective.x, y: objective.y };
   return Math.abs(
     relativeDeg(Math.atan2(target.y - pose.y, target.x - pose.x), facing),
   );

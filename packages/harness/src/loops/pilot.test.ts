@@ -292,6 +292,28 @@ describe("pilot options", () => {
     expect(slots[2]).toMatch(/a wall/);
     expect(slots[6]).toMatch(/^right: /);
   });
+
+  test("a foe objective names the target distance in option text", () => {
+    const pose = poseOf(
+      { mapId: 530, orientation: 0, x: 0, y: 0, z: 0 },
+      7,
+      false,
+    );
+    const options = buildOptions({
+      circles: [{ name: "Boar", radiusYd: 3, x: 20, y: 0 }],
+      ground: flat(),
+      jump: false,
+      objective: { kind: "foe", x: 20, y: 0 },
+      pose,
+    });
+    const ids = options.map((o) => o.id);
+    for (const id of ["run_ahead", "back_up", "stop"]) expect(ids).toContain(id);
+    expect(ids).not.toContain("jump_ahead");
+    const ahead = options.find((o) => o.id === "run_ahead");
+    expect(ahead?.description).toContain("20 yd");
+    expect(ahead?.description).toContain("target");
+    expect(options.find((o) => o.id === "stop")?.description).toContain("target");
+  });
 });
 
 describe("pilot execute", () => {

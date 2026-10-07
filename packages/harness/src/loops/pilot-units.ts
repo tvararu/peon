@@ -32,6 +32,7 @@ export type PilotUnit = {
   distanceYd: number;
   dz: number;
   gray: boolean;
+  guid: bigint;
   level: number | undefined;
   marginYd: number;
   name: string;
@@ -101,6 +102,7 @@ function unitOf(
     distanceYd,
     dz: position.z - pose.z,
     gray,
+    guid: entity.guid,
     level,
     marginYd: distanceYd - (radiusYd ?? 0),
     name: entity.name ?? "an unknown unit",
@@ -124,6 +126,20 @@ export function buildPilotUnits(
     })
     .sort((a, b) => a.marginYd - b.marginYd)
     .slice(0, PILOT_UNIT_LIMIT);
+}
+
+export function dangerUnits(
+  rows: readonly NearbyRow[],
+  pose: PilotPose,
+  aggro: (guid: bigint) => boolean = () => true,
+  skip?: (unit: PilotUnit) => boolean,
+): PilotUnit[] {
+  const selfLevel = livingLevel(rows.find((row) => row.self)?.entity);
+  return rows.flatMap((row) => {
+    const unit = unitOf(row, pose, selfLevel, aggro);
+    if (!unit || unit.radiusYd === undefined) return [];
+    return skip?.(unit) ? [] : [unit];
+  });
 }
 
 export function aggroCircles(units: readonly PilotUnit[]): AggroCircle[] {

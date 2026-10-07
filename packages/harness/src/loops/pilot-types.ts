@@ -10,6 +10,10 @@ export type PilotObjective =
       direction: "clockwise" | "counterclockwise";
     };
 
+export type FoeGoal = { kind: "foe"; x: number; y: number };
+
+export type OptionGoal = PilotObjective | FoeGoal;
+
 export type PilotContext = TacticsBase<PilotObjective> & {
   objective: PilotObjective;
 };
