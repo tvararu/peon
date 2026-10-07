@@ -7,9 +7,9 @@ columns are explained in [the index](../protocol-coverage.md).
 |---|---|---|---|---|
 | `0x032` | `SMSG_DESTRUCTIBLE_BUILDING_DAMAGE` | server | handled | not seen live |
 | `0x49c` | `CMSG_HEARTH_AND_RESURRECT` | client | handled |  |
-| `0x4de` | `SMSG_BATTLEFIELD_MGR_ENTRY_INVITE` | server | handled | not seen live |
+| `0x4de` | `SMSG_BATTLEFIELD_MGR_ENTRY_INVITE` | server | handled |  |
 | `0x4df` | `CMSG_BATTLEFIELD_MGR_ENTRY_INVITE_RESPONSE` | client | handled |  |
-| `0x4e0` | `SMSG_BATTLEFIELD_MGR_ENTERED` | server | handled | not seen live |
+| `0x4e0` | `SMSG_BATTLEFIELD_MGR_ENTERED` | server | handled |  |
 | `0x4e1` | `SMSG_BATTLEFIELD_MGR_QUEUE_INVITE` | server | handled |  |
 | `0x4e2` | `CMSG_BATTLEFIELD_MGR_QUEUE_INVITE_RESPONSE` | client | handled |  |
 | `0x4e4` | `SMSG_BATTLEFIELD_MGR_QUEUE_REQUEST_RESPONSE` | server | handled |  |
