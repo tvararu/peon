@@ -57,16 +57,23 @@ function spent(queue: readonly BesetRecord[], guid: bigint): boolean {
   );
 }
 
+export function pendingAttacker(
+  queue: readonly BesetRecord[],
+  current: bigint | undefined,
+  attackers: readonly bigint[] | undefined,
+): bigint | undefined {
+  return attackers?.find(
+    (candidate) => candidate !== current && !spent(queue, candidate),
+  );
+}
+
 export function attackerFirst<T extends BesetRecord>(
   queue: T[],
   index: number,
   attackers: readonly bigint[] | undefined,
   make: (guid: bigint) => T,
 ): void {
-  const current = queue[index]?.guid;
-  const guid = attackers?.find(
-    (candidate) => candidate !== current && !spent(queue, candidate),
-  );
+  const guid = pendingAttacker(queue, queue[index]?.guid, attackers);
   if (guid === undefined) return;
   const later = queue.findIndex(
     (entry, at) => at > index && entry.guid === guid,

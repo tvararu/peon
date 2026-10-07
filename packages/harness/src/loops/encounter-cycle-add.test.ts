@@ -162,3 +162,35 @@ test("stops on an attacker whose retries are spent instead of pulling", async ()
   expect(starts).toEqual([LYNX_U58, LYNX_U58]);
   expect(runtime.snapshot().stopCause).toBe("attacker_unreachable");
 });
+
+test("fights an attacker that joined during the approach before the pulled target", async () => {
+  const starts: bigint[] = [];
+  const attackers: bigint[] = [];
+  const tactics = joiningTactics(starts, attackers);
+  const runtime = makeCycle({
+    approach: (guid) => {
+      if (guid === LYNX_U59 && starts.length === 0) attackers.push(LYNX_U58);
+      return Promise.resolve(undefined);
+    },
+    attackers: () => attackers,
+    control: fakeControl(),
+    loot: fakeLoot({}),
+    now: () => 0,
+    recovery: fakeRecovery({ life: ["alive"] }),
+    tactics: {
+      ...tactics,
+      start: async (ctx, signal) => {
+        const at = attackers.indexOf(ctx.targetGuid);
+        if (at >= 0) attackers.splice(at, 1);
+        starts.push(ctx.targetGuid);
+        await Promise.resolve(signal);
+      },
+    },
+  });
+  await runtime.start({
+    guids: [LYNX_U59, LYNX_U61],
+    instruction: "fight",
+    maxStarts: 2,
+  });
+  expect(starts).toEqual([LYNX_U58, LYNX_U59]);
+});
