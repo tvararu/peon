@@ -1,10 +1,13 @@
 import { describe, expect, jest, test } from "bun:test";
 import { ChatType, ObjectType, type UnitEntity } from "@peon/core";
-import { calendarTool } from "#harness/areas/calendar/tool";
+import { arenaSpec } from "#harness/areas/arena/tool";
+import { calendarSpec, calendarTool } from "#harness/areas/calendar/tool";
+import { channelSpec } from "#harness/areas/channels/tool";
 import { characterTool } from "#harness/areas/character/tool";
 import { guildTool } from "#harness/areas/guildadmin/tool";
 import { dungeonTool } from "#harness/areas/instances/tool";
 import { gearTool } from "#harness/areas/items/tool";
+import { mailSpec } from "#harness/areas/mail/tool";
 import { petTool } from "#harness/areas/pets/tool";
 import { groupTool } from "#harness/areas/raid/tool";
 import { talentsTool } from "#harness/areas/talents/tool";
@@ -390,6 +393,22 @@ describe("stop hold per-operation admission", () => {
     t.rt.session.stopped = true;
     gate.resolve(true);
     expect((await pending).details.result.status).toBe("DONE");
+  });
+
+  test("read-only verbs of calendar, arena, channel and mail are admitted while stopped and writes are not", () => {
+    const admits = (
+      spec: { allowStopped?: (args: never) => boolean },
+      args: object,
+    ) => spec.allowStopped?.(args as never) === true;
+    expect(admits(calendarSpec, { do: "status" })).toBe(true);
+    expect(admits(calendarSpec, { do: "rsvp" })).toBe(false);
+    expect(admits(arenaSpec, {})).toBe(true);
+    expect(admits(arenaSpec, { do: "inspect" })).toBe(true);
+    expect(admits(arenaSpec, { do: "queue" })).toBe(false);
+    expect(admits(channelSpec, { do: "count" })).toBe(true);
+    expect(admits(channelSpec, { do: "join" })).toBe(false);
+    expect(admits(mailSpec, { do: "check" })).toBe(true);
+    expect(admits(mailSpec, { do: "send" })).toBe(false);
   });
 
   test("a human message through the input path lifts the stop hold for actions", async () => {
