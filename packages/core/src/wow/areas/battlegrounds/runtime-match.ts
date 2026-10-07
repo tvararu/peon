@@ -63,7 +63,10 @@ async function runCarriers(ctx: Ctx): Promise<PlayerPositions> {
   return done.positions;
 }
 
-async function runLeave(ctx: Ctx, store: BattlegroundsStore): Promise<{ kind: "left" }> {
+async function runLeave(
+  ctx: Ctx,
+  store: BattlegroundsStore,
+): Promise<{ kind: "left" }> {
   if (store.snapshot().match.current === undefined)
     throw new Error("not_in_battleground");
   if (store.selfInCombat()) throw new Error("in_combat");
@@ -79,19 +82,32 @@ async function runLeave(ctx: Ctx, store: BattlegroundsStore): Promise<{ kind: "l
   return { kind: "left" };
 }
 
-function runReport(ctx: Ctx, store: BattlegroundsStore, guid: bigint): { kind: "reported" } {
+function checkReport(
+  store: BattlegroundsStore,
+  guid: bigint,
+): { kind: "reported" } {
   const live = store.snapshot().match.current;
   if (live === undefined) throw new Error("not_in_battleground");
   if (guid !== 0n && !live.roster.includes(guid))
     throw new Error("not_in_battleground");
-  ctx.send(GameOpcode.CMSG_REPORT_PVP_AFK, buildReportPvpAfk(guid));
   return { kind: "reported" };
 }
 
-async function runGuide(
+function runReport(
   ctx: Ctx,
+  store: BattlegroundsStore,
   guid: bigint,
-): Promise<AreaSpiritHealerTime> {
+): Promise<{ kind: "reported" }> {
+  try {
+    const done = checkReport(store, guid);
+    ctx.send(GameOpcode.CMSG_REPORT_PVP_AFK, buildReportPvpAfk(guid));
+    return Promise.resolve(done);
+  } catch (error) {
+    return Promise.reject(error);
+  }
+}
+
+async function runGuide(ctx: Ctx, guid: bigint): Promise<AreaSpiritHealerTime> {
   const answered = waitFor(
     ctx,
     (entry) => entry.type === "bg_rez_time" && entry.guide === guid,
@@ -122,7 +138,7 @@ export function battlegroundsMatchRuntime(
     act: {
       leaveBattleground: () => runLeave(ctx, store),
       queueSpiritGuide: (guid) => runGuide(ctx, guid),
-      reportAfk: (guid) => Promise.resolve(runReport(ctx, store, guid)),
+      reportAfk: (guid) => runReport(ctx, store, guid),
       requestCarriers: () => runCarriers(ctx),
       requestScore: () => runScore(ctx),
     },

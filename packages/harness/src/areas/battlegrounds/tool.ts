@@ -283,19 +283,23 @@ async function runFlag(
   });
 }
 
+function reportSend(ctx: PvpCtx, guid: bigint): Promise<{ kind: string }> {
+  return ctx.rt.mutex.run(() => ctx.handle.battlegrounds.act.reportAfk(guid));
+}
+
 async function runReport(
   args: PvpArgs,
   ctx: PvpCtx,
 ): Promise<ToolResult<PvpAfter>> {
   const guid = resolveTeammate(ctx, args.unit);
-  await ctx.rt.mutex.run(() => ctx.handle.battlegrounds.act.reportAfk(guid));
+  await reportSend(ctx, guid);
   return result("DONE", {
     after: { do: "report" },
     detail: "You reported the teammate away.",
   });
 }
 
-export async function runPvp(
+export function runPvp(
   args: PvpArgs,
   ctx: PvpCtx,
 ): Promise<ToolResult<PvpAfter>> {

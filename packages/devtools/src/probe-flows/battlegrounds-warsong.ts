@@ -72,99 +72,115 @@ function joinedSlot(value: Json): number {
   return 0;
 }
 
-async function run(ctx: FlowContext): Promise<Json> {
-  const { handle } = ctx;
-  const bg = bgOf(ctx.args);
-  const log: Json[] = [];
-
-  const queued = await handle.battlegrounds.act
+async function joinQueue(ctx: FlowContext, bg: number): Promise<Json> {
+  const queued = await ctx.handle.battlegrounds.act
     .list(bg)
     .then((list) => json({ list }))
     .catch(errorJson);
-  const joined = await handle.battlegrounds.act
+  const joined = await ctx.handle.battlegrounds.act
     .join(bg)
     .then((row) => json({ joined: row }))
     .catch(errorJson);
-  log.push(json({ bg, joined, queued }));
+  return { joined, queued };
+}
 
-  const entered = await (async () => {
-    const invited = await waitFor(ctx, "invite", () => {
-      const entry = handle.battlegrounds
-        .state()
-        .queue.slots.findIndex((one) => one.kind === "invited");
-      return entry < 0 ? undefined : json({ inviteSlot: entry });
-    });
-    log.push(invited);
-    if (missed(invited)) return;
-    return handle.battlegrounds.act
-      .answer(joinedSlot(joined), true)
-      .then((row) => json({ entered: row }))
-      .catch(errorJson);
-  })();
-  if (entered === undefined) return json({ log, status: "no_pop" });
-  log.push(entered);
-
-  const started = await waitFor(ctx, "start", () => {
-    const match = handle.battlegrounds.state().match.current;
-    return match === undefined ? undefined : json({ match });
+async function acceptInvite(
+  ctx: FlowContext,
+  joined: Json,
+): Promise<Json | undefined> {
+  const invited = await waitFor(ctx, "invite", () => {
+    const entry = ctx.handle.battlegrounds
+      .state()
+      .queue.slots.findIndex((one) => one.kind === "invited");
+    return entry < 0 ? undefined : json({ inviteSlot: entry });
   });
-  log.push(started);
-  if (missed(started)) {
-    const left = await handle.battlegrounds.act
-      .leaveBattleground()
-      .then((row) => json({ left: row }))
-      .catch(errorJson);
-    log.push(left);
-    return json({ log, status: "no_start" });
-  }
+  if (missed(invited)) return undefined;
+  const entered = await ctx.handle.battlegrounds.act
+    .answer(joinedSlot(joined), true)
+    .then((row) => json({ entered: row }))
+    .catch(errorJson);
+  return json({ entered, invited });
+}
 
-  const score = await handle.battlegrounds.act
+async function readBoard(ctx: FlowContext): Promise<Json> {
+  const score = await ctx.handle.battlegrounds.act
     .requestScore()
     .then((row) => json({ score: row }))
     .catch(errorJson);
-  const carriers = await handle.battlegrounds.act
+  const carriers = await ctx.handle.battlegrounds.act
     .requestCarriers()
     .then((row) => json({ carriers: row }))
     .catch(errorJson);
-  log.push(json({ carriers, score }));
+  return json({ carriers, score });
+}
 
-  const teammate = others(handle).at(0);
-  const report = await handle.battlegrounds.act
+async function reportAndRez(ctx: FlowContext): Promise<Json> {
+  const teammate = others(ctx.handle).at(0);
+  const report = await ctx.handle.battlegrounds.act
     .reportAfk(teammate ? BigInt(teammate.entity.guid) : 0n)
     .then((row) => json({ report: row }))
     .catch(errorJson);
-  const spirit = others(handle)
+  const spirit = others(ctx.handle)
     .filter((near) => near.roles.includes("spirit_guide"))
     .at(0);
-  log.push(
-    json({
-      report,
-      spirit: spirit ? summary(spirit) : null,
-      teammate: teammate ? summary(teammate) : null,
-    }),
-  );
-
   const rez = spirit
-    ? await handle.battlegrounds.act
+    ? await ctx.handle.battlegrounds.act
         .queueSpiritGuide(BigInt(spirit.entity.guid))
         .then((row) => json({ rez: row }))
         .catch(errorJson)
     : json({ rez: "no_guide" });
-  log.push(rez);
+  return json({
+    report,
+    rez,
+    spirit: spirit ? summary(spirit) : null,
+    teammate: teammate ? summary(teammate) : null,
+  });
+}
+
+function leave(ctx: FlowContext): Promise<Json> {
+  return ctx.handle.battlegrounds.act
+    .leaveBattleground()
+    .then((row) => json({ left: row }))
+    .catch(errorJson);
+}
+
+async function run(ctx: FlowContext): Promise<Json> {
+  const bg = bgOf(ctx.args);
+  const log: Json[] = [];
+
+  const queued = await joinQueue(ctx, bg);
+  log.push(json({ bg, ...queued }));
+
+  const entered = await acceptInvite(ctx, queued.joined as Json);
+  if (entered === undefined) {
+    const invited = json({ missed: "invite" });
+    log.push(invited);
+    return json({ log, status: "no_pop" });
+  }
+  log.push(entered);
+
+  const started = await waitFor(ctx, "start", () => {
+    const match = ctx.handle.battlegrounds.state().match.current;
+    return match === undefined ? undefined : json({ match });
+  });
+  log.push(started);
+  if (missed(started)) {
+    log.push(await leave(ctx));
+    return json({ log, status: "no_start" });
+  }
+
+  log.push(await readBoard(ctx));
+  log.push(await reportAndRez(ctx));
 
   const ended = await waitFor(ctx, "end", () => {
-    const match = handle.battlegrounds.state().match.current;
+    const match = ctx.handle.battlegrounds.state().match.current;
     return match?.score?.ended === true
       ? json({ final: match.score })
       : undefined;
   });
   log.push(ended);
 
-  const left = await handle.battlegrounds.act
-    .leaveBattleground()
-    .then((row) => json({ left: row }))
-    .catch(errorJson);
-  log.push(left);
+  log.push(await leave(ctx));
   return json({ log, status: "match" });
 }
 

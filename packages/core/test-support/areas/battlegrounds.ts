@@ -268,47 +268,57 @@ export type BattlegroundsPvpLogInit = {
   players?: readonly BattlegroundsPvpPlayer[];
 };
 
+function writeArenaTeams(
+  w: PacketWriter,
+  teams: NonNullable<BattlegroundsPvpLogInit["teams"]>,
+): void {
+  for (const team of teams) {
+    w.uint32LE(team.ratingLost);
+    w.uint32LE(team.ratingWon);
+    w.uint32LE(team.mmr);
+  }
+  for (let i = teams.length; i < 2; i++) {
+    w.uint32LE(0);
+    w.uint32LE(0);
+    w.uint32LE(0);
+  }
+  for (const team of teams) w.cString(team.name);
+  for (let i = teams.length; i < 2; i++) w.cString("");
+}
+
+function writePvpPlayer(
+  w: PacketWriter,
+  arena: boolean,
+  player: BattlegroundsPvpPlayer,
+): void {
+  w.uint64LE(player.guid);
+  w.uint32LE(player.killingBlows ?? 0);
+  if (arena) {
+    w.uint8(player.arenaTeam ?? 0);
+  } else {
+    w.uint32LE(player.honorableKills ?? 0);
+    w.uint32LE(player.deaths ?? 0);
+    w.uint32LE(player.bonusHonor ?? 0);
+  }
+  w.uint32LE(player.damage ?? 0);
+  w.uint32LE(player.healing ?? 0);
+  const objectives = player.objectives ?? [];
+  w.uint32LE(objectives.length);
+  for (const objective of objectives) w.uint32LE(objective);
+}
+
 export function battlegroundsPvpLogBody(
   init: BattlegroundsPvpLogInit = {},
 ): Uint8Array {
   const w = new PacketWriter();
   const arena = init.arena === true;
   w.uint8(arena ? 1 : 0);
-  const teams = init.teams ?? [];
-  if (arena) {
-    for (const team of teams) {
-      w.uint32LE(team.ratingLost);
-      w.uint32LE(team.ratingWon);
-      w.uint32LE(team.mmr);
-    }
-    for (let i = teams.length; i < 2; i++) {
-      w.uint32LE(0);
-      w.uint32LE(0);
-      w.uint32LE(0);
-    }
-    for (const team of teams) w.cString(team.name);
-    for (let i = teams.length; i < 2; i++) w.cString("");
-  }
+  if (arena) writeArenaTeams(w, init.teams ?? []);
   w.uint8(init.ended === true ? 1 : 0);
   if (init.ended === true) w.uint8(init.winner ?? 0);
   const players = init.players ?? [];
   w.uint32LE(players.length);
-  for (const player of players) {
-    w.uint64LE(player.guid);
-    w.uint32LE(player.killingBlows ?? 0);
-    if (arena) {
-      w.uint8(player.arenaTeam ?? 0);
-    } else {
-      w.uint32LE(player.honorableKills ?? 0);
-      w.uint32LE(player.deaths ?? 0);
-      w.uint32LE(player.bonusHonor ?? 0);
-    }
-    w.uint32LE(player.damage ?? 0);
-    w.uint32LE(player.healing ?? 0);
-    const objectives = player.objectives ?? [];
-    w.uint32LE(objectives.length);
-    for (const objective of objectives) w.uint32LE(objective);
-  }
+  for (const player of players) writePvpPlayer(w, arena, player);
   return w.finish();
 }
 

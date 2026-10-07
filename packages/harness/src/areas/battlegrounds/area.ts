@@ -254,7 +254,16 @@ function onEvent(
   if (event.type === "bg_left") return leftRows(event);
   if (event.type === "bg_join_result") return joinRows(event);
   if (event.type === "bg_carriers") return [];
-  return matchRows(event, rc);
+  if (
+    event.type === "bg_entered" ||
+    event.type === "bg_left_match" ||
+    event.type === "bg_player_joined" ||
+    event.type === "bg_player_left" ||
+    event.type === "bg_score" ||
+    event.type === "bg_rez_time"
+  )
+    return matchRows(event, rc);
+  return [];
 }
 
 export const battlegroundsHarness = defineHarnessArea({
