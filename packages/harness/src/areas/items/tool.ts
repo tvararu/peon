@@ -442,6 +442,7 @@ export const gearRenderers: ToolRenderers<"gear", GearAfter> = {
 };
 
 export const gearSpec: GameToolSpec<typeof gearParams, "gear", GearAfter> = {
+  allowStopped: (args) => args.do === "read",
   fallback: emptyGear,
   kind: "action",
   minimalArgs: { do: "equip", item: "Gnarled Staff" },

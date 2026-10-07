@@ -1,6 +1,6 @@
 import { describe, expect, jest, test } from "bun:test";
 import type { RunEnd } from "#harness/contract/runs";
-import { installInput, isStopReflex } from "#harness/extension/input";
+import { humanStop, installInput, isStopReflex } from "#harness/extension/input";
 import { createYieldGate, YIELD_DELAY_MS } from "#harness/runtime/yield";
 import { admitAgent } from "#harness/tools/human-admission";
 import { createFakePi } from "#test-support/fake-pi";

@@ -1,6 +1,6 @@
-import { describe, expect, jest, test } from "bun:test";
 import { ChatType, ObjectType, type UnitEntity } from "@peon/core";
 import { dungeonTool } from "#harness/areas/instances/tool";
+import { gearTool } from "#harness/areas/items/tool";
 import { petTool } from "#harness/areas/pets/tool";
 import { groupTool } from "#harness/areas/raid/tool";
 import { talentsTool } from "#harness/areas/talents/tool";
@@ -227,6 +227,53 @@ describe("stop hold per-operation admission", () => {
       });
     }
   });
+
+  test("gear read through the real gear tool runs while stopped; equip stays refused", async () => {
+    const { handle, rt } = await createTestRuntime();
+    const inventory = handle.getInventoryState();
+    const letter = 0x40_00_00_00_00_00_00_05n;
+    handle.getInventoryState = () => ({
+      ...inventory,
+      slots: [
+        {
+          bag: 255,
+          guid: letter,
+          item: {
+            contained: undefined,
+            count: 1,
+            durability: undefined,
+            entry: 123,
+            flags: 0,
+            guid: letter,
+            maxDurability: undefined,
+            name: "Letter",
+            owner: undefined,
+            quality: 1,
+            randomPropertyId: 0,
+          },
+          region: "backpack",
+          slot: 35,
+          status: "occupied",
+        } as never,
+      ],
+    });
+    const items = handle.items as unknown as { act: Record<string, unknown> };
+    items.act = { ...items.act };
+    jest
+      .spyOn(items.act, "read")
+      .mockResolvedValue({ observedAt: 0, status: "ok" });
+    jest.spyOn(items.act, "queryText").mockResolvedValue("Read me.");
+    const tool = gearTool.definition(rt);
+    rt.session.stopped = true;
+    const read = await runTool(tool, { do: "read", item: "Letter" });
+    expect(read.details.result.status).toBe("DONE");
+    const equip = await runTool(tool, { do: "equip", item: "Letter" });
+    expect(equip.details.result).toMatchObject({
+      reason: "stopped",
+      status: "REFUSED",
+    });
+  });
+
 
   test("a stop that lands while an acting call waits for readiness refuses the call", async () => {
     const { handle, rt } = await createTestRuntime();
