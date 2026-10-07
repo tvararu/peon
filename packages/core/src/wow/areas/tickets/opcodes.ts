@@ -24,6 +24,19 @@ export const TICKETS_OPCODES = {
   ],
   uses: [],
   stubs: [],
-  dead: [],
-  unseen: [],
+  dead: [
+    "CMSG_GMTICKETSYSTEM_TOGGLE",
+    "SMSG_GM_TICKET_STATUS_UPDATE",
+    "SMSG_GMRESPONSE_DB_ERROR",
+  ],
+  unseen: [
+    "CMSG_GMTICKET_CREATE",
+    "SMSG_GMTICKET_CREATE",
+    "SMSG_GMTICKET_DELETETICKET",
+    "SMSG_GMRESPONSE_RECEIVED",
+    "SMSG_GMRESPONSE_STATUS_UPDATE",
+    "CMSG_GMSURVEY_SUBMIT",
+    "CMSG_BUG",
+    "CMSG_GM_REPORT_LAG",
+  ],
 } as const satisfies AreaOpcodes;

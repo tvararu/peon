@@ -5,22 +5,22 @@ columns are explained in [the index](../protocol-coverage.md).
 
 | Opcode | Name | Direction | Status | Live |
 |---|---|---|---|---|
-| `0x1ca` | `CMSG_BUG` | client | missing |  |
-| `0x205` | `CMSG_GMTICKET_CREATE` | client | missing |  |
-| `0x206` | `SMSG_GMTICKET_CREATE` | server | missing |  |
-| `0x207` | `CMSG_GMTICKET_UPDATETEXT` | client | missing |  |
-| `0x208` | `SMSG_GMTICKET_UPDATETEXT` | server | missing |  |
-| `0x211` | `CMSG_GMTICKET_GETTICKET` | client | missing |  |
-| `0x212` | `SMSG_GMTICKET_GETTICKET` | server | missing |  |
-| `0x217` | `CMSG_GMTICKET_DELETETICKET` | client | missing |  |
-| `0x218` | `SMSG_GMTICKET_DELETETICKET` | server | missing |  |
-| `0x21a` | `CMSG_GMTICKET_SYSTEMSTATUS` | client | missing |  |
-| `0x21b` | `SMSG_GMTICKET_SYSTEMSTATUS` | server | missing |  |
-| `0x29a` | `CMSG_GMTICKETSYSTEM_TOGGLE` | client | missing |  |
-| `0x328` | `SMSG_GM_TICKET_STATUS_UPDATE` | server | missing |  |
-| `0x32a` | `CMSG_GMSURVEY_SUBMIT` | client | missing |  |
-| `0x4ee` | `SMSG_GMRESPONSE_DB_ERROR` | server | missing |  |
-| `0x4ef` | `SMSG_GMRESPONSE_RECEIVED` | server | missing |  |
-| `0x4f0` | `CMSG_GMRESPONSE_RESOLVE` | client | missing |  |
-| `0x4f1` | `SMSG_GMRESPONSE_STATUS_UPDATE` | server | missing |  |
-| `0x502` | `CMSG_GM_REPORT_LAG` | client | missing |  |
+| `0x1ca` | `CMSG_BUG` | client | handled | not seen live |
+| `0x205` | `CMSG_GMTICKET_CREATE` | client | handled | not seen live |
+| `0x206` | `SMSG_GMTICKET_CREATE` | server | handled | not seen live |
+| `0x207` | `CMSG_GMTICKET_UPDATETEXT` | client | handled |  |
+| `0x208` | `SMSG_GMTICKET_UPDATETEXT` | server | handled |  |
+| `0x211` | `CMSG_GMTICKET_GETTICKET` | client | handled |  |
+| `0x212` | `SMSG_GMTICKET_GETTICKET` | server | handled |  |
+| `0x217` | `CMSG_GMTICKET_DELETETICKET` | client | handled |  |
+| `0x218` | `SMSG_GMTICKET_DELETETICKET` | server | handled | not seen live |
+| `0x21a` | `CMSG_GMTICKET_SYSTEMSTATUS` | client | handled |  |
+| `0x21b` | `SMSG_GMTICKET_SYSTEMSTATUS` | server | handled |  |
+| `0x29a` | `CMSG_GMTICKETSYSTEM_TOGGLE` | client | dead |  |
+| `0x328` | `SMSG_GM_TICKET_STATUS_UPDATE` | server | dead |  |
+| `0x32a` | `CMSG_GMSURVEY_SUBMIT` | client | handled | not seen live |
+| `0x4ee` | `SMSG_GMRESPONSE_DB_ERROR` | server | dead |  |
+| `0x4ef` | `SMSG_GMRESPONSE_RECEIVED` | server | handled | not seen live |
+| `0x4f0` | `CMSG_GMRESPONSE_RESOLVE` | client | handled |  |
+| `0x4f1` | `SMSG_GMRESPONSE_STATUS_UPDATE` | server | handled | not seen live |
+| `0x502` | `CMSG_GM_REPORT_LAG` | client | handled | not seen live |
