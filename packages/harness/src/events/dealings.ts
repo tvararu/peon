@@ -19,7 +19,10 @@ export function noteDealt(dealings: Dealings, name: string): void {
 
 export function namedByHuman(dealings: Dealings, name: string): boolean {
   const escaped = name.replace(REGEX_SPECIALS, "\\$&");
-  const pattern = new RegExp(`\\b${escaped}\\b`, "i");
+  const pattern = new RegExp(
+    `(?<![\\p{L}\\p{N}])${escaped}(?![\\p{L}\\p{N}])`,
+    "iu",
+  );
   return dealings.human.some((text) => pattern.test(text));
 }
 

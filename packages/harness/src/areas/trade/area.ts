@@ -52,8 +52,10 @@ function completedRow(event: Completed, rc: RuleInput): AreaDraft {
 
 function requestedRow(event: TradeEvent, rc: RuleInput): AreaDraft {
   if (event.type !== "requested") throw new Error("trade_requested_expected");
-  const name = player(event.from, rc);
-  const note = standingNote(rc.dealings, name);
+  const known = rc.lookup.unitName(event.from);
+  const name = known ?? `player ${guidText(event.from)}`;
+  const note =
+    known === undefined ? undefined : standingNote(rc.dealings, known);
   const text =
     note === undefined
       ? `${name} wants to trade with you.`
