@@ -219,4 +219,3 @@ function failedAssistant(message: AgentMessage): boolean {
   if (!("role" in message) || message.role !== "assistant") return false;
   return message.stopReason === "error" || message.stopReason === "aborted";
 }
-
