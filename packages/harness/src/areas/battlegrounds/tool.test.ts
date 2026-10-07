@@ -247,4 +247,116 @@ describe("pvp score, flag and report", () => {
     expect(out.status).toBe("DONE");
     expect(t.handle.battlegrounds.act.reportAfk).toHaveBeenCalledWith(0xaaaan);
   });
+
+  test("report sends for a visible teammate the roster never listed", async () => {
+    const t = await rig({
+      battlegrounds: {
+        match: {
+          current: {
+            bgType: 2,
+            carriers: [],
+            enteredAt: 0,
+            mapId: 489,
+            rez: undefined,
+            roster: [],
+            score: undefined,
+          },
+          spirit: undefined,
+        },
+        queue: {
+          lastJoin: undefined,
+          list: undefined,
+          slots: [{ kind: "none" }],
+        },
+      },
+    });
+    const out = await runPvp({ do: "report", unit: "Mate" }, toolCtx(t));
+    expect(out.status).toBe("DONE");
+    expect(t.handle.battlegrounds.act.reportAfk).toHaveBeenCalledWith(0xaaaan);
+  });
+
+  test("report sends for a score-listed teammate outside the roster", async () => {
+    const t = await rig({
+      battlegrounds: {
+        match: {
+          current: {
+            bgType: 2,
+            carriers: [],
+            enteredAt: 0,
+            mapId: 489,
+            rez: undefined,
+            roster: [],
+            score: {
+              arena: false,
+              ended: false,
+              players: [
+                {
+                  arenaTeam: undefined,
+                  bonusHonor: 0,
+                  damage: 0,
+                  deaths: 0,
+                  guid: 0xaaaan,
+                  healing: 0,
+                  honorableKills: 0,
+                  killingBlows: 0,
+                  objectives: [],
+                },
+              ],
+              teams: [],
+              winner: undefined,
+            },
+          },
+          spirit: undefined,
+        },
+        queue: {
+          lastJoin: undefined,
+          list: undefined,
+          slots: [{ kind: "none" }],
+        },
+      },
+    });
+    const out = await runPvp({ do: "report", unit: "Mate" }, toolCtx(t));
+    expect(out.status).toBe("DONE");
+    expect(t.handle.battlegrounds.act.reportAfk).toHaveBeenCalledWith(0xaaaan);
+  });
+
+  test("report on a hostile unit in the match refuses", async () => {
+    const t = await rig({
+      battlegrounds: {
+        match: {
+          current: {
+            bgType: 2,
+            carriers: [],
+            enteredAt: 0,
+            mapId: 489,
+            rez: undefined,
+            roster: [],
+            score: undefined,
+          },
+          spirit: undefined,
+        },
+        queue: {
+          lastJoin: undefined,
+          list: undefined,
+          slots: [{ kind: "none" }],
+        },
+      },
+      units: [
+        unitRow({
+          distance: 5,
+          guid: 0xaaaan,
+          level: 10,
+          name: "Foe",
+          player: true,
+          relation: "hostile",
+          x: 1,
+          y: 1,
+        }),
+      ],
+    });
+    await expect(
+      runPvp({ do: "report", unit: "Foe" }, toolCtx(t)),
+    ).rejects.toMatchObject({ reason: "not_in_battleground" });
+    expect(t.handle.battlegrounds.act.reportAfk).not.toHaveBeenCalled();
+  });
 });

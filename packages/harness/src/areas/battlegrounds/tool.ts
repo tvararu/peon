@@ -128,12 +128,20 @@ function resolveTeammate(ctx: PvpCtx, wanted: string | undefined): bigint {
       nextCall("look"),
     );
   const match = ctx.handle.battlegrounds.state().match.current;
-  if (match === undefined || !match.roster.includes(BigInt(`0x${found.guid}`)))
+  const guid = BigInt(`0x${found.guid}`);
+  const listed =
+    match !== undefined &&
+    (match.roster.includes(guid) ||
+      match.score?.players.some((one) => one.guid === guid) === true);
+  const visible =
+    found.inView && found.kind === "player" && found.relation === "friendly";
+  const inside = match !== undefined && (listed || visible);
+  if (!inside)
     throw pvpRefusal(
       "not_in_battleground",
       `${found.name} is not in your battleground.`,
     );
-  return BigInt(`0x${found.guid}`);
+  return guid;
 }
 
 async function runList(

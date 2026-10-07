@@ -82,26 +82,16 @@ async function runLeave(
   return { kind: "left" };
 }
 
-function checkReport(
-  store: BattlegroundsStore,
-  guid: bigint,
-): { kind: "reported" } {
-  const live = store.snapshot().match.current;
-  if (live === undefined) throw new Error("not_in_battleground");
-  if (guid !== 0n && !live.roster.includes(guid))
-    throw new Error("not_in_battleground");
-  return { kind: "reported" };
-}
-
 function runReport(
   ctx: Ctx,
   store: BattlegroundsStore,
   guid: bigint,
 ): Promise<{ kind: "reported" }> {
   try {
-    const done = checkReport(store, guid);
+    if (store.snapshot().match.current === undefined)
+      throw new Error("not_in_battleground");
     ctx.send(GameOpcode.CMSG_REPORT_PVP_AFK, buildReportPvpAfk(guid));
-    return Promise.resolve(done);
+    return Promise.resolve({ kind: "reported" });
   } catch (error) {
     return Promise.reject(error);
   }

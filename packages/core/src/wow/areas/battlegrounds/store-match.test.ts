@@ -169,6 +169,29 @@ describe("battlegrounds match store (Battlegrounds/Battleground.cpp:1195-1210)",
       scene.rig.dispose();
     }
   });
+
+  test("leaving the battlefield map clears a queued spirit countdown", () => {
+    const scene = battlegroundsScene();
+    try {
+      enterMatch(scene);
+      scene.rig.inject(
+        GameOpcode.SMSG_AREA_SPIRIT_HEALER_TIME,
+        battlegroundsSpiritTimeBody({ guid: 0x0d_00n, ms: 29_500 }),
+      );
+      expect(scene.rig.handle.state().match.spirit).toEqual({
+        guide: 0x0d_00n,
+        nextAt: 29_500,
+      });
+      scene.rig.stores.self.receive({
+        position: { mapId: 0, orientation: 0, x: 0, y: 0, z: 0 },
+        type: "new_world",
+      });
+      expect(scene.rig.handle.state().match.current).toBeUndefined();
+      expect(scene.rig.handle.state().match.spirit).toBeUndefined();
+    } finally {
+      scene.rig.dispose();
+    }
+  });
 });
 
 describe("battlegrounds match acts (Handlers/BattleGroundHandler.cpp:619-635,928-943)", () => {
@@ -268,13 +291,27 @@ describe("battlegrounds match acts (Handlers/BattleGroundHandler.cpp:619-635,928
     }
   });
 
-  test("act.reportAfk rejects a guid outside the match", async () => {
+  test("act.reportAfk sends for a guid the roster never listed", async () => {
     const scene = battlegroundsScene();
     try {
       enterMatch(scene);
+      const result = await scene.rig.handle.act.reportAfk(BG_OTHER);
+      expect(result).toEqual({ kind: "reported" });
+      expect(scene.rig.sent.at(-1)?.opcode).toBe(
+        GameOpcode.CMSG_REPORT_PVP_AFK,
+      );
+    } finally {
+      scene.rig.dispose();
+    }
+  });
+
+  test("act.reportAfk rejects when not in a match", async () => {
+    const scene = battlegroundsScene();
+    try {
       await expect(scene.rig.handle.act.reportAfk(BG_OTHER)).rejects.toThrow(
         "not_in_battleground",
       );
+      expect(scene.rig.sent).toHaveLength(0);
     } finally {
       scene.rig.dispose();
     }
