@@ -1,14 +1,20 @@
 import { describe, expect, test } from "bun:test";
-import type { ClientConfig, WorldHandle } from "@peon/core";
+import type { ClientConfig } from "@peon/core";
 import { ServiceError } from "#factory/realm-service";
 import type { CharEndpoint, Json } from "#factory/soap-create";
 import {
   type CreateDeps,
   createByProtocol,
-  learnOnline,
   specOf,
   stagePreset,
 } from "#factory/soap-create";
+import {
+  accountInfoText,
+  depsFor,
+  loginDouble,
+  pinfoText,
+  privilegeDouble,
+} from "#factory/soap-create-doubles";
 import {
   isCreatePreset,
   type Preset,
@@ -20,120 +26,6 @@ const item6256: StageStep = {
   body: { count: 1, item: 6256 },
   endpoint: "items/add",
 };
-function serviceDouble() {
-  const calls: { character: string; endpoint: CharEndpoint; body: Json }[] = [];
-  return {
-    calls,
-    service: {
-      char: async (character: string, endpoint: CharEndpoint, body: Json) => {
-        calls.push({ body, character, endpoint });
-        return {};
-      },
-    },
-  };
-}
-
-function loginDouble(seen: { skill: boolean }) {
-  const logouts: string[] = [];
-  const handle = {
-    closed: Promise.resolve(),
-    getControlState: () => ({ selfGuid: 1n }),
-    getEntity: () => ({
-      rawFields: new Map(seen.skill ? [[636, 356 + 65_536]] : []),
-    }),
-    logout: () => {
-      logouts.push("logout");
-    },
-  } as unknown as WorldHandle;
-  return {
-    handle,
-    login: async () => handle,
-    logouts,
-  };
-}
-
-type ServiceCall = { body: Json; character: string; endpoint: CharEndpoint };
-
-type ServiceDouble = { calls: ServiceCall[]; service: CreateDeps["service"] };
-
-const accountInfoText = (account: string, gmLevel: number) =>
-  `| Account: ${account} (ID: 309),\n\n GMLevel: ${gmLevel}`;
-
-const pinfoText = (account: string, gmLevel: number) =>
-  [
-    "| Player Faaaaaaaaab (guid: 2515)",
-    `| Account: ${account} (ID: 309),`,
-    `   GMLevel: ${gmLevel}`,
-  ].join("\n");
-
-function depsFor(
-  _preset: Preset,
-  overrides?: Partial<CreateDeps>,
-): {
-  commands: string[];
-  copies: { value: number };
-  deps: CreateDeps;
-  service: ServiceDouble;
-} {
-  const commands: string[] = [];
-  const copies = { value: 0 };
-  const service = serviceDouble();
-  const login = loginDouble({ skill: true });
-  const deps: CreateDeps = {
-    auth: async () => ({
-      realmHost: "h",
-      realmId: 1,
-      realmPort: 1,
-      sessionKey: new Uint8Array(0),
-    }),
-    console: async () => ({ ok: true, text: "" }),
-    copy: async () => {
-      copies.value += 1;
-      return 1;
-    },
-    create: async () => ({ result: "success" }),
-    createConfig: (names) =>
-      ({ account: names.account, character: names.character }) as ClientConfig,
-    login: login.login,
-    loginConfig: async (account) =>
-      ({ account, character: "Faaaaaaaaab" }) as ClientConfig,
-    names: { account: "FAC0000000001", character: "Faaaaaaaaab" },
-    run: async (command) => {
-      commands.push(command);
-      return {
-        ok: true,
-        text: command.startsWith("pinfo") ? pinfoText("FAC0000000001", 0) : "",
-      };
-    },
-    service: service.service,
-    sleep: async () => undefined,
-    templateEnv: {},
-    ...overrides,
-  };
-  return { commands, copies, deps, service };
-}
-
-function privilegeDouble(preset: Preset, stuck = false) {
-  const level = { value: 0 };
-  const made = depsFor(preset);
-  made.deps.run = async (command) => {
-    const set = /^account set gmlevel \S+ (\d+) -1$/.exec(command);
-    if (set) {
-      if (!(stuck && set[1] === "0")) level.value = Number(set[1]);
-      return { ok: true, text: "" };
-    }
-    if (command.startsWith("pinfo"))
-      return { ok: true, text: pinfoText("FAC0000000001", level.value) };
-    if (command.startsWith("account info"))
-      return {
-        ok: true,
-        text: accountInfoText("FAC0000000001", level.value),
-      };
-    return { ok: true, text: "" };
-  };
-  return { ...made, level };
-}
-
 describe("specOf", () => {
   test("resolves created presets and refuses template ones", () => {
     expect(specOf("eversong10-shaman").create).toMatchObject({
@@ -188,12 +80,18 @@ describe("createByProtocol", () => {
     for (const preset of Object.keys(presetSpecs) as Preset[]) {
       if (!isCreatePreset(presetSpecs[preset])) continue;
       const { commands, copies, deps, service } = depsFor(preset);
+      const level = { value: 0 };
       deps.run = (async (command: string) => {
         commands.push(command);
+        const set = /^account set gmlevel \S+ (\d+) -1$/.exec(command);
+        if (set) level.value = Number(set[1]);
         if (command.startsWith("pinfo"))
           return { ok: true, text: pinfoText("FAC0000000001", 0) };
         if (command.startsWith("account info"))
-          return { ok: true, text: accountInfoText("FAC0000000001", 0) };
+          return {
+            ok: true,
+            text: accountInfoText("FAC0000000001", level.value),
+          };
         return { ok: true, text: "" };
       }) as CreateDeps["run"];
       await createByProtocol(preset, deps);
@@ -254,6 +152,23 @@ describe("createByProtocol", () => {
     await expect(
       createByProtocol("eversong55-deathknight", deps),
     ).rejects.toThrow("soap read timed out");
+    expect(created).toBe(false);
+    expect(level.value).toBe(0);
+  });
+
+  test("the death knight is not created until the raise reads back", async () => {
+    const { deps, level } = privilegeDouble("eversong55-deathknight");
+    const inner = deps.run;
+    let created = false;
+    deps.create = (async () => {
+      created = true;
+      return { result: "success" };
+    }) as CreateDeps["create"];
+    deps.run = async (command) =>
+      command.endsWith(" 1 -1") ? { ok: true, text: "" } : inner(command);
+    await expect(
+      createByProtocol("eversong55-deathknight", deps),
+    ).rejects.toThrow("raise");
     expect(created).toBe(false);
     expect(level.value).toBe(0);
   });
@@ -484,48 +399,5 @@ describe("stagePreset", () => {
       },
     });
     await expect(err).rejects.toThrow("character_online");
-  });
-});
-
-describe("learnOnline", () => {
-  test("learns the spell then logs out", async () => {
-    const { deps } = depsFor("eversong10-fishing");
-    const login = loginDouble({ skill: true });
-    const learned: string[] = [];
-    await learnOnline("FAC0000000001", [7733], {
-      ...deps,
-      console: (async (_a, command) => {
-        learned.push(command);
-        return { ok: true, text: "" };
-      }) as CreateDeps["console"],
-      login: login.login,
-    });
-    expect(learned).toEqual(["player learn Faaaaaaaaab 7733"]);
-    expect(login.logouts).toEqual(["logout"]);
-  });
-
-  test("a refused console command fails the learn", async () => {
-    const { deps } = depsFor("eversong10-fishing");
-    await expect(
-      learnOnline("FAC0000000001", [7733], {
-        ...deps,
-        console: (async () => ({
-          ok: false,
-          text: "nope",
-        })) as CreateDeps["console"],
-      }),
-    ).rejects.toThrow("player learn 7733");
-  });
-
-  test("a missing skill fails the learn", async () => {
-    const { deps } = depsFor("eversong10-fishing");
-    const login = loginDouble({ skill: false });
-    await expect(
-      learnOnline("FAC0000000001", [7733], {
-        ...deps,
-        login: login.login,
-        sleep: async () => undefined,
-      }),
-    ).rejects.toThrow("skill 356");
   });
 });

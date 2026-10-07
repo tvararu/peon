@@ -68,7 +68,8 @@ export type CreateDeps = {
 const pinfoTries = 100;
 const pinfoPollMs = 50;
 const onlineTries = 120;
-const demoted = /GMLevel:\s*0\b/;
+const gmLevelLine = (level: number) => new RegExp(`GMLevel:\\s*${level}\\b`);
+const gmReadsPerSet = 20;
 const skillBase = 636;
 const skillSlots = 384;
 const skillStride = 3;
@@ -204,10 +205,16 @@ export async function createByProtocol(
   const config = deps.createConfig(deps.names);
   if (spec.gmLevelForCreate === 1) {
     try {
-      await deps.run(`account set gmlevel ${account} 1 -1`);
+      await setGmLevel(deps.run, deps.names, deps.sleep, {
+        level: 1,
+        step: "raise",
+      });
       await deps.create(config, await authForCreate(config, deps), createSpec);
     } finally {
-      await demote(deps.run, deps.names, deps.sleep);
+      await setGmLevel(deps.run, deps.names, deps.sleep, {
+        level: 0,
+        step: "demotion",
+      });
     }
   } else {
     await deps.create(config, await authForCreate(config, deps), createSpec);
@@ -230,19 +237,27 @@ async function waitForCharacter(
   throw new Error(`pinfo ${character}: ${account} never appeared: ${text}`);
 }
 
-async function demote(
+async function setGmLevel(
   run: Run,
   { account }: Names,
   sleep: CreateDeps["sleep"],
+  confirmed: { level: number; step: string },
 ): Promise<void> {
+  const { level, step } = confirmed;
   const identity = new RegExp(`Account:\\s*${account}\\b`);
-  await run(`account set gmlevel ${account} 0 -1`);
+  const applied = gmLevelLine(level);
+  let set = "";
+  let text = "";
   for (let i = 0; i < pinfoTries; i++) {
-    const text = (await run(`account info ${account}`)).text;
-    if (identity.test(text) && demoted.test(text)) return;
+    if (i % gmReadsPerSet === 0)
+      set = (await run(`account set gmlevel ${account} ${level} -1`)).text;
+    text = (await run(`account info ${account}`)).text;
+    if (identity.test(text) && applied.test(text)) return;
     await sleep(pinfoPollMs);
   }
-  throw new Error(`demotion of ${account} could not be confirmed`);
+  throw new Error(
+    `${step} of ${account} could not be confirmed: ${set} / ${text}`,
+  );
 }
 
 export type { CharEndpoint, Json } from "#factory/realm-service";

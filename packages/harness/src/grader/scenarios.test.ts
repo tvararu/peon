@@ -15,6 +15,7 @@ const PRESETS = [
   "eversong10-mage",
   "eversong10-warrior",
   "eversong1-shaman",
+  "eversong55-deathknight",
   "elwynn1",
   "elwynn10",
   "ghostlands20",

@@ -1,6 +1,7 @@
 import type { AreaEventOf } from "@peon/core";
 import type { AreaDraft } from "#harness/areas/contract";
 import { defineHarnessArea } from "#harness/areas/contract";
+import { runeName } from "#harness/areas/spells/rune-names";
 import type { RuleInput } from "#harness/events/rules";
 
 type SpellsEvent = AreaEventOf<"spells">;
@@ -191,6 +192,17 @@ function skillRemoved(
   };
 }
 
+function runeConverted(
+  event: Extract<SpellsEvent, { type: "rune_converted" }>,
+): AreaDraft {
+  return {
+    class: "log",
+    data: { from: event.from, index: event.index, to: event.to },
+    name: "rune_converted",
+    text: `Rune ${event.index + 1} is now a ${runeName(event.to)} rune.`,
+  };
+}
+
 function knownRows(
   event: SpellsEvent,
   rc: RuleInput,
@@ -218,6 +230,7 @@ export const spellsHarness = defineHarnessArea({
         if (event.type === "skill_changed")
           return skillChanged(event, rc, seen);
         if (event.type === "skill_removed") return [skillRemoved(event)];
+        if (event.type === "rune_converted") return [runeConverted(event)];
         return [quiet(event)];
       },
     };
