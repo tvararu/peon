@@ -320,7 +320,10 @@ function observedLog(
   const { line, met, observed } =
     check.measure === undefined
       ? observedRows(rows, check, context)
-      : measureGameLog(rows, check.measure, context);
+      : measureGameLog(rows, check.measure, {
+          ...context,
+          creature: check.evidence?.creature,
+        });
   const filled = { met: met ?? false, observed };
   return line === undefined
     ? filled

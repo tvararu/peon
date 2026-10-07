@@ -118,6 +118,8 @@ export function travelNoAggro(rows: readonly GameLogRow[]): Measured {
   return noAggro(rows, travelWindow(rows), "no travel run/started");
 }
 
+const REF_PATTERN = /^u\d+$/;
+
 const MOVE_STARTS = [
   "MSG_MOVE_START_FORWARD",
   "MSG_MOVE_START_BACKWARD",
@@ -173,27 +175,117 @@ function kiteMoves(
   return { away, total: moves.length };
 }
 
-type FightKill = { kill: GameLogRow; from: number; until: number };
+type Creature = NonNullable<MeasureContext["creature"]>;
+type FightKill = { kill: GameLogRow; engage: GameLogRow; from: number };
+
+const guidOf = (row: GameLogRow): string | undefined =>
+  typeof row.guid === "string" ? row.guid : undefined;
+
+const CONTACT_FIELDS: Record<string, string | undefined> = {
+  "combat/attack_start": "target",
+  "combat/attacked": "attacker",
+  "combatlog/swing_in": "source",
+  "fight/start": undefined,
+};
+
+function kiteEngages(rows: readonly GameLogRow[]): GameLogRow[] {
+  return rows.filter((row) => {
+    const args = field(row, "args");
+    return (
+      row.event === "run/started" &&
+      field(row, "kind") === "engage" &&
+      isRecord(args) &&
+      args["kite"] === true
+    );
+  });
+}
+
+function engagedGuids(
+  rows: readonly GameLogRow[],
+  engage: GameLogRow,
+): Set<string> {
+  const args = field(engage, "args");
+  const target = isRecord(args) ? args["target"] : undefined;
+  const ref = typeof target === "string" && REF_PATTERN.test(target);
+  const guids = new Set<string>();
+  for (const row of rows) {
+    const guid = guidOf(row);
+    if (guid === undefined) continue;
+    if (
+      row.event === "fight/start" &&
+      field(row, "jevRun") === field(engage, "id")
+    )
+      guids.add(guid);
+    if (ref && row.ref === target) guids.add(guid);
+  }
+  return guids;
+}
+
+function isCreature(
+  rows: readonly GameLogRow[],
+  kill: GameLogRow,
+  creature: Creature,
+): boolean {
+  const name = field(kill, "name");
+  if (
+    typeof name !== "string" ||
+    name.toLowerCase() !== creature.name.toLowerCase()
+  )
+    return false;
+  return rows
+    .filter((row) => guidOf(row) === guidOf(kill))
+    .every((row) => {
+      const entry = field(row, "entry");
+      return typeof entry !== "number" || entry === creature.entry;
+    });
+}
+
+function firstContact(
+  rows: readonly GameLogRow[],
+  guid: string,
+  before: number,
+): number | undefined {
+  const times = rows
+    .slice(0, before)
+    .filter((row) => {
+      const key = CONTACT_FIELDS[row.event];
+      if (!(row.event in CONTACT_FIELDS)) return false;
+      return (
+        guidOf(row) === guid || (key !== undefined && field(row, key) === guid)
+      );
+    })
+    .map(timeOf);
+  return times.length === 0 ? undefined : Math.min(...times);
+}
 
 function kiteKill(
   rows: readonly GameLogRow[],
-  engage: GameLogRow,
-): FightKill | undefined {
-  const args = field(engage, "args");
-  const wanted = isRecord(args) ? args["target"] : undefined;
-  const targetName =
-    typeof wanted === "string" && !wanted.startsWith("u") ? wanted : undefined;
-  const kill = rows.find(
-    (row, index) =>
+  creature: Creature,
+): FightKill | string {
+  const kills = rows.filter(
+    (row) =>
       row.event === "combat/kill_credit" &&
-      index > rows.indexOf(engage) &&
-      (targetName === undefined ||
-        (typeof field(row, "name") === "string" &&
-          (field(row, "name") as string).toLowerCase() ===
-            targetName.toLowerCase())),
+      guidOf(row) !== undefined &&
+      isCreature(rows, row, creature),
   );
-  if (kill === undefined) return undefined;
-  return { from: timeOf(engage), kill, until: timeOf(kill) };
+  if (kills.length === 0) return `no combat/kill_credit for ${creature.name}`;
+  const engages = kiteEngages(rows);
+  for (const kill of kills) {
+    const killIndex = rows.indexOf(kill);
+    const guid = guidOf(kill) ?? "";
+    const engage = engages.find(
+      (row) =>
+        rows.indexOf(row) < killIndex && engagedGuids(rows, row).has(guid),
+    );
+    if (engage === undefined) continue;
+    const contact = firstContact(rows, guid, killIndex);
+    return {
+      engage,
+      from: Math.min(timeOf(engage), contact ?? timeOf(engage)),
+      kill,
+    };
+  }
+  return `no engage with kite: true on the guid of the ${creature.name} kill`;
 }
 
 function kiteSwings(
@@ -235,24 +327,18 @@ function kiteHealth(
 
 export function pilotKite(
   rows: readonly GameLogRow[],
-  { jev, packets }: MeasureContext,
+  { creature, jev, packets }: MeasureContext,
 ): Measured {
-  const engage = rows.find(
-    (row) => row.event === "run/started" && field(row, "kind") === "engage",
-  );
-  const fight = engage === undefined ? undefined : kiteKill(rows, engage);
-  if (engage === undefined || fight === undefined)
+  if (creature === undefined)
     return {
-      line: engage?.line,
       met: false,
-      observed: {
-        reason:
-          engage === undefined
-            ? "no engage run/started"
-            : "no combat/kill_credit after engage",
-      },
+      observed: { reason: "the check names no creature in its evidence" },
     };
-  const { from, kill, until } = fight;
+  const fight = kiteKill(rows, creature);
+  if (typeof fight === "string")
+    return { met: false, observed: { reason: fight } };
+  const { engage, from, kill } = fight;
+  const until = timeOf(kill);
   const swings = kiteSwings(rows, from, until);
   const dead = rows.find(
     (row) => row.event === "life/dead" && timeOf(row) >= until,
@@ -264,6 +350,8 @@ export function pilotKite(
     observed: {
       dead: dead === undefined ? null : { line: dead.line, text: dead.text },
       endHealthPct: kiteHealth(rows, from, until),
+      engage: { line: engage.line, ts: engage.ts },
+      fightFrom: from,
       kill: { guid: kill.guid, line: kill.line, name: field(kill, "name") },
       movesAway: moves?.away ?? null,
       movesTotal: moves?.total ?? null,

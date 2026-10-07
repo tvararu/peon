@@ -107,7 +107,10 @@ export type CheckWindow = {
   max?: number;
 };
 
+export type CheckCreature = { name: string; entry: number };
+
 export type CheckEvidence = {
+  creature?: CheckCreature;
   truth?: TruthPick[];
   delta?: TruthDelta[];
   items?: number[];

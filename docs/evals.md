@@ -159,13 +159,17 @@ few milliseconds later, so each match allows an applied stamp up to
 `packets.jsonl` or `jev.jsonl` input, or a missing `pilot/ended` row
 leaves the measure unmet with a `reason`.
 
-`pilot_kite` is met when a kill credit exists for the scenario's target
-creature, zero `combatlog/swing_in` rows aimed at the character occur
-between the first `engage` call and the kill, and the character is alive at
-the end. It also reports `endHealthPct` and `movesAway`: the number of the
+`pilot_kite` is met when the scenario's creature (named by
+`evidence.creature` in the check) receives a `combat/kill_credit` whose
+guid was the target of an `engage` call with `kite: true` (resolved by
+guid through the `fight/start` row's `jevRun`, not by name alone), zero
+`combatlog/swing_in` rows aimed at the character occur from the start of
+the fight — the earlier of the first kite engage and the first combat
+event with that guid — to the kill, and the character is alive at the end.
+It also reports `endHealthPct` and `movesAway`: the number of the
 character's server-recorded moves during the fight that increase distance
 from the target. `t3-pilot-kite` puts a level 10 mage by a lone Springpaw
-Stalker east of Fairbreeze Village in Eversong Woods, and
+Stalker (entry 15651) east of Fairbreeze Village in Eversong Woods, and
 `t3-pilot-kite-holdout` puts the same mage by a lone Elder Mottled Boar
 (entry 3100, levels 8-9) in Durotar; the bar is 3/3 on training and at
 least 2/3 held-out.

@@ -4,6 +4,7 @@ import { isRecord } from "#harness/grader/exec";
 export type Measured = { observed: unknown; line?: number; met?: boolean };
 
 export type MeasureContext = {
+  creature?: { name: string; entry: number };
   jev: unknown[] | null;
   packets: unknown[] | null;
   steers: string[];

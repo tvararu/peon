@@ -130,25 +130,40 @@ describe("travelNoAggro", () => {
 });
 
 describe("pilotKite", () => {
-  const engageStart = (ts: number, target: string, line = 1) =>
-    row(line, "run/started", ts, {
-      args: { kite: true, target },
-      id: "e1",
-      kind: "engage",
-    });
-  const kill = (line: number, ts: number, name = "Springpaw Stalker") => ({
-    ...row(line, "combat/kill_credit", ts, { name, xp: 80 }),
-    guid: "f1",
+  const STALKER = { entry: 15_651, name: "Springpaw Stalker" };
+  const engageStart = (
+    ts: number,
+    args: Record<string, unknown> = { kite: true, target: STALKER.name },
+    line = 1,
+  ) => row(line, "run/started", ts, { args, id: "e1", kind: "engage" });
+  const fightStart = (
+    line: number,
+    ts: number,
+    over: { guid?: string; jevRun?: string; ref?: string } = {},
+  ) => ({
+    ...row(line, "fight/start", ts, { jevRun: over.jevRun ?? "e1" }),
+    guid: over.guid ?? "f1",
+    ref: over.ref ?? "u9",
   });
+  const kill = (
+    line: number,
+    ts: number,
+    name = STALKER.name,
+    guid = "f1",
+  ) => ({ ...row(line, "combat/kill_credit", ts, { name, xp: 80 }), guid });
   const world = (line: number, ts: number, hp: number, maxHp = 500) =>
     row(line, "snapshot/world", ts, {
       attackers: [],
       self: { hp, maxHp },
     });
+  const swing = (line: number, ts: number, guid = "f1") => ({
+    ...row(line, "combatlog/swing_in", ts, { outcome: "hits", source: guid }),
+    guid,
+  });
   const context = (
     packets: unknown[] | null = [],
     jev: unknown[] | null = [],
-  ) => ({ jev, packets, steers: [] });
+  ) => ({ creature: STALKER, jev, packets, steers: [] });
   const separated = (ts: number, separation: number) => ({
     loop: "combat",
     observation: { separation },
@@ -156,10 +171,11 @@ describe("pilotKite", () => {
     type: "request",
   });
   const fight = () => [
-    engageStart(1000, "Springpaw Stalker"),
-    world(2, 1100, 480),
-    world(3, 2000, 430),
-    kill(4, 3000),
+    engageStart(1000),
+    fightStart(2, 1050),
+    world(3, 1100, 480),
+    world(4, 2000, 430),
+    kill(5, 3000),
   ];
   const awayContext = () =>
     context(
@@ -170,10 +186,10 @@ describe("pilotKite", () => {
       [separated(1200, 8), separated(1800, 14), separated(2800, 18)],
     );
 
-  test("a kill with no swings in the fight is met with health and moves", () => {
+  test("a clean kill after a kite engage is met with health and moves", () => {
     const measured = pilotKite(fight(), awayContext());
     expect(measured.met).toBe(true);
-    expect(measured.line).toBe(4);
+    expect(measured.line).toBe(5);
     expect(measured.observed).toMatchObject({
       endHealthPct: 86,
       movesAway: 2,
@@ -182,23 +198,142 @@ describe("pilotKite", () => {
     });
   });
 
-  test("a swing between engage and the kill fails", () => {
-    const measured = pilotKite(
+  test("a u-ref or an omitted target binds through the fight's guid", () => {
+    const byRef = pilotKite(
       [
-        engageStart(1000, "Springpaw Stalker"),
-        row(2, "combatlog/swing_in", 2000, { outcome: "hits" }),
+        engageStart(1000, { kite: true, target: "u9" }),
+        fightStart(2, 1050),
         kill(3, 3000),
       ],
+      context(),
+    );
+    expect(byRef.met).toBe(true);
+    const omitted = pilotKite(
+      [engageStart(1000, { kite: true }), fightStart(2, 1050), kill(3, 3000)],
+      context(),
+    );
+    expect(omitted.met).toBe(true);
+  });
+
+  test("the wrong mob killed fails, by name and by guid", () => {
+    const byName = pilotKite(
+      [
+        engageStart(1000, { kite: true, target: "u9" }),
+        fightStart(2, 1050, { guid: "f2", jevRun: "e1", ref: "u9" }),
+        kill(3, 3000, "Eversong Tender", "f2"),
+      ],
+      context(),
+    );
+    expect(byName.met).toBe(false);
+    expect(byName.observed).toMatchObject({
+      reason: "no combat/kill_credit for Springpaw Stalker",
+    });
+    const byGuid = pilotKite(
+      [
+        engageStart(1000, { kite: true, target: "u9" }),
+        fightStart(2, 1050, { guid: "f2", jevRun: "e1", ref: "u9" }),
+        kill(3, 3000, STALKER.name, "f1"),
+      ],
+      context(),
+    );
+    expect(byGuid.met).toBe(false);
+    expect(byGuid.observed).toMatchObject({
+      reason:
+        "no engage with kite: true on the guid of the Springpaw Stalker kill",
+    });
+  });
+
+  test("a kill whose entry differs from the scenario's fails", () => {
+    const measured = pilotKite(
+      [
+        engageStart(1000),
+        fightStart(2, 1050),
+        row(3, "entity/appear", 1060, { entry: 15_652 }),
+        kill(4, 3000),
+      ].map((entry) =>
+        entry.event === "entity/appear" ? { ...entry, guid: "f1" } : entry,
+      ),
+      context(),
+    );
+    expect(measured.met).toBe(false);
+  });
+
+  test("no engage with kite: true fails", () => {
+    const plain = pilotKite(
+      [
+        engageStart(1000, { target: STALKER.name }),
+        fightStart(2, 1050),
+        kill(3, 3000),
+      ],
+      context(),
+    );
+    expect(plain.met).toBe(false);
+    const explicitFalse = pilotKite(
+      [
+        engageStart(1000, { kite: false, target: STALKER.name }),
+        fightStart(2, 1050),
+        kill(3, 3000),
+      ],
+      context(),
+    );
+    expect(explicitFalse.met).toBe(false);
+  });
+
+  test("a kill before the kite engage fails", () => {
+    const measured = pilotKite(
+      [
+        fightStart(1, 500),
+        kill(2, 900),
+        engageStart(1000),
+        fightStart(4, 1050),
+      ],
+      context(),
+    );
+    expect(measured.met).toBe(false);
+  });
+
+  test("a swing between engage and the kill fails", () => {
+    const measured = pilotKite(
+      [engageStart(1000), fightStart(2, 1050), swing(3, 2000), kill(4, 3000)],
       context(),
     );
     expect(measured.met).toBe(false);
     expect(measured.observed).toMatchObject({ swings: 1 });
   });
 
-  test("swings before engage or after the kill do not count", () => {
+  test("a swing before the engage but in the fight fails", () => {
     const measured = pilotKite(
       [
-        row(1, "combatlog/swing_in", 500, { outcome: "miss" }),
+        swing(1, 700),
+        engageStart(1000, undefined, 2),
+        fightStart(3, 1050),
+        kill(4, 3000),
+      ],
+      context(),
+    );
+    expect(measured.met).toBe(false);
+    expect(measured.observed).toMatchObject({ fightFrom: 700, swings: 1 });
+  });
+
+  test("a fight started by a travel run counts from its first contact", () => {
+    const measured = pilotKite(
+      [
+        fightStart(1, 500, { jevRun: "t1" }),
+        swing(2, 700),
+        engageStart(1000, undefined, 3),
+        fightStart(4, 1050),
+        kill(5, 3000),
+      ],
+      context(),
+    );
+    expect(measured.met).toBe(false);
+    expect(measured.observed).toMatchObject({ fightFrom: 500, swings: 1 });
+  });
+
+  test("swings from other creatures before the fight or after the kill do not count", () => {
+    const measured = pilotKite(
+      [
+        swing(1, 500, "f9"),
         ...fight(),
         row(6, "combatlog/swing_in", 4000, { outcome: "hits" }),
       ],
@@ -207,25 +342,16 @@ describe("pilotKite", () => {
     expect(measured.met).toBe(true);
   });
 
-  test("no kill fails, and a kill for another creature does not count", () => {
-    const missing = pilotKite(
-      [engageStart(1000, "Springpaw Stalker")],
-      context(),
-    );
+  test("no kill fails, and a check without a creature fails", () => {
+    const missing = pilotKite([engageStart(1000)], context());
     expect(missing.met).toBe(false);
-    const other = pilotKite(
-      [
-        engageStart(1000, "Springpaw Stalker"),
-        kill(2, 2000, "Eversong Tender"),
-      ],
-      context(),
-    );
-    expect(other.met).toBe(false);
+    const unnamed = pilotKite(fight(), { jev: [], packets: [], steers: [] });
+    expect(unnamed.met).toBe(false);
   });
 
   test("death after the kill fails", () => {
     const measured = pilotKite(
-      [...fight(), row(5, "life/dead", 4000, {})],
+      [...fight(), row(6, "life/dead", 4000, {})],
       context(),
     );
     expect(measured.met).toBe(false);

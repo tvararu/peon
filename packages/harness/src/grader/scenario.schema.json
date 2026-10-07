@@ -66,6 +66,19 @@
                 "required": ["match", "read"],
                 "type": "object"
               },
+              "creature": {
+                "additionalProperties": false,
+                "properties": {
+                  "entry": {
+                    "type": "integer"
+                  },
+                  "name": {
+                    "type": "string"
+                  }
+                },
+                "required": ["entry", "name"],
+                "type": "object"
+              },
               "delta": {
                 "items": {
                   "enum": ["money", "totalXp"]
