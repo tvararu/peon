@@ -268,6 +268,19 @@ describe("installInput", () => {
       expect(() => admitAgent(rt, "engage")).not.toThrow();
     });
 
+    test("a substring of a delivered question does not arm a longer one", async () => {
+      const { fake, rt } = await setup({}, { yields: createYieldGate() });
+      await fake.emit({ type: "agent_start" });
+      await fake.emit(human("How much health and mana?"));
+      await fake.emit(human("mana?"));
+      await fake.emit(delivered("How much health and mana?"));
+      await fake.emit(started);
+      await fake.emit(said("Health 80%, mana 40%."));
+      expect(rt.session.humanTexts).toEqual(["mana?"]);
+      expect(rt.session.humanWaiting).toBe(true);
+      expect(() => admitAgent(rt, "engage")).toThrow("human_waiting");
+    });
+
     test("an Esc-joined resubmission arms every queued question", async () => {
       const { fake, rt } = await pending();
       await fake.emit(human("and your mana?"));

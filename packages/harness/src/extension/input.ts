@@ -65,10 +65,8 @@ export function installInput(pi: ExtensionAPI, rt: HarnessRuntime): void {
     const text = userText(event.message);
     if (text === undefined) return;
     if (session.humanTexts.includes(text)) armDelivered(rt, text);
-    for (const entry of session.humanTexts) {
-      if (entry === text || entry.length === 0 || !text.includes(entry))
-        continue;
-      armDelivered(rt, entry);
+    for (const entry of text.split("\n\n")) {
+      if (session.humanTexts.includes(entry)) armDelivered(rt, entry);
     }
   });
   pi.on("tool_execution_start", (event) => {
@@ -176,6 +174,7 @@ function noteAssistant(rt: HarnessRuntime, message: AgentMessage): void {
   const text = message.content
     .flatMap((part) => (part.type === "text" ? [part.text] : []))
     .join("");
+  if (text.trim().length === 0) return;
   if (hasToolCall(message)) {
     rt.log.append({
       class: "log",
@@ -186,7 +185,6 @@ function noteAssistant(rt: HarnessRuntime, message: AgentMessage): void {
     });
     return;
   }
-  if (text.trim().length === 0) return;
   if (failedAssistant(message)) return;
   if (rt.session.deliveredTexts.length > 0) {
     const outstanding = [...rt.session.deliveredTexts];
