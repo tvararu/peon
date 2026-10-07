@@ -50,26 +50,20 @@ async function waitFor(
 }
 
 function missed(value: Json): boolean {
-  return (
-    value !== null &&
-    typeof value === "object" &&
-    "missed" in value &&
-    typeof value.missed === "string"
-  );
+  if (value === null || typeof value !== "object" || Array.isArray(value))
+    return false;
+  const flag = value["missed"];
+  return typeof flag === "string";
 }
 
 function joinedSlot(value: Json): number {
-  if (
-    value !== null &&
-    typeof value === "object" &&
-    "joined" in value &&
-    value.joined !== null &&
-    typeof value.joined === "object" &&
-    "slot" in value.joined &&
-    typeof value.joined.slot === "number"
-  )
-    return value.joined.slot;
-  return 0;
+  if (value === null || typeof value !== "object" || Array.isArray(value))
+    return 0;
+  const inner = value["joined"];
+  if (inner === null || typeof inner !== "object" || Array.isArray(inner))
+    return 0;
+  const slot = inner["slot"];
+  return typeof slot === "number" ? slot : 0;
 }
 
 async function joinQueue(ctx: FlowContext, bg: number): Promise<Json> {
@@ -149,9 +143,17 @@ async function run(ctx: FlowContext): Promise<Json> {
   const log: Json[] = [];
 
   const queued = await joinQueue(ctx, bg);
-  log.push(json({ bg, ...queued }));
+  const board =
+    queued === null || typeof queued !== "object" || Array.isArray(queued)
+      ? {}
+      : queued;
+  log.push(json({ bg, ...board }));
 
-  const entered = await acceptInvite(ctx, queued.joined as Json);
+  const joined = board["joined"];
+  const entered = await acceptInvite(
+    ctx,
+    joined === undefined ? json({}) : joined,
+  );
   if (entered === undefined) {
     const invited = json({ missed: "invite" });
     log.push(invited);
