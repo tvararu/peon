@@ -74,14 +74,14 @@ window; their outcome lands here when they return.
 
 | Opcode | Proof | Evidence | Source |
 |---|---|---|---|
-| `SMSG_BATTLEFIELD_MGR_QUEUE_INVITE` | `mock` (`unseen`, not seen live: the window had not opened at proof time) | `packages/core/src/wow/areas/wintergrasp/protocol.test.ts`, "queue invite reads the warmup byte" | `Battlefield/BattlefieldHandler.cpp:42-48` |
-| `CMSG_BATTLEFIELD_MGR_QUEUE_INVITE_RESPONSE` | `mock` (`builder`, not sent live: the window had not opened at proof time) | `packages/core/src/wow/areas/wintergrasp/protocol.test.ts`, "client builders match the AzerothCore readers" | `Battlefield/BattlefieldHandler.cpp:89-102` |
-| `SMSG_BATTLEFIELD_MGR_QUEUE_REQUEST_RESPONSE` | `mock` (`unseen`, not seen live: the window had not opened at proof time) | `packages/core/src/wow/areas/wintergrasp/protocol.test.ts`, "queue response reads the not-full byte as inverted" | `Battlefield/BattlefieldHandler.cpp:55-64` |
+| `SMSG_BATTLEFIELD_MGR_QUEUE_INVITE` | `live` | flow `wintergrasp-window` mode `queue-exit` on `max80` account `FAC6AC63C9CD7`: trace `tmp/probe/FAC6AC63C9CD7-20261007T123646Z/packets.jsonl` holds the invite in (`0100000001`: battle 1, warmup 1) | `Battlefield/BattlefieldHandler.cpp:42-48` |
+| `CMSG_BATTLEFIELD_MGR_QUEUE_INVITE_RESPONSE` | `live` | same run: the accept send out (`0100000001`) | `Battlefield/BattlefieldHandler.cpp:89-102` |
+| `SMSG_BATTLEFIELD_MGR_QUEUE_REQUEST_RESPONSE` | `live` | same run: the queued reply in (`0100000065100000010101`: battle 1, zone 4197, queued, not full, warmup) | `Battlefield/BattlefieldHandler.cpp:55-64` |
 | `SMSG_BATTLEFIELD_MGR_ENTRY_INVITE` | `mock` (`unseen`, not seen live: the window had not opened at proof time) | `packages/core/src/wow/areas/wintergrasp/protocol.test.ts`, "entry invite keeps the absolute expiry" | `Battlefield/BattlefieldHandler.cpp:31-38` |
 | `CMSG_BATTLEFIELD_MGR_ENTRY_INVITE_RESPONSE` | `mock` (`builder`, not sent live: the window had not opened at proof time) | `packages/core/src/wow/areas/wintergrasp/protocol.test.ts`, "client builders match the AzerothCore readers" | `Battlefield/BattlefieldHandler.cpp:105-123` |
 | `SMSG_BATTLEFIELD_MGR_ENTERED` | `mock` (`unseen`, not seen live: the window had not opened at proof time) | `packages/core/src/wow/areas/wintergrasp/protocol.test.ts`, "entered reads the clear-afk byte after the two unknown bytes" | `Battlefield/BattlefieldHandler.cpp:68-76` |
-| `SMSG_BATTLEFIELD_MGR_EJECTED` | `mock` (`unseen`, not seen live: the window had not opened at proof time) | `packages/core/src/wow/areas/wintergrasp/protocol.test.ts`, "ejected reads reason, status and relocated" | `Battlefield/BattlefieldHandler.cpp:78-86` |
-| `CMSG_BATTLEFIELD_MGR_EXIT_REQUEST` | `mock` (`builder`, not sent live: the window had not opened at proof time) | `packages/core/src/wow/areas/wintergrasp/protocol.test.ts`, "client builders match the AzerothCore readers" | `Battlefield/BattlefieldHandler.cpp:125-136` |
+| `SMSG_BATTLEFIELD_MGR_EJECTED` | `live` | same run: the eject reply in after `exitQueue` (`01000000010200`: battle 1, reason 1 close, status 2, relocated 0) | `Battlefield/BattlefieldHandler.cpp:78-86` |
+| `CMSG_BATTLEFIELD_MGR_EXIT_REQUEST` | `live` | same run: the exit send out (`01000000`) | `Battlefield/BattlefieldHandler.cpp:125-136` |
 | `CMSG_HEARTH_AND_RESURRECT` | `live` | flow `wintergrasp-hearth`: the trace holds the send and `SMSG_NEW_WORLD`; `soap truth` names the bind point (map 530) | `Handlers/MiscHandler.cpp:1686-1705` |
 | `SMSG_DESTRUCTIBLE_BUILDING_DAMAGE` | `mock` (`unseen`, not seen live: needs a siege vehicle in a war) | `packages/core/src/wow/areas/wintergrasp/protocol.test.ts`, "building damage reads three packed guids and a signed change" | `Entities/GameObject/GameObject.cpp:2339-2348` |
 | `SMSG_BATTLEFIELD_MGR_EJECT_PENDING` | `dead` | never sent by the server build | `Opcodes.cpp` per the pvp dead table |

@@ -10,10 +10,10 @@ columns are explained in [the index](../protocol-coverage.md).
 | `0x4de` | `SMSG_BATTLEFIELD_MGR_ENTRY_INVITE` | server | handled | not seen live |
 | `0x4df` | `CMSG_BATTLEFIELD_MGR_ENTRY_INVITE_RESPONSE` | client | handled |  |
 | `0x4e0` | `SMSG_BATTLEFIELD_MGR_ENTERED` | server | handled | not seen live |
-| `0x4e1` | `SMSG_BATTLEFIELD_MGR_QUEUE_INVITE` | server | handled | not seen live |
+| `0x4e1` | `SMSG_BATTLEFIELD_MGR_QUEUE_INVITE` | server | handled |  |
 | `0x4e2` | `CMSG_BATTLEFIELD_MGR_QUEUE_INVITE_RESPONSE` | client | handled |  |
-| `0x4e4` | `SMSG_BATTLEFIELD_MGR_QUEUE_REQUEST_RESPONSE` | server | handled | not seen live |
+| `0x4e4` | `SMSG_BATTLEFIELD_MGR_QUEUE_REQUEST_RESPONSE` | server | handled |  |
 | `0x4e5` | `SMSG_BATTLEFIELD_MGR_EJECT_PENDING` | server | dead |  |
-| `0x4e6` | `SMSG_BATTLEFIELD_MGR_EJECTED` | server | handled | not seen live |
+| `0x4e6` | `SMSG_BATTLEFIELD_MGR_EJECTED` | server | handled |  |
 | `0x4e7` | `CMSG_BATTLEFIELD_MGR_EXIT_REQUEST` | client | handled |  |
 | `0x4e8` | `SMSG_BATTLEFIELD_MGR_STATE_CHANGE` | server | dead |  |
