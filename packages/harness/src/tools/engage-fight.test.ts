@@ -469,41 +469,47 @@ describe("engage fight", () => {
     t.rt.runs.cancel(res.runId ?? "", "tool");
   });
 
-  test("kite tells the fight to keep outside melee reach", async () => {
-    const t = await field();
-    let seen = "";
-    const idle = t.handle.getTacticsState();
-    t.handle.startTactics = (guid, instruction, signal) => {
-      seen = instruction;
-      t.handle.getTacticsState = () => ({
-        ...idle,
-        runId: "t1",
-        status: "active",
-        targetGuid: guid,
-      });
-      t.handle.triggerTacticsEvent({
-        framing: "minimal",
-        instruction,
-        runId: "t1",
-        targetGuid: `0x${guid.toString(16)}`,
-        type: "started",
-      });
-      return new Promise<void>((resolve) => {
-        signal?.addEventListener("abort", () => resolve(), { once: true });
-        queueMicrotask(() => {
-          xp(t.handle, STALKER, 108);
-          outcome(t.handle, "t1", KILL);
-          resolve();
+  for (const args of [
+    { kite: true, target: "Springpaw Stalker" },
+    {
+      how: "Hit it with Frostbolt",
+      kite: true,
+      target: "Springpaw Stalker",
+    },
+  ])
+    test(`kite instruction for ${JSON.stringify(args)}`, async () => {
+      const t = await field();
+      let seen = "";
+      const idle = t.handle.getTacticsState();
+      t.handle.startTactics = (guid, instruction, signal) => {
+        seen = instruction;
+        t.handle.getTacticsState = () => ({
+          ...idle,
+          runId: "t1",
+          status: "active",
+          targetGuid: guid,
         });
-      });
-    };
-    lootsFang(t.handle);
-    const res = await engageSpec.run(
-      { kite: true, target: "Springpaw Stalker" },
-      toolCtx<EngageAfter>(t),
-    );
-    expect(res.status).toBe("DONE");
-    expect(seen).toContain("kite");
-    expect(seen).toContain("melee reach");
-  });
+        t.handle.triggerTacticsEvent({
+          framing: "minimal",
+          instruction,
+          runId: "t1",
+          targetGuid: `0x${guid.toString(16)}`,
+          type: "started",
+        });
+        return new Promise<void>((resolve) => {
+          signal?.addEventListener("abort", () => resolve(), { once: true });
+          queueMicrotask(() => {
+            xp(t.handle, STALKER, 108);
+            outcome(t.handle, "t1", KILL);
+            resolve();
+          });
+        });
+      };
+      lootsFang(t.handle);
+      const res = await engageSpec.run(args, toolCtx<EngageAfter>(t));
+      expect(res.status).toBe("DONE");
+      expect(seen).toContain("kite");
+      expect(seen).toContain("melee reach");
+      if (args.how) expect(seen).toContain(args.how);
+    });
 });

@@ -49,6 +49,7 @@ export class EncounterCycleRuntime {
     queue: [],
     currentIndex: 0,
     instruction: "",
+    kite: false,
     maxStarts: DEFAULT_MAX_STARTS,
     startsUsed: 0,
     stopCause: undefined,
@@ -96,6 +97,7 @@ export class EncounterCycleRuntime {
   async start(args: {
     guids: bigint[];
     instruction: string;
+    kite?: boolean;
     maxStarts?: number;
     objective?: CycleObjective;
   }): Promise<void> {
@@ -111,6 +113,7 @@ export class EncounterCycleRuntime {
       queue: args.guids.map((guid) => ({ guid, status: "queued" })),
       currentIndex: 0,
       instruction: args.instruction,
+      kite: args.kite === true,
       maxStarts,
       startsUsed: 0,
       stopCause: undefined,
@@ -330,6 +333,7 @@ export class EncounterCycleRuntime {
     const context = {
       targetGuid: record.guid,
       instruction: this.state.instruction,
+      ...(this.state.kite ? { kite: true as const } : {}),
     };
     try {
       await tactics.start(context, signal);

@@ -51,6 +51,7 @@ export type CycleState = {
   queue: CycleTargetRecord[];
   currentIndex: number;
   instruction: string;
+  kite: boolean;
   maxStarts: number;
   startsUsed: number;
   stopCause: string | undefined;

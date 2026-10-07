@@ -1,10 +1,11 @@
-import {
-  bearing,
-  type CombatState,
-  isUnit,
-  type SpellDefinition,
-} from "@peon/core";
+import { bearing, type CombatState } from "@peon/core";
 import type { JevCandidate } from "#harness/jev/contract";
+import {
+  addCandidates,
+  type CandidatesInput,
+  canMelee,
+  inMelee,
+} from "#harness/loops/combat-actions-candidates";
 import {
   channelCandidates,
   channelObservation,
@@ -17,52 +18,48 @@ import {
   type ActionDeps,
   baseObservation,
 } from "#harness/loops/combat-actions-frame";
+import {
+  driveKiteMove,
+  KITE_MOVE_REFUSALS,
+  kiteHolding,
+  kiteMasked,
+  kiteMelee,
+  kiteOf,
+  kiteOffers,
+  kiteWatch,
+  longestHostileRange,
+  maskPendingMove,
+  movePlacement,
+  resetKite,
+  waitRenewal,
+} from "#harness/loops/combat-actions-kite";
 import { WAIT } from "#harness/loops/combat-actions-movement";
 import {
   closingText,
   combatDangerText,
-  combatMoveCandidates,
   combatMoveOption,
   snares,
   targetGap,
 } from "#harness/loops/combat-actions-moves";
 import {
-  facing,
-  immuneTo,
   RANGE_HELD_REASONS,
   separation,
   timeoutOutcome,
   withNulls,
 } from "#harness/loops/combat-actions-observation";
-import { petCandidate, petOf } from "#harness/loops/combat-actions-pet";
+import { petOf } from "#harness/loops/combat-actions-pet";
 import {
-  gearReason,
-  isAutoShot,
-  isRangedShot,
-  NO_RANGED_GEAR,
-} from "#harness/loops/combat-actions-ranged";
-import {
-  auraReason,
-  describeSpell,
-  hostileReason,
-  manaReason,
-  rangeSupport,
-  requiresStanding,
-  unsupportedSpell,
-} from "#harness/loops/combat-actions-spells";
+  type SpellAction,
+  spellAction,
+} from "#harness/loops/combat-actions-spell-assembly";
+import { requiresStanding } from "#harness/loops/combat-actions-spells";
 import { targetReason } from "#harness/loops/combat-actions-target";
 import { approached, ProgressWatch } from "#harness/loops/combat-progress";
 import { RejectionTracker } from "#harness/loops/combat-rejections";
 import { PILOT_DEADMAN_MS } from "#harness/loops/pilot-actions";
+
 import type { TacticsContext, TacticsFrame } from "#harness/loops/tactics";
 
-type SpellAction = {
-  spell?: SpellDefinition;
-  target: bigint;
-  id: string;
-  reason?: string;
-  supported: boolean;
-};
 const UNREACHABLE_TIMEOUT_MS = 5000;
 
 export class CombatActions {
@@ -74,6 +71,7 @@ export class CombatActions {
   private gap: number | undefined;
   private readonly progress = new ProgressWatch();
   private readonly rejections = new RejectionTracker();
+  private readonly kite = kiteWatch({ now: () => this.deps.now() });
 
   constructor(deps: ActionDeps) {
     this.deps = deps;
@@ -90,26 +88,38 @@ export class CombatActions {
     this.gap = undefined;
     this.progress.reset();
     this.rejections.reset(this.startedAt);
+    resetKite(this.kite);
     this.deps.control.halt();
     this.deps.combat.halt();
     this.deps.control.selectTarget(context.targetGuid);
   }
 
+  commit(context: TacticsContext): TacticsFrame {
+    return this.frame(context, false);
+  }
+
   observe(context: TacticsContext): TacticsFrame {
+    return this.frame(context, true);
+  }
+
+  private frame(context: TacticsContext, record: boolean): TacticsFrame {
+    const kite = kiteOf(context);
     const state = this.deps.combat.snapshot(context.targetGuid);
     const channel = this.deps.combat.channel();
     const spells = state.learned.map((id) =>
-      this.spellAction(id, context, state),
+      spellAction(this.deps, id, context, state),
     );
     const outcome = channel
       ? this.terminalOutcome(context, state)
-      : this.outcome(context, state, spells);
+      : this.outcome({ context, kite, spells, state });
     const candidates: JevCandidate[] = [WAIT];
     if (channel && !outcome)
       candidates.push(...channelCandidates(state, channel, context.targetGuid));
-    else if (!outcome) this.addCandidates(candidates, spells, state, context);
-    const closing = closingText(state, this.deps.entity, this.gap);
-    this.gap = targetGap(state, this.deps.entity) ?? this.gap;
+    else if (!outcome)
+      this.candidates({ candidates, context, kite, spells, state });
+    const closing = closingText(state, this.deps.entity, this.gap, kite);
+    const gap = targetGap(state, this.deps.entity, kite);
+    if (record) this.gap = gap ?? this.gap;
     const extra = channel
       ? channelObservation(
           channel,
@@ -117,10 +127,76 @@ export class CombatActions {
           this.deps.now(),
         )
       : {};
-    const moves = { deps: this.deps, context, state };
+    return this.close({
+      candidates,
+      closing,
+      context,
+      extra,
+      gap,
+      kite,
+      longest: longestHostileRange(spells, context.targetGuid),
+      outcome,
+      separationYd: separation(state),
+      spells,
+      state,
+    });
+  }
+
+  private close(input: {
+    candidates: JevCandidate[];
+    closing: string;
+    context: TacticsContext;
+    extra: Record<string, unknown>;
+    gap: number | undefined;
+    kite: boolean;
+    longest: number | undefined;
+    outcome: TacticsFrame["outcome"];
+    separationYd: number | undefined;
+    spells: readonly SpellAction[];
+    state: CombatState;
+  }): TacticsFrame {
+    const observed = this.observeParts(input);
+    return {
+      candidates: observed.candidates,
+      observation: withNulls(observed.fields),
+      outcome: observed.outcome,
+    };
+  }
+
+  private observeParts(input: {
+    candidates: JevCandidate[];
+    closing: string;
+    context: TacticsContext;
+    extra: Record<string, unknown>;
+    gap: number | undefined;
+    kite: boolean;
+    longest: number | undefined;
+    outcome: TacticsFrame["outcome"];
+    separationYd: number | undefined;
+    spells: readonly SpellAction[];
+    state: CombatState;
+  }): {
+    candidates: JevCandidate[];
+    fields: Record<string, unknown>;
+    outcome: TacticsFrame["outcome"];
+  } {
+    const {
+      candidates,
+      closing,
+      context,
+      extra,
+      gap,
+      kite,
+      longest,
+      outcome,
+      separationYd,
+      spells,
+      state,
+    } = input;
+    const found = snares(state, (id) => this.deps.combat.definition(id));
     return {
       candidates,
-      observation: withNulls({
+      fields: {
         ...baseObservation({
           deps: this.deps,
           rejections: this.rejections,
@@ -131,43 +207,68 @@ export class CombatActions {
         ...extra,
         melee: {
           closing,
-          gapYd: targetGap(state, this.deps.entity) ?? null,
-          snares: snares(state, (id) => this.deps.combat.definition(id)),
+          gapYd: gap ?? null,
+          ...(kite
+            ? {
+                kite: kiteMelee({
+                  closing: closing === "closing",
+                  found,
+                  retreat: kiteOffers({
+                    closing: closing === "closing",
+                    gap,
+                    longest,
+                    separation: separationYd,
+                  }).retreat,
+                }),
+              }
+            : {}),
+          snares: found,
         },
-        danger: combatDangerText(moves),
-      }),
+        danger: combatDangerText({
+          deps: this.deps,
+          context,
+          masked: (id: string) => kiteMasked(this.kite, id),
+          previousGap: this.gap,
+          spells,
+          state,
+        }),
+      },
       outcome,
     };
   }
 
   execute(id: string, context: TacticsContext): void {
-    const frame = this.observe(context);
+    const kite = kiteOf(context);
+    const frame = this.commit(context);
     if (
       frame.outcome ||
       !frame.candidates.some((candidate) => candidate.id === id)
     )
       throw new Error("action_no_longer_legal");
     if (id === "wait") {
-      const control = this.deps.control.snapshot();
-      if (control.moving)
-        this.deps.control.drive(control.input, PILOT_DEADMAN_MS);
+      this.executeWait(context);
       return;
     }
     if (id === "stop") {
       this.deps.control.halt();
       return;
     }
+    const state = this.deps.combat.snapshot(context.targetGuid);
     const move = combatMoveOption(
       {
         deps: this.deps,
         context,
-        state: this.deps.combat.snapshot(context.targetGuid),
+        masked: (masked: string) => kiteMasked(this.kite, masked),
+        previousGap: this.gap,
+        spells: state.learned.map((spellId) =>
+          spellAction(this.deps, spellId, context, state),
+        ),
+        state,
       },
       id,
     );
     if (move?.input !== undefined) {
-      this.deps.control.face(move.heading);
-      this.deps.control.drive(move.input, PILOT_DEADMAN_MS);
+      driveKiteMove(this.deps.control, this.kite, move, kite);
       return;
     }
     if (id === "cancel") {
@@ -198,6 +299,31 @@ export class CombatActions {
     this.executeTargeted(id, context);
   }
 
+  private executeWait(context: TacticsContext): void {
+    const control = this.deps.control.snapshot();
+    if (!control.moving) return;
+    const state = this.deps.combat.snapshot(context.targetGuid);
+    const placement = movePlacement(
+      {
+        aggro: this.deps.aggro,
+        control: this.deps.control,
+        nearby: this.deps.nearby,
+      },
+      context,
+      state,
+    );
+    const renewed =
+      placement &&
+      waitRenewal({
+        current: control.input,
+        ground: this.deps.ground,
+        orientation: placement.pose.orientation,
+        placement,
+      });
+    if (renewed) this.deps.control.drive(renewed, PILOT_DEADMAN_MS);
+    else this.deps.control.halt();
+  }
+
   private executeTargeted(id: string, context: TacticsContext): void {
     const state = this.deps.combat.snapshot(context.targetGuid);
     if (id === "face_target") {
@@ -208,7 +334,7 @@ export class CombatActions {
       return;
     }
     const action = state.learned
-      .map((spellId) => this.spellAction(spellId, context, state))
+      .map((spellId) => spellAction(this.deps, spellId, context, state))
       .find((entry) => entry.id === id && !entry.reason);
     if (!action?.spell) throw new Error("action_no_longer_legal");
     if (this.deps.control.snapshot().moving && requiresStanding(action.spell))
@@ -216,135 +342,25 @@ export class CombatActions {
     this.deps.combat.cast(action.spell.id, action.target);
   }
 
-  private addCandidates(
-    candidates: JevCandidate[],
-    spells: readonly SpellAction[],
-    state: CombatState,
-    context: TacticsContext,
-  ): void {
-    if (state.target?.health === 0) return;
-    if (state.casting?.cancelRequested || state.pendingCast?.cancelRequested)
-      return;
-    if (state.casting || state.pendingCast) {
-      candidates.push({
-        id: "cancel",
-        description: "Request cancellation of the current cast",
-      });
-      return;
-    }
-    if (this.deps.control.snapshot().movementAllowed)
-      candidates.push(
-        ...combatMoveCandidates({ deps: this.deps, context, state }),
-      );
-    for (const action of spells)
-      if (action.spell && !action.reason)
-        candidates.push({
-          id: action.id,
-          description: describeSpell(
-            action.spell,
-            action.target === state.self.guid,
-          ),
-        });
-    this.addEngageCandidates(candidates, state);
-  }
-
-  private addEngageCandidates(
-    candidates: JevCandidate[],
-    state: CombatState,
-  ): void {
-    const pet = petCandidate(
-      petOf(this.deps.entity, state.self.guid),
-      state,
-      this.deps.now(),
+  private candidates(input: CandidatesInput): void {
+    addCandidates(
+      {
+        deps: this.deps,
+        gap: this.gap,
+        rejections: this.rejections,
+        watch: this.kite,
+      },
+      input,
     );
-    if (pet) candidates.push(pet);
-    if (state.autoRepeat)
-      candidates.push({ id: "stop_auto_shot", description: "Stop Auto Shot" });
-    if (state.attacking || state.pendingAttack)
-      candidates.push({ id: "stop_attack", description: "Stop autoattack" });
-    else if (this.inMelee(state) && facing(state))
-      candidates.push({
-        id: "attack",
-        description: "Start melee autoattack against the selected creature",
-      });
-    if (
-      state.self.pose &&
-      state.target?.pose &&
-      (!facing(state) || this.rejections.facingRejected()) &&
-      this.deps.control.snapshot().movementAllowed
-    )
-      candidates.push({
-        id: "face_target",
-        description: this.rejections.facingRejected()
-          ? "Turn to face the selected creature; the server rejected the last action because it was not in front"
-          : "Turn to face the selected creature at its current observed or predicted position",
-      });
   }
 
-  private spellAction(
-    id: number,
-    context: TacticsContext,
-    state: CombatState,
-  ): SpellAction {
-    const spell = this.deps.combat.definition(id);
-    const hostile =
-      spell?.effects.some(
-        (effect) =>
-          effect.implicitTargetA === 6 || effect.implicitTargetB === 6,
-      ) ?? false;
-    const target = hostile ? context.targetGuid : state.self.guid;
-    const actionId = `spell:${id}:${hostile ? "target" : "self"}`;
-    if (!spell)
-      return {
-        id: actionId,
-        target,
-        reason: "unknown_metadata",
-        supported: false,
-      };
-    const unsupported =
-      unsupportedSpell(spell, state.self.shapeshiftForm) ??
-      rangeSupport(spell, hostile) ??
-      (isRangedShot(spell)
-        ? gearReason(spell, this.deps.gear?.() ?? NO_RANGED_GEAR)
-        : undefined);
-    const immune =
-      hostile && immuneTo(this.deps.combatLog?.(), context.targetGuid, id);
-    const reason =
-      unsupported ??
-      (immune ? "immune" : this.spellReason(spell, state, hostile));
-    return { id: actionId, spell, target, reason, supported: !unsupported };
-  }
-
-  private spellReason(
-    spell: SpellDefinition,
-    state: CombatState,
-    hostile: boolean,
-  ): string | undefined {
-    if (isAutoShot(spell) && state.autoRepeat?.target === state.target?.guid)
-      return "auto_shot_active";
-    if (this.deps.combat.readyAt(spell.id) > this.deps.now()) return "cooldown";
-    const reason =
-      manaReason(spell, state) ?? auraReason(spell, state, hostile);
-    if (reason) return reason;
-    const target = hostile ? state.target : state.self;
-    if (
-      !hostile &&
-      spell.effects.some(
-        (effect) => effect.effect === 10 || effect.applyAura === 8,
-      ) &&
-      (target?.health === undefined ||
-        target.maxHealth === undefined ||
-        target.health >= target.maxHealth)
-    )
-      return "no_observed_healing_needed";
-    return hostile ? hostileReason(spell, state, this.deps.entity) : undefined;
-  }
-
-  private outcome(
-    context: TacticsContext,
-    state: CombatState,
-    spells: readonly SpellAction[],
-  ): TacticsFrame["outcome"] {
+  private outcome(input: {
+    context: TacticsContext;
+    state: CombatState;
+    spells: readonly SpellAction[];
+    kite: boolean;
+  }): TacticsFrame["outcome"] {
+    const { context, kite, spells, state } = input;
     const terminal = this.terminalOutcome(context, state);
     if (terminal || state.target?.health === 0) return terminal;
     const now = this.deps.now();
@@ -358,10 +374,13 @@ export class CombatActions {
     if (
       control.blockedReason &&
       !["rooted", "disable_move"].includes(control.blockedReason)
-    )
-      return { status: "blocked", reason: control.blockedReason };
+    ) {
+      if (kite && KITE_MOVE_REFUSALS[control.blockedReason] === true) {
+        maskPendingMove(this.kite);
+      } else return { status: "blocked", reason: control.blockedReason };
+    }
     return (
-      this.reachOutcome(context, state, spells, now) ??
+      this.reachOutcome({ context, kite, now, spells, state }) ??
       this.progress.observe(state, now)
     );
   }
@@ -397,24 +416,38 @@ export class CombatActions {
     return this.rejections.outcome();
   }
 
-  private reachOutcome(
-    context: TacticsContext,
-    state: CombatState,
-    spells: readonly SpellAction[],
-    now: number,
-  ): TacticsFrame["outcome"] {
+  private reachOutcome(input: {
+    context: TacticsContext;
+    state: CombatState;
+    spells: readonly SpellAction[];
+    now: number;
+    kite: boolean;
+  }): TacticsFrame["outcome"] {
+    const { context, kite, now, spells, state } = input;
     if (
       !(
         state.pendingCast ||
         state.casting ||
         state.pendingAttack ||
         state.attacking ||
-        this.canMelee(state) ||
+        canMelee(this.deps.entity, state) ||
         spells.some((action) => action.supported)
       )
     )
       return { status: "blocked", reason: "no_supported_combat_actions" };
     if (this.targetReachable(context, state, spells)) {
+      this.unreachable = undefined;
+      return undefined;
+    }
+    if (
+      kite &&
+      kiteHolding({
+        distance: separation(state),
+        gap: targetGap(state, this.deps.entity, true),
+        longest: longestHostileRange(spells, context.targetGuid),
+        previous: this.gap,
+      })
+    ) {
       this.unreachable = undefined;
       return undefined;
     }
@@ -440,7 +473,7 @@ export class CombatActions {
       state.casting ||
       state.pendingAttack ||
       state.attacking ||
-      this.inMelee(state)
+      inMelee(this.deps.entity, state)
     )
       return true;
     const distance = separation(state);
@@ -463,20 +496,5 @@ export class CombatActions {
         return true;
     }
     return false;
-  }
-
-  private canMelee(state: CombatState): boolean {
-    return isUnit(this.deps.entity(state.self.guid));
-  }
-
-  private inMelee(state: CombatState): boolean {
-    const self = this.deps.entity(state.self.guid);
-    const target = state.target && this.deps.entity(state.target.guid);
-    const a = isUnit(self) ? self.combatReach : undefined;
-    const b = isUnit(target) ? target.combatReach : undefined;
-    const distance = separation(state);
-    if (a === undefined || b === undefined || distance === undefined)
-      return false;
-    return distance <= Math.max(5, a + b + 4 / 3);
   }
 }

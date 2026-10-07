@@ -359,7 +359,12 @@ describe("awaitCycle", () => {
       error: undefined,
       state: { active: false, stopCause: "queue_done" },
     });
-    expect(handle.startCycle).toHaveBeenCalledWith([1n, 2n], "fight", 3);
+    expect(handle.startCycle).toHaveBeenCalledWith(
+      [1n, 2n],
+      "fight",
+      3,
+      undefined,
+    );
   });
 
   test("returns the error of a rejected start", async () => {
@@ -429,6 +434,7 @@ describe("awaitCycle", () => {
       8325,
       [15_366],
       "fight",
+      undefined,
       undefined,
     );
   });

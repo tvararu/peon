@@ -7,6 +7,15 @@ import {
 } from "@peon/core";
 import type { JevCandidate } from "#harness/jev/contract";
 import type { ActionDeps } from "#harness/loops/combat-actions-frame";
+import {
+  KITE_CLOSING_RANGE_YD,
+  kiteOf,
+  kiteOffers,
+  longestHostileRange,
+  maskKey,
+  movePlacement,
+  runAwayOption,
+} from "#harness/loops/combat-actions-kite";
 import { separation } from "#harness/loops/combat-actions-observation";
 import { poseOf } from "#harness/loops/pilot-geometry";
 import {
@@ -25,15 +34,26 @@ import type { TacticsContext } from "#harness/loops/tactics";
 
 export const COMBAT_MELEE_DISTANCE_YD = 5;
 
+export type MoveSpell = {
+  spell?: { range?: { maxHostile: number } | undefined } | undefined;
+  target: bigint;
+  supported: boolean;
+};
+export const COMBAT_MELEE_LEEWAY_YD = 2.66;
+
 export type CombatMovesInput = {
   deps: ActionDeps;
   context: TacticsContext;
   state: CombatState;
+  previousGap?: number | undefined;
+  spells?: readonly MoveSpell[];
+  masked?: (id: string) => boolean;
 };
 
 export function meleeReachOf(
   state: CombatState,
   entity: EntityLookup,
+  kite = false,
 ): number | undefined {
   const target = state.target;
   if (!target) return undefined;
@@ -41,17 +61,21 @@ export function meleeReachOf(
   const foe = entity(target.guid);
   const a = isUnit(self) ? self.combatReach : undefined;
   const b = isUnit(foe) ? foe.combatReach : undefined;
-  if (a === undefined || b === undefined) return COMBAT_MELEE_DISTANCE_YD;
-  return Math.max(COMBAT_MELEE_DISTANCE_YD, a + b + 4 / 3);
+  const base =
+    a === undefined || b === undefined
+      ? COMBAT_MELEE_DISTANCE_YD
+      : Math.max(COMBAT_MELEE_DISTANCE_YD, a + b + 4 / 3);
+  return kite ? base + COMBAT_MELEE_LEEWAY_YD : base;
 }
 
 export function targetGap(
   state: CombatState,
   entity: EntityLookup,
+  kite = false,
 ): number | undefined {
   const gap = separation(state);
   if (gap === undefined) return undefined;
-  const reach = meleeReachOf(state, entity);
+  const reach = meleeReachOf(state, entity, kite);
   if (reach === undefined) return undefined;
   return Math.round((gap - reach) * 10) / 10;
 }
@@ -92,17 +116,71 @@ function rangeCircles(input: CombatMovesInput) {
 }
 
 export function combatMoves(input: CombatMovesInput): PilotOption[] {
+  const kite = kiteOf(input.context);
   const pose = selfPoseOf(input);
   const foe = foePointOf(input.state);
   if (!(pose && foe)) return [];
   const { circles } = rangeCircles(input);
-  return buildOptions({
+  const moves = buildOptions({
     circles,
     ground: input.deps.ground,
     jump: false,
     objective: { kind: "foe", x: foe.x, y: foe.y },
     pose,
   });
+  if (!kite) return moves;
+  const longest = longestHostileRange(
+    input.spells ?? [],
+    input.context.targetGuid,
+  );
+  const gap = targetGap(input.state, input.deps.entity, true);
+  const distance = separation(input.state);
+  const offers = kiteOffers({
+    closing:
+      input.previousGap !== undefined &&
+      gap !== undefined &&
+      gap < input.previousGap &&
+      (distance ?? Number.POSITIVE_INFINITY) <= KITE_CLOSING_RANGE_YD,
+    gap,
+    longest,
+    separation: distance,
+  });
+  const kept = moves.filter((option) => kiteKeeps(option, offers, input));
+  if (!offers.retreat) return kept;
+  const placement = movePlacement(
+    {
+      aggro: input.deps.aggro,
+      control: input.deps.control,
+      nearby: input.deps.nearby,
+    },
+    input.context,
+    input.state,
+  );
+  if (!placement) return kept;
+  const away = runAwayOption({
+    ground: input.deps.ground,
+    longest,
+    placement,
+  });
+  if (!away || input.masked?.(maskKey(away.id, away.heading))) return kept;
+  return [...kept, away];
+}
+
+function kiteKeeps(
+  option: PilotOption,
+  offers: { approach: boolean; retreat: boolean },
+  input: CombatMovesInput,
+): boolean {
+  if (option.id === "stop") return true;
+  if (option.id === "back_up") return false;
+  if (input.masked?.(option.id)) return false;
+  if (
+    option.id === "run_ahead" ||
+    option.id === "veer_left" ||
+    option.id === "veer_right"
+  )
+    return offers.approach;
+  return offers.retreat || offers.approach;
 }
 
 export function combatMoveCandidates(input: CombatMovesInput): JevCandidate[] {
@@ -156,8 +234,9 @@ export function closingText(
   state: CombatState,
   entity: EntityLookup,
   previous: number | undefined,
+  kite = false,
 ): string {
-  const gap = targetGap(state, entity);
+  const gap = targetGap(state, entity, kite);
   if (gap === undefined || previous === undefined) return "unknown";
   if (gap < previous) return "closing";
   if (gap > previous) return "opening";

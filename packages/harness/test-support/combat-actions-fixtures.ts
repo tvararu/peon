@@ -28,6 +28,19 @@ export function setup(
     observeTargetPosition?: boolean;
     gear?: () => RangedGear;
     nearby?: () => readonly NearbyRow[];
+    ground?: {
+      height: (
+        mapId: number,
+        x: number,
+        y: number,
+        from?: { z: number },
+      ) => number | undefined;
+      pathClear: (
+        mapId: number,
+        a: { x: number; y: number; z: number },
+        b: { x: number; y: number; z: number },
+      ) => boolean;
+    };
   } = {},
 ) {
   const sent: { opcode: number; body: Uint8Array | undefined }[] = [];
@@ -53,11 +66,12 @@ export function setup(
     target: 1n,
     unitFlags: 0x8_00_00,
   });
+  const ground = options.ground ?? {
+    height: (_mapId, _x, _y, from) => from?.z,
+    pathClear: () => true,
+  };
   const runtime = new ControlRuntime({
-    ground: {
-      height: (_mapId, _x, _y, from) => from?.z,
-      pathClear: () => true,
-    },
+    ground,
     now: nowFn,
     selfGuid: () => 1n,
     send() {},
@@ -113,6 +127,7 @@ export function setup(
     combat: port,
     control,
     entity: (guid) => store.get(guid),
+    ground,
     now: nowFn,
     relation: () => "unknown",
     ...(options.gear && { gear: options.gear }),

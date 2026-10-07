@@ -19,6 +19,7 @@ import type {
   ObservedCorpse,
 } from "#harness/loops/cycle-types";
 import { EncounterCycleRuntime } from "#harness/loops/encounter-cycle";
+import { cycleStart, kiteContext } from "#harness/loops/game-tactics";
 import {
   PilotActions,
   type PilotFrameDeps,
@@ -63,6 +64,7 @@ export type Loops = Runs & {
     instruction: string,
     signal?: AbortSignal,
     framing?: FramingVariant,
+    kite?: boolean,
   ) => Promise<void>;
   getTacticsState: () => TacticsState;
   onTacticsEvent: (cb: (event: TacticsEvent) => void) => Unsubscribe;
@@ -76,12 +78,14 @@ export type Loops = Runs & {
     guids: bigint[],
     instruction: string,
     maxStarts?: number,
+    kite?: boolean,
   ) => Promise<void>;
   startQuestCycle: (
     questId: number,
     sources: number[],
     instruction: string,
     maxStarts?: number,
+    kite?: boolean,
   ) => Promise<void>;
   stopCycle: () => void;
   getCycleState: () => CycleState;
@@ -167,6 +171,7 @@ function createTactics(
   return new TacticsLoop({
     activate: (context) => actions.activate(context),
     characterClass: () => handle.getSelfClass(),
+    commit: (context) => actions.commit(context),
     defend: (context) =>
       defendTarget({ combat, control, entity }, context.targetGuid),
     execute: (id, context) => actions.execute(id, context),
@@ -413,6 +418,8 @@ function gameApi(input: GameApiInput): Game {
   const { beginCycle, handle, options, retire, shutDown, takeControl } = input;
   handle.closed.then(shutDown, shutDown);
   const { cycle, pilot, runs, tactics, travel } = input.parts;
+  const api = tacticsApi({ beginCycle, cycle, handle, tactics });
+  const rounds = pilotApi({ handle, pilot });
   return {
     ...handle,
     ...runs,
@@ -431,29 +438,80 @@ function gameApi(input: GameApiInput): Game {
     onCycleEvent: (cb) => cycle.onEvent(cb),
     onPilotEvent: (cb) => pilot.onEvent(cb),
     onTacticsEvent: (cb) => tactics.onEvent(cb),
-    startCycle: (guids, instruction, maxStarts) =>
-      beginCycle(() => cycle.start({ guids, instruction, maxStarts })),
-    async startQuestCycle(questId, sources, instruction, maxStarts) {
+    ...api,
+    ...rounds,
+    stopCycle: () => cycle.stop("manual_override"),
+    takeControl,
+  };
+}
+
+function tacticsApi(input: {
+  beginCycle: (start: () => Promise<void>) => Promise<void>;
+  cycle: EncounterCycleRuntime;
+  handle: WorldHandle;
+  tactics: TacticsLoop;
+}): Pick<Game, "startCycle" | "startQuestCycle" | "startTactics"> {
+  const { beginCycle, cycle, handle, tactics } = input;
+  return {
+    startCycle: (
+      ...args: [bigint[], string, number | undefined, boolean | undefined]
+    ) =>
+      beginCycle(() => {
+        const [guids, instruction, maxStarts, kite] = args;
+        return cycleStart(cycle, { guids, instruction, kite, maxStarts });
+      }),
+    async startQuestCycle(
+      ...args: [
+        number,
+        number[],
+        string,
+        number | undefined,
+        boolean | undefined,
+      ]
+    ) {
+      const [questId, sources, instruction, maxStarts, kite] = args;
       const { objective, defaultMaxStarts } = await questCycleObjective(
         handle,
         questId,
         sources,
       );
       await beginCycle(() =>
-        cycle.start({
+        cycleStart(cycle, {
           guids: [],
           instruction,
+          kite,
           maxStarts: maxStarts ?? defaultMaxStarts,
           objective,
         }),
       );
     },
-    startTactics(targetGuid, instruction, signal, framing) {
+    startTactics(
+      ...args: [
+        bigint,
+        string,
+        AbortSignal | undefined,
+        FramingVariant | undefined,
+        boolean | undefined,
+      ]
+    ) {
+      const [targetGuid, instruction, signal, framing, kite] = args;
       const life = handle.getRecoveryState().life;
       if (life === "dead" || life === "ghost")
         throw new Error("self_not_alive");
-      return tactics.start({ framing, instruction, targetGuid }, signal);
+      return tactics.start(
+        kiteContext({ framing, instruction, targetGuid }, kite),
+        signal,
+      );
     },
+  };
+}
+
+function pilotApi(input: {
+  handle: WorldHandle;
+  pilot: TacticsLoop<PilotContext>;
+}): Pick<Game, "startPilot"> {
+  const { handle, pilot } = input;
+  return {
     startPilot(objective, signal) {
       const life = handle.getRecoveryState().life;
       if (life === "dead" || life === "ghost")
@@ -463,7 +521,5 @@ function gameApi(input: GameApiInput): Game {
         signal,
       );
     },
-    stopCycle: () => cycle.stop("manual_override"),
-    takeControl,
   };
 }

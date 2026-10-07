@@ -311,12 +311,13 @@ distance. The goal of the options is the target: each heading is described
 by how it changes the distance to it.
 
 The fight frame carries a `melee` field. `gapYd` is the distance to the
-target minus its melee reach (5 yd), negative inside the reach and `null`
-when a position is unobserved. `closing` is `closing`, `opening` or
-`holding` against the previous frame, or `unknown` without one. `snares`
-lists the names of the slows and roots the character's own auras put on the
-target, as observed. The `danger` line names the units in view and says
-whether the way to the target enters an inferred aggro range.
+target minus its melee reach (both units' combat reach plus 4/3 yd, at
+least 5 yd), negative inside the reach and `null` when a position is
+unobserved. `closing` is `closing`, `opening` or `holding` against the
+previous frame Jev saw, or `unknown` without one. `snares` lists the slows
+and roots the character's own auras put on the target, each with its kind
+(`root` for aura 26, `slow` for aura 33). The `danger` line names the units
+in view and, per offered move, whose inferred aggro range it enters.
 
 Danger counts every creature that attacks first, whatever the frame lists
 (the frame keeps its five). The fight's own target and every creature that
@@ -324,9 +325,27 @@ attacks the character add no range, because the fight already accepts
 them. Gray creatures add none either, as in the pilot.
 
 `engage` with `kite: true` tells Jev to keep the target outside its melee
-reach: slow it, back away and cast at range. Jev decides each move; code
-only removes the options that the ground or a range forbids. Without
-`kite`, a fight keeps the same moves and the same frame.
+reach: open with a slow at range, cast while the gap is open, root the
+target when it reaches melee, run while it is rooted or slowed, then turn
+and cast again. The `how` instruction, when given, keeps the kite guidance.
+In a kite fight code narrows the moves:
+
+- The melee reach adds the server's 2.66 yd moving leeway.
+- Retreat is `run_away`, a full-speed run of up to 10 yd straight away from
+  the target, collision- and danger-checked; `back_up` is never offered.
+  Retreat is offered only while the gap is under 8 yd, or the target is
+  closing inside 12 yd. With an open gap Jev gets the spells, `wait` and
+  `stop`.
+- No move may end more than the longest supported spell's range minus 3 yd
+  from the target; approach moves appear only beyond that range.
+- Spell candidates that root or slow say so.
+- A move the ground refuses (`obstructed`, `too_steep`, ...) is withdrawn
+  for 4 s instead of ending the fight, and `target_unreachable` waits while
+  the target is in spell range or closing.
+- `wait` re-checks the current heading against the ground and danger, and
+  stops when it is no longer legal.
+
+Without `kite`, a fight keeps the same moves and the same frame.
 
 Every melee swing at the character, hit or miss, is a `combatlog/swing_in`
 row: the attacker, the outcome (`hits` when the log gives none) and the

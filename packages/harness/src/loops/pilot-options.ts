@@ -181,15 +181,7 @@ function moveOption(build: MoveBuild): PilotOption | undefined {
     circles,
     DANGER_ANNOTATE_YD,
   );
-  const masked = circles.some((circle) => {
-    const entry = rayEntryYd(pose, normalizeAngle(moved), circle);
-    if (entry === undefined || entry >= PILOT_MIN_CLEAR_YD) return false;
-    if (Math.hypot(pose.x - circle.x, pose.y - circle.y) >= circle.radiusYd)
-      return true;
-    const away = Math.atan2(pose.y - circle.y, pose.x - circle.x);
-    return Math.abs(relativeDeg(normalizeAngle(moved), away)) >= 90;
-  });
-  if (masked) return undefined;
+  if (circleMasked(pose, normalizeAngle(moved), circles)) return undefined;
   return {
     description: optionText({ ...build, hazard, scan, turnDeg }),
     goalDeg: goalDegAfterTurn(build.objective, pose, normalizeAngle(moved)),
@@ -198,6 +190,21 @@ function moveOption(build: MoveBuild): PilotOption | undefined {
     input: tooClose ? {} : OPTION_INPUTS[id],
     turnDeg,
   };
+}
+
+export function circleMasked(
+  pose: PilotPose,
+  heading: number,
+  circles: readonly AggroCircle[],
+): boolean {
+  return circles.some((circle) => {
+    const entry = rayEntryYd(pose, heading, circle);
+    if (entry === undefined || entry >= PILOT_MIN_CLEAR_YD) return false;
+    if (Math.hypot(pose.x - circle.x, pose.y - circle.y) >= circle.radiusYd)
+      return true;
+    const away = Math.atan2(pose.y - circle.y, pose.x - circle.x);
+    return Math.abs(relativeDeg(heading, away)) >= 90;
+  });
 }
 
 export function scansForHeadings(

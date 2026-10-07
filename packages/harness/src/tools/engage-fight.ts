@@ -2,6 +2,7 @@ import type { EngageAfter } from "#harness/contract/details";
 import type { ToolResult } from "#harness/contract/result";
 import type { ViewCtx } from "#harness/contract/services";
 import { grayLevel } from "#harness/loops/combat-actions-credit";
+import { KITE_FIGHT_GUIDANCE } from "#harness/loops/combat-actions-kite";
 import { MIN_HP_PCT } from "#harness/loops/cycle-gate";
 import type { CycleState } from "#harness/loops/cycle-types";
 import { DEFAULT_FIGHT_INSTRUCTION } from "#harness/loops/tactics";
@@ -72,10 +73,9 @@ const NO_ATTACK = "no_supported_combat_actions";
 const OUT_OF_REACH = "objective_targets_out_of_reach";
 
 function instruction(scene: Scene): string {
-  if (scene.args.how) return scene.args.how;
-  if (scene.args.kite)
-    return `${DEFAULT_FIGHT_INSTRUCTION}; kite the target: keep it outside its melee reach, back away as it closes and cast at range`;
-  return DEFAULT_FIGHT_INSTRUCTION;
+  const base = scene.args.how ?? DEFAULT_FIGHT_INSTRUCTION;
+  if (scene.args.kite) return `${base}; ${KITE_FIGHT_GUIDANCE}`;
+  return base;
 }
 
 async function single(scene: Scene): Promise<ModeEnd> {
@@ -92,6 +92,7 @@ async function single(scene: Scene): Promise<ModeEnd> {
   const end = await awaitTactics(ops.handle, {
     guid,
     instruction: instruction(scene),
+    kite: scene.args.kite,
     signal: ops.signal,
   });
   const killed = isKill(end.outcome?.reason);
@@ -167,6 +168,7 @@ async function cycle(scene: Scene): Promise<ModeEnd> {
     end = await awaitCycle(ops.handle, {
       guids,
       instruction: instruction(scene),
+      kite: scene.args.kite,
       maxStarts: choice.wanted - kills(tally),
       signal: ops.signal,
     });
@@ -189,6 +191,7 @@ async function quest(scene: Scene): Promise<ModeEnd> {
   const { choice, ops, tally } = scene;
   const end = await awaitQuestCycle(ops.handle, {
     instruction: instruction(scene),
+    kite: scene.args.kite,
     maxStarts: scene.args.count,
     questId: choice.questId ?? 0,
     signal: ops.signal,

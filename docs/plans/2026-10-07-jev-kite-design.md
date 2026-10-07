@@ -20,18 +20,38 @@ and Jev picks among them; code only removes the options the ground or a
 range forbids. Each move faces its heading and drives it under the pilot's
 1.5 s dead-man lease, so the character stops 1.5 s after the last decision.
 `engage` takes `kite: true`, which tells Jev to keep the target outside its
-melee reach: slow it, back away and cast at range. Without `kite` a fight
-keeps the same moves and the same frame.
+melee reach. Without `kite` a fight keeps the same moves and the same frame.
+
+## Kite rails
+
+The first live round (0/4) showed Jev choosing `back_up` almost every
+frame, even 20 yd out with spells offered. A backpedalling mage is slower
+than a chasing creature, so every fight reached melee. Retreating out of
+spell range also ended the fight `target_unreachable`, and a refused move
+ended it `obstructed` or `too_steep`. A kite fight therefore narrows what
+Jev sees, in the same way the pilot masks moves that enter an aggro range:
+
+- Retreat is `run_away`, a full-speed run of up to 10 yd straight away from
+  the target; `back_up` is never offered. Retreat appears only while the
+  gap is under 8 yd, or the target is closing inside 12 yd.
+- No move may end beyond the longest supported spell's range minus 3 yd;
+  approach moves appear only beyond that range.
+- The melee reach adds the server's 2.66 yd moving leeway
+  (`Unit::IsWithinMeleeRange`, `GetLeewayBonusRange`).
+- A refused move is withdrawn for 4 s instead of ending the fight;
+  `target_unreachable` waits while the target is in spell range or closing.
+- `wait` re-checks the current heading and stops when it is no longer legal.
+- The instruction gives the order: slow at range, cast while the gap is
+  open, root at melee, run while rooted or slowed, turn and cast again.
 
 ## Frame
 
 The fight frame carries a `melee` field. `gapYd` is the distance to the
-target minus its melee reach (5 yd), negative inside the reach and `null`
-when a position is unobserved. `closing` is `closing`, `opening` or
-`holding` against the previous frame, or `unknown` without one. `snares`
-lists the names of the slows and roots the character's own auras put on
-the target, as observed. The `danger` line names the units in view and says
-whether the way to the target enters an inferred aggro range.
+target minus its melee reach, negative inside the reach and `null` when a
+position is unobserved. `closing` compares against the previous frame Jev
+saw, not against the checks code runs before a move. `snares` lists the
+slows and roots on the target with their kind, as observed. The `danger`
+line names, per offered move, whose inferred aggro range it enters.
 
 ## Danger steering
 

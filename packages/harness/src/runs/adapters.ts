@@ -192,12 +192,18 @@ export async function awaitPilot(
   }
 }
 
-type TacticsInit = { guid: bigint; instruction: string; signal: AbortSignal };
+type TacticsInit = {
+  guid: bigint;
+  instruction: string;
+  signal: AbortSignal;
+  kite?: boolean;
+};
 type CycleInit = {
   guids: bigint[];
   instruction: string;
   maxStarts: number;
   signal: AbortSignal;
+  kite?: boolean;
 };
 type QuestCycleInit = {
   questId: number;
@@ -205,6 +211,7 @@ type QuestCycleInit = {
   instruction: string;
   maxStarts: number | undefined;
   signal: AbortSignal;
+  kite?: boolean;
 };
 type CycleWait = {
   handle: Game;
@@ -241,14 +248,14 @@ function watchFight(handle: Game, hex: string) {
 
 export async function awaitTactics(
   handle: Game,
-  { guid, instruction, signal }: TacticsInit,
+  { guid, instruction, signal, kite }: TacticsInit,
 ): Promise<FightEnd> {
   const watch = watchFight(handle, `0x${guid.toString(16)}`);
   const onAbort = () => handle.halt();
   signal.addEventListener("abort", onAbort, { once: true });
   try {
     await Promise.race([
-      handle.startTactics(guid, instruction, signal),
+      handle.startTactics(guid, instruction, signal, undefined, kite),
       watch.ended,
     ]);
     return {
@@ -290,12 +297,12 @@ async function cycleEnd({
 
 export function awaitCycle(
   handle: Game,
-  { guids, instruction, maxStarts, signal }: CycleInit,
+  { guids, instruction, maxStarts, signal, kite }: CycleInit,
 ): Promise<CycleEnd> {
   return cycleEnd({
     handle,
     signal,
-    start: () => handle.startCycle(guids, instruction, maxStarts),
+    start: () => handle.startCycle(guids, instruction, maxStarts, kite),
   });
 }
 
@@ -303,9 +310,9 @@ export function awaitQuestCycle(
   handle: Game,
   init: QuestCycleInit,
 ): Promise<CycleEnd> {
-  const { questId, sources, instruction, maxStarts, signal } = init;
+  const { questId, sources, instruction, maxStarts, signal, kite } = init;
   const start = () =>
-    handle.startQuestCycle(questId, sources, instruction, maxStarts);
+    handle.startQuestCycle(questId, sources, instruction, maxStarts, kite);
   return cycleEnd({ handle, signal, start });
 }
 

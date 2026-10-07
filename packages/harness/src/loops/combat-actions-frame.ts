@@ -42,7 +42,7 @@ export type BaseObservationInput = {
   rejections: RejectionTracker;
   context: TacticsContext;
   state: CombatState;
-  spells: { id: string; reason?: string }[];
+  spells: readonly { id: string; reason?: string }[];
 };
 
 export function baseObservation({
