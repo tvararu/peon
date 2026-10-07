@@ -102,14 +102,24 @@ function tooStrong(unit: UnitView, level: number): Refusal {
   });
 }
 
+function inBattleground(ctx: ViewCtx): boolean {
+  try {
+    return ctx.handle.battlegrounds.state().match.current !== undefined;
+  } catch {
+    return false;
+  }
+}
+
 function hostiles(ctx: ViewCtx): UnitView[] {
+  const bg = inBattleground(ctx);
   return unitViews(ctx).filter(
     (unit) =>
       unit.inView &&
       unit.alive &&
       unit.attackable &&
       unit.relation === "hostile" &&
-      !unit.tappedByOther,
+      !unit.tappedByOther &&
+      (bg || unit.kind !== "player"),
   );
 }
 

@@ -113,7 +113,8 @@ export type NearestKind =
   | "innkeeper"
   | "lootable"
   | "player"
-  | "spirit_healer";
+  | "spirit_healer"
+  | "spirit_guide";
 
 export type AttackerView = {
   ref: string;

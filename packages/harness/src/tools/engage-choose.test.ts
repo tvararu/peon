@@ -1,4 +1,4 @@
-import { describe, expect, test } from "bun:test";
+import { describe, expect, jest, test } from "bun:test";
 import type { EngageAfter } from "#harness/contract/details";
 import { createSightings } from "#harness/ops/sightings";
 import { unitViews } from "#harness/ops/views";
@@ -84,6 +84,61 @@ async function field(level: number) {
 }
 
 describe("chooseTarget", () => {
+  test("unnamed: a hostile player counts inside a battleground", async () => {
+    const t = await field(10);
+    jest.spyOn(t.handle.battlegrounds, "state").mockReturnValue({
+      match: {
+        current: {
+          bgType: 2,
+          carriers: [],
+          enteredAt: 0,
+          mapId: 489,
+          rez: undefined,
+          roster: [],
+          score: undefined,
+        },
+        spirit: undefined,
+      },
+    } as never);
+    setUnits(t.handle, [
+      unitRow({
+        attackable: true,
+        distance: 10,
+        guid: 0xaaaan,
+        level: 10,
+        name: "Foe",
+        player: true,
+        relation: "hostile",
+        x: 10,
+        y: 0,
+      }),
+    ]);
+    const target = await chooseTarget(toolCtx<EngageAfter>(t), {});
+    expect(target.unit?.name).toBe("Foe");
+  });
+
+  test("unnamed: a hostile player is skipped outside a battleground", async () => {
+    const t = await field(10);
+    setUnits(t.handle, [
+      unitRow({
+        attackable: true,
+        distance: 10,
+        guid: 0xaaaan,
+        level: 10,
+        name: "Foe",
+        player: true,
+        relation: "hostile",
+        x: 10,
+        y: 0,
+      }),
+    ]);
+    await expect(
+      chooseTarget(toolCtx<EngageAfter>(t), {}),
+    ).rejects.toMatchObject({
+      reason: "not_seen",
+    });
+  });
+
   test("unnamed: the nearest hostile at most 3 levels above you", async () => {
     const t = await field(5);
     const choice = await chooseTarget(toolCtx<EngageAfter>(t), {});

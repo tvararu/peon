@@ -20,6 +20,7 @@ const ROLE_FINDS: readonly NearestKind[] = [
   "repair",
   "innkeeper",
   "spirit_healer",
+  "spirit_guide",
 ];
 
 export function questNpcNames(quests: QuestMemory): Set<string> {

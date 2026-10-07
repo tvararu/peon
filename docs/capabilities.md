@@ -91,7 +91,11 @@ or the page names one that does not exist.
 | Spend pet talent points | `t8-pets-talent` | Hunter only; spends one point of the pet's own talent tree at owner level 25. |
 | Join and leave an arena skirmish queue (`arena` `queue`) | `t9-arena-skirmish` | Unrated 2v2 at battlemaster Gargok in the Barrens, with no team. Rated joins, teams, rosters and invites need a staged team (eval staging gap) and are proven by the probe flow `arena-team`. |
 | Inspect a nearby player's arena teams (`arena` `inspect`) | `t9-arena-inspect` | Shows the partner's teams from `MSG_INSPECT_ARENA_TEAMS`. Shows teams only: the agent's own teams, the roster, invites and the queue need a staged team (eval staging gap: needs an arena setup endpoint; `soap gm` is banned in evals) and are proven by the probe flow `arena-team`. |
-| Join Wintergrasp (`wintergrasp` `accept`, `leave`) | `t9-pvp-wintergrasp` | Waits for the grouping window (read-only `bf-queue` console wait, battles every 150 minutes), then joins the battle and hearths out. Offers come only every 3 hours; the eval waits for the window. |
+| Join Wintergrasp (`wintergrasp` `accept`, `leave`) | `t9-pvp-wintergrasp` | Waits for the grouping window with a read-only `bf-queue` console wait (a battle starts about every 3 hours: 150 minutes of peace, then a 30-minute war), then joins the battle and hearths out. |
+| Turn its PvP flag on and off (`pvp` `flag`) | `t9-pvp-flag` | The flag stays on for a few minutes after it is turned off. |
+| Join and leave a battleground queue (`pvp` `queue`) | `t9-pvp-queue` | Needs level 10. |
+| Recover at a battleground spirit guide (`recover` `how:spirit_guide`) | Not shown | Queues at the guide for the next mass resurrection; needs a battleground match, so no scenario shows it live. |
+| Play a battleground to the end (`t9-pvp-warsong`) | Not shown | Needs a Warsong Gulch match that random bots fill, which no eval setup can stage. |
 
 ## Not shown by any scenario
 

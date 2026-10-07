@@ -25,6 +25,7 @@ export type ToolName =
   | "guild"
   | "channel"
   | "arena"
+  | "pvp"
   | "calendar"
   | "wintergrasp";
 

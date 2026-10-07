@@ -46,6 +46,7 @@ describe("recoverOp", () => {
     });
     expect(result.alternatives).toEqual([
       "no spirit healer in view",
+      "no spirit guide in view",
       "no resurrection offer",
       "no self-resurrection spell",
     ]);
@@ -64,6 +65,7 @@ describe("recoverOp", () => {
     expect(activated).toEqual([HEALER]);
     expect(result.outcome).toMatchObject({ ok: true, outcome: "resurrected" });
     expect(result.alternatives).toEqual([
+      "no spirit guide in view",
       "no resurrection offer",
       "walk back to your corpse",
       "no self-resurrection spell",
@@ -122,6 +124,7 @@ describe("recoverOp", () => {
     });
     expect(result.alternatives).toEqual([
       "no spirit healer in view",
+      "no spirit guide in view",
       "no resurrection offer",
       "walk back to your corpse",
     ]);
@@ -160,6 +163,7 @@ describe("recoverOp", () => {
     expect(result.outcome).toEqual({ cause: "no_self_res", ok: false });
     expect(result.alternatives).toEqual([
       "no spirit healer in view",
+      "no spirit guide in view",
       "no resurrection offer",
       "walk back to your corpse",
     ]);
@@ -245,8 +249,9 @@ describe("recoverOp", () => {
     expect(answer).toBe(true);
     expect(result.outcome).toMatchObject({ ok: true, outcome: "resurrected" });
     expect(result.alternatives[0]).toStartWith("spirit healer u");
-    expect(result.alternatives[1]).toBe("walk back to your corpse");
-    expect(result.alternatives[2]).toBe("no self-resurrection spell");
+    expect(result.alternatives[1]).toBe("no spirit guide in view");
+    expect(result.alternatives[2]).toBe("walk back to your corpse");
+    expect(result.alternatives[3]).toBe("no self-resurrection spell");
   });
 
   test("accept without an offer refuses in the outcome", async () => {

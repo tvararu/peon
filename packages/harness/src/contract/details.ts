@@ -270,7 +270,7 @@ export type PilotAfter = {
 };
 
 export type RecoverAfter = {
-  via: "corpse" | "spirit_healer" | "accept" | "self";
+  via: "corpse" | "spirit_healer" | "spirit_guide" | "accept" | "self";
   alive: boolean;
   durationMs: number;
   corpseYd: number | undefined;

@@ -180,6 +180,71 @@ describe("battlegrounds harness rules", () => {
     });
   });
 
+  test("bg_entered and bg_left_match write entered and left log rows", () => {
+    const entered = areaDrafts(
+      areaRuleSet(),
+      battlegrounds({ bgType: 2, mapId: 489, type: "bg_entered" }),
+      testRuleInput({}),
+    );
+    expect(entered.map((row) => [row.event, row.class])).toEqual([
+      ["battlegrounds/entered", "log"],
+    ]);
+    const left = areaDrafts(
+      areaRuleSet(),
+      battlegrounds({ mapId: 489, type: "bg_left_match" }),
+      testRuleInput({}),
+    );
+    expect(left.map((row) => [row.event, row.class])).toEqual([
+      ["battlegrounds/left", "log"],
+    ]);
+  });
+
+  test("bg_player_joined and bg_player_left write passive rows", () => {
+    const joined = areaDrafts(
+      areaRuleSet(),
+      battlegrounds({ guid: 0xaaaan, type: "bg_player_joined" }),
+      testRuleInput({}),
+    );
+    expect(joined.map((row) => [row.event, row.class])).toEqual([
+      ["battlegrounds/joined", "passive"],
+    ]);
+  });
+
+  test("bg_score with ended writes ended as a wake, else a log row", () => {
+    const live = (ended: boolean) =>
+      areaDrafts(
+        areaRuleSet(),
+        battlegrounds({
+          score: { arena: false, ended, players: [], teams: [], winner: 1 },
+          type: "bg_score",
+        }),
+        testRuleInput({}),
+      );
+    expect(live(true).map((row) => [row.event, row.class])).toEqual([
+      ["battlegrounds/score", "wake"],
+      ["battlegrounds/ended", "wake"],
+    ]);
+    expect(live(false).map((row) => [row.event, row.class])).toEqual([
+      ["battlegrounds/score", "log"],
+    ]);
+  });
+
+  test("bg_rez_time writes a passive rez_time row", () => {
+    const rows = areaDrafts(
+      areaRuleSet(),
+      battlegrounds({
+        guide: 0xaaaan,
+        ms: 29_500,
+        nextAt: 29_500,
+        type: "bg_rez_time",
+      }),
+      testRuleInput({}),
+    );
+    expect(rows.map((row) => [row.event, row.class])).toEqual([
+      ["battlegrounds/rez_time", "passive"],
+    ]);
+  });
+
   test("bg_join_result writes join_failed for an error and nothing for success; bg_list writes nothing", () => {
     const result = (error: string | undefined, code: number) =>
       areaDrafts(

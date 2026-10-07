@@ -6,6 +6,12 @@ import {
   parseZoneUnderAttack,
 } from "#wow/areas/battlegrounds/protocol";
 import {
+  parseAreaSpiritHealerTime,
+  parseBattlegroundPlayerGuid,
+  parsePlayerPositions,
+  parsePvpLogData,
+} from "#wow/areas/battlegrounds/protocol-match";
+import {
   parseBattlefieldList,
   parseBattlefieldStatus,
   parseGroupJoinedBattleground,
@@ -27,6 +33,13 @@ export const battlegroundsArea = defineArea({
     "bg_left",
     "bg_list",
     "bg_join_result",
+    "bg_entered",
+    "bg_left_match",
+    "bg_player_joined",
+    "bg_player_left",
+    "bg_score",
+    "bg_carriers",
+    "bg_rez_time",
   ],
   name: "battlegrounds",
   opcodes: BATTLEGROUNDS_OPCODES,
@@ -53,6 +66,21 @@ export const battlegroundsArea = defineArea({
       const joined = parseGroupJoinedBattleground(reader);
       store.receiveGroupJoined(joined.result, joined.guid);
     });
+    wire.on(GameOpcode.SMSG_BATTLEGROUND_PLAYER_JOINED, (reader) =>
+      store.receiveMatchPlayer(parseBattlegroundPlayerGuid(reader), true),
+    );
+    wire.on(GameOpcode.SMSG_BATTLEGROUND_PLAYER_LEFT, (reader) =>
+      store.receiveMatchPlayer(parseBattlegroundPlayerGuid(reader), false),
+    );
+    wire.on(GameOpcode.MSG_PVP_LOG_DATA, (reader) =>
+      store.receiveMatchScore(parsePvpLogData(reader)),
+    );
+    wire.on(GameOpcode.MSG_BATTLEGROUND_PLAYER_POSITIONS, (reader) =>
+      store.receiveMatchPositions(parsePlayerPositions(reader)),
+    );
+    wire.on(GameOpcode.SMSG_AREA_SPIRIT_HEALER_TIME, (reader) =>
+      store.receiveMatchSpirit(parseAreaSpiritHealerTime(reader)),
+    );
   },
   runtime: battlegroundsSelfRuntime,
   store: (deps, core) => new BattlegroundsStore(deps, core),

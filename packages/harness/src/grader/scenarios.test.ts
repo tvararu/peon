@@ -22,7 +22,10 @@ const PRESETS = [
   "max80",
 ];
 const ROUNDS = [ROUND_1];
-const STAGED_OUT: Record<string, true> = { "t9-arena-inspect": true };
+const STAGED_OUT: Record<string, true> = {
+  "t9-arena-inspect": true,
+  "t9-pvp-warsong": true,
+};
 
 describe("scenario files", () => {
   test("every file sits in a round and every round id has a file", () => {

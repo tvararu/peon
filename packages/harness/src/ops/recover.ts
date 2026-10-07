@@ -6,7 +6,12 @@ import { TALK_RANGE_YD } from "#harness/ops/range";
 import { settle } from "#harness/ops/settle";
 import { unitViews } from "#harness/ops/views";
 
-export type RecoverHow = "corpse" | "spirit_healer" | "accept" | "self";
+export type RecoverHow =
+  | "corpse"
+  | "spirit_healer"
+  | "spirit_guide"
+  | "accept"
+  | "self";
 export type RecoverOpResult = {
   outcome: RecoveryOutcome;
   via: RecoverHow;
@@ -43,11 +48,21 @@ function nearestHealer(ctx: OpsCtx): UnitView | undefined {
   return unitViews(ctx).find((unit) => unit.roles.includes("spirit_healer"));
 }
 
+function nearestGuide(ctx: OpsCtx): UnitView | undefined {
+  return unitViews(ctx).find((unit) => unit.roles.includes("spirit_guide"));
+}
 function healerText(unit: UnitView): string {
   const where = [`${Math.round(unit.distance ?? 0)} yd`, unit.compass]
     .filter(Boolean)
     .join(" ");
   return `spirit healer ${unit.ref} ${where} (resurrection sickness)`;
+}
+
+function guideText(unit: UnitView): string {
+  const where = [`${Math.round(unit.distance ?? 0)} yd`, unit.compass]
+    .filter(Boolean)
+    .join(" ");
+  return `spirit guide ${unit.ref} ${where} (next mass resurrection)`;
 }
 
 function selfText(ctx: OpsCtx): string {
@@ -63,6 +78,7 @@ function alternativesFor(
   state: RecoveryState,
 ): string[] {
   const healer = nearestHealer(ctx);
+  const guide = nearestGuide(ctx);
   const offer =
     state.resurrection?.response === "unanswered"
       ? state.resurrection
@@ -71,6 +87,9 @@ function alternativesFor(
     ...(how === "spirit_healer"
       ? []
       : [healer ? healerText(healer) : "no spirit healer in view"]),
+    ...(how === "spirit_guide"
+      ? []
+      : [guide ? guideText(guide) : "no spirit guide in view"]),
     ...(how === "accept"
       ? []
       : [
@@ -117,6 +136,21 @@ async function useHealer(ctx: OpsCtx): Promise<RecoveryOutcome> {
     : { cause: "spirit_healer_unanswered", ok: false };
 }
 
+async function useGuide(ctx: OpsCtx): Promise<RecoveryOutcome> {
+  const guide = nearestGuide(ctx);
+  const guid = guide ? ctx.rt.refs.guidOf(guide.ref) : undefined;
+  if (!guide || guid === undefined)
+    return { cause: "no_spirit_guide", ok: false };
+  const match = ctx.handle.battlegrounds.state().match;
+  if (match.current === undefined && match.spirit === undefined)
+    return { cause: "no_battleground", ok: false };
+  const alive = await waitLife(ctx, "alive", HEALER_MS, () =>
+    ctx.rt.mutex.run(() => ctx.handle.battlegrounds.act.queueSpiritGuide(guid)),
+  );
+  return alive
+    ? { ok: true, outcome: "resurrected" }
+    : { cause: "spirit_guide_unanswered", ok: false };
+}
 async function useSelf(ctx: OpsCtx): Promise<RecoveryOutcome> {
   ctx.signal.throwIfAborted();
   let onAbort: (() => void) | undefined;
@@ -165,6 +199,7 @@ async function attempt(
     );
     if (!released) return { cause: "release_unanswered", ok: false };
   }
+  if (how === "spirit_guide") return useGuide(ctx);
   return how === "spirit_healer"
     ? useHealer(ctx)
     : ctx.handle.recoverCorpse(ctx.signal);

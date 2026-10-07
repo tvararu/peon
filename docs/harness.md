@@ -199,6 +199,7 @@ A result that is not `DONE` ends with a `Next:` step.
 | `character` | Reads play time, draws or sheathes weapons, shows or hides helm and cloak, or changes hairstyle in a barber chair. |
 | `arena` | Reads arena teams and their rosters, invites players and passes the captaincy, inspects a nearby player's teams, and joins or leaves an arena queue at a battlemaster. |
 | `wintergrasp` | Accepts or declines a pending Wintergrasp queue or war offer, leaves the queue, or hearths out of the zone during a war. Never answers offers by itself. |
+| `pvp` | Lists battlegrounds, joins and leaves their queues, answers invitations, reads the score and sets the PvP flag. |
 | `calendar` | Lists the calendar, reads one event, creates, updates, removes and copies personal events, invites a named player, answers an invite and reads who is coming. |
 
 `travel`, `engage`, `pilot`, `rest` and `recover` start a run (`r1`, `r2`, …).
