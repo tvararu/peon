@@ -30,6 +30,7 @@ or the page names one that does not exist.
 | Hear what an NPC says when talked to | `t1-quests-read-greeting` | |
 | Follow a guard's directions to a marked point | `t1-quests-guard-directions` | |
 | Walk to where a quest's objective is | `t4-quests-poi-walk` | The accept result names the region and a `travel` call to it; `journal` names it again when asked. |
+| Complete an exploration quest by walking into its area trigger | `t4-objects-explore-fargodeep` | Accept names the quest region and `travel` to the area triggers in it, at their height, so the plan reaches trigger 88 under the hillside (z 5.37). The mine's kobolds attack on most legs, and the agent fights each before it resumes; the run passed in 290 s, over the scenario's tool budget. |
 | Buy from a vendor | `t5-vendor-buy-goldshire` | |
 | Buy back an item sold by mistake | `t5-buyback-vendor` | Only items sold this session. |
 | Die, then come back to life | `t6-die-and-recover` | |
@@ -119,7 +120,6 @@ These have tools or code but no scenario that checks them live:
 - Group play: inviting, joining, leaving a group, and fighting as a group.
 - Ranged combat as a hunter.
 - Reading a shrine plaque (`t0-objects-read-shrine`, the agent reaches the shrine and `use read` returns the whole page, but the agent quotes the placard line inside the page instead of the page's opening sentence).
-- Completing an exploration quest by walking into its area trigger (`t4-objects-explore-fargodeep`): accept names the quest region and `travel` to the area triggers in it, at their height, and the route planner plans the legs into the mine tunnel (trigger 88 lies at z 5.37, 33 yd under the hillside) without a floor refusal. The scenario still does not pass: the mine's kobolds attack the character on every leg toward trigger 88 (22 to 27 engagements in each of three runs), and the fights use the scenario's turn and tool budget before the agent reaches the trigger sphere. A character left 0.2 yd off the navmesh after a fight is nudged back onto it before the next leg.
 - A sustained levelling run across several quests and zones.
 - Report its reputation with each faction and what changed it (`t4-reputation-gain`, no Faction.dbc in the eval profile so the journal names factions by id, not Silvermoon City).
 - Set the action bar (`t4-spells-action-bar`, no server truth for the bar).
