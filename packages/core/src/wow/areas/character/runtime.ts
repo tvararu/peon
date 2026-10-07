@@ -2,10 +2,12 @@ import {
   type BarberResult,
   buildAlterAppearance,
   buildPlayedTime,
+  buildRealmSplit,
   buildSetSheathed,
   buildShowing,
   buildWhois,
   type PlayedTime,
+  type RealmSplit,
   type SheathState,
 } from "#wow/areas/character/protocol";
 import type { CharAppearance } from "#wow/areas/character/select";
@@ -50,6 +52,7 @@ export type CharacterActs = {
     skinColor: number;
   }) => Promise<BarberResult>;
   whois: (name: string) => Promise<string>;
+  realmSplit: (realm: number) => Promise<RealmSplit>;
   deleteCharacter: (guid: bigint) => Promise<string>;
   renameCharacter: (guid: bigint, name: string) => Promise<CharNameOutcome>;
   customizeCharacter: (
@@ -133,6 +136,19 @@ async function whoisOutcome({ ctx }: Wait, name: string): Promise<string> {
   const reply = event.state.whois;
   if (reply === undefined) throw new Error("whois_missing");
   return reply;
+}
+
+async function realmSplitOutcome(
+  { ctx }: Wait,
+  realm: number,
+): Promise<RealmSplit> {
+  ctx.send(GameOpcode.CMSG_REALM_SPLIT, buildRealmSplit(realm));
+  const event = await ctx.until((e) => e.type === "realm_split", {
+    timeoutMs: CHARACTER_REQUEST_MS,
+  });
+  const split = event.state.realmSplit;
+  if (!split) throw new Error("realm_split_missing");
+  return split;
 }
 
 type Acts = {
@@ -242,6 +258,7 @@ export function characterRuntime(
       customizeCharacter: (...args) => customizeCharacter(acts, ...args),
       deleteCharacter: (...args) => deleteCharacter(acts, ...args),
       playedTime: () => playedOutcome(acts.wait),
+      realmSplit: (realm) => realmSplitOutcome(acts.wait, realm),
       renameCharacter: (...args) => renameCharacter(acts, ...args),
       setCloakShown: (...args) => setCloakShown(acts, ...args),
       setHelmShown: (...args) => setHelmShown(acts, ...args),

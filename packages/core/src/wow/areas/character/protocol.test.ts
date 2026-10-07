@@ -2,16 +2,39 @@ import { describe, expect, test } from "bun:test";
 import {
   buildAlterAppearance,
   buildPlayedTime,
+  buildRealmSplit,
   buildSetSheathed,
   buildShowing,
   buildWhois,
   parseBarberShopResult,
   parsePlayedTime,
+  parseRealmSplit,
   parseWhois,
 } from "#wow/areas/character/protocol";
 import { PacketReader } from "#wow/protocol/packet";
 
 describe("character protocol", () => {
+  test("realm split writes the realm id and reads echo, state and date", () => {
+    expect(buildRealmSplit(5)).toEqual(new Uint8Array([5, 0, 0, 0]));
+    const body = new Uint8Array([
+      5,
+      0,
+      0,
+      0,
+      2,
+      0,
+      0,
+      0,
+      ...new TextEncoder().encode("01/01/01"),
+      0,
+    ]);
+    expect(parseRealmSplit(new PacketReader(body))).toEqual({
+      date: "01/01/01",
+      echo: 5,
+      state: 2,
+    });
+  });
+
   test("played time round-trips the trigger byte with both counters", () => {
     const body = buildPlayedTime(false);
     expect(body).toEqual(new Uint8Array([0]));

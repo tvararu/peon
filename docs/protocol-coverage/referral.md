@@ -5,7 +5,7 @@ columns are explained in [the index](../protocol-coverage.md).
 
 | Opcode | Name | Direction | Status | Live |
 |---|---|---|---|---|
-| `0x40d` | `CMSG_GRANT_LEVEL` | client | missing |  |
-| `0x41f` | `SMSG_PROPOSE_LEVEL_GRANT` | server | missing |  |
-| `0x420` | `CMSG_ACCEPT_LEVEL_GRANT` | client | missing |  |
-| `0x421` | `SMSG_REFER_A_FRIEND_FAILURE` | server | missing |  |
+| `0x40d` | `CMSG_GRANT_LEVEL` | client | handled |  |
+| `0x41f` | `SMSG_PROPOSE_LEVEL_GRANT` | server | handled | not seen live |
+| `0x420` | `CMSG_ACCEPT_LEVEL_GRANT` | client | handled |  |
+| `0x421` | `SMSG_REFER_A_FRIEND_FAILURE` | server | handled |  |

@@ -33,6 +33,7 @@ export const CHARACTER_OPCODES = {
   dead: [
     "CMSG_SET_PLAYER_DECLINED_NAMES",
     "SMSG_SET_PLAYER_DECLINED_NAMES_RESULT",
+    "SMSG_INVALIDATE_PLAYER",
   ],
   unseen: ["SMSG_PLAY_TIME_WARNING"],
 } as const satisfies AreaOpcodes;

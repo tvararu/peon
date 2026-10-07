@@ -3,6 +3,7 @@ import {
   parseBarberShopResult,
   parsePlayedTime,
   parsePlayTimeWarning,
+  parseRealmSplit,
   parseWhois,
 } from "#wow/areas/character/protocol";
 import { characterRuntime } from "#wow/areas/character/runtime";
@@ -39,6 +40,7 @@ export const characterArea = defineArea({
     "whois",
     "play_warning",
     "declined_names",
+    "realm_split",
   ],
   store: (deps) => new CharacterStore(deps),
   register: (wire, store) => {
@@ -99,6 +101,9 @@ export const characterArea = defineArea({
     });
     wire.on(GameOpcode.SMSG_WHOIS, (reader) => {
       store.receiveWhois(parseWhois(reader));
+    });
+    wire.on(GameOpcode.SMSG_REALM_SPLIT, (reader) => {
+      store.receiveRealmSplit(parseRealmSplit(reader));
     });
     wire.on(GameOpcode.SMSG_PLAY_TIME_WARNING, (reader) => {
       store.receivePlayWarning(parsePlayTimeWarning(reader));

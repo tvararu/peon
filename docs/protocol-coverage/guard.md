@@ -5,16 +5,16 @@ columns are explained in [the index](../protocol-coverage.md).
 
 | Opcode | Name | Direction | Status | Live |
 |---|---|---|---|---|
-| `0x001` | `CMSG_BOOTME` | client | missing |  |
-| `0x002` | `CMSG_DBLOOKUP` | client | missing |  |
-| `0x008` | `CMSG_WORLD_TELEPORT` | client | missing |  |
-| `0x009` | `CMSG_TELEPORT_TO_UNIT` | client | missing |  |
-| `0x0c6` | `MSG_MOVE_TELEPORT_CHEAT` | both | missing |  |
-| `0x0e1` | `CMSG_MOVE_SET_RAW_POSITION` | client | missing |  |
-| `0x126` | `CMSG_SET_FACTION_CHEAT` | client | missing |  |
-| `0x2e6` | `SMSG_WARDEN_DATA` | server | stub |  |
-| `0x2e7` | `CMSG_WARDEN_DATA` | client | missing |  |
-| `0x3c5` | `SMSG_KICK_REASON` | server | missing |  |
-| `0x50d` | `SMSG_REDIRECT_CLIENT` | server | missing |  |
-| `0x51f` | `TC9_CMSG_PREPARE_FOR_REDIRECT` | client | missing |  |
-| `0x520` | `TC9_SMSG_READY_FOR_REDIRECT` | server | missing |  |
+| `0x001` | `CMSG_BOOTME` | client | dead |  |
+| `0x002` | `CMSG_DBLOOKUP` | client | dead |  |
+| `0x008` | `CMSG_WORLD_TELEPORT` | client | handled |  |
+| `0x009` | `CMSG_TELEPORT_TO_UNIT` | client | dead |  |
+| `0x0c6` | `MSG_MOVE_TELEPORT_CHEAT` | both | dead |  |
+| `0x0e1` | `CMSG_MOVE_SET_RAW_POSITION` | client | dead |  |
+| `0x126` | `CMSG_SET_FACTION_CHEAT` | client | handled | not seen live |
+| `0x2e6` | `SMSG_WARDEN_DATA` | server | handled |  |
+| `0x2e7` | `CMSG_WARDEN_DATA` | client | handled | not seen live |
+| `0x3c5` | `SMSG_KICK_REASON` | server | dead |  |
+| `0x50d` | `SMSG_REDIRECT_CLIENT` | server | dead |  |
+| `0x51f` | `TC9_CMSG_PREPARE_FOR_REDIRECT` | client | handled |  |
+| `0x520` | `TC9_SMSG_READY_FOR_REDIRECT` | server | handled | not seen live |

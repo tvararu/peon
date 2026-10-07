@@ -10,5 +10,5 @@ export const REFERRAL_OPCODES = {
   uses: [],
   stubs: [],
   dead: [],
-  unseen: [],
+  unseen: ["SMSG_PROPOSE_LEVEL_GRANT"],
 } as const satisfies AreaOpcodes;

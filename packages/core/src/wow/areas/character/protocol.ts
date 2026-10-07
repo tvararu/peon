@@ -80,6 +80,8 @@ export function parseBarberShopResult(r: PacketReader): BarberResult {
 
 export type DeclinedNameResult = { code: number; guid: bigint };
 
+export type RealmSplit = { echo: number; state: number; date: string };
+
 export type PlayTimeWarning = { flag: number; remainingSeconds: number };
 
 export function buildDeclinedNames(
@@ -113,4 +115,14 @@ export function buildWhois(name: string): Uint8Array {
 
 export function parseWhois(r: PacketReader): string {
   return r.cString();
+}
+
+export function buildRealmSplit(realm: number): Uint8Array {
+  const w = new PacketWriter(4);
+  w.uint32LE(realm);
+  return w.finish();
+}
+
+export function parseRealmSplit(r: PacketReader): RealmSplit {
+  return { echo: r.uint32LE(), state: r.uint32LE(), date: r.cString() };
 }

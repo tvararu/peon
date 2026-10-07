@@ -35,6 +35,28 @@ describe("character runtime", () => {
     }
   });
 
+  test("realmSplit sends the realm id and returns the echo, state and date", async () => {
+    const rig = areaRig("character");
+    try {
+      const pending = rig.handle.act.realmSplit(0);
+      await flush();
+      expect(rig.sent).toEqual([
+        {
+          body: new Uint8Array([0, 0, 0, 0]),
+          opcode: GameOpcode.CMSG_REALM_SPLIT,
+        },
+      ]);
+      const w = new PacketWriter(16);
+      w.uint32LE(0);
+      w.uint32LE(0);
+      w.cString("01/01/01");
+      rig.inject(GameOpcode.SMSG_REALM_SPLIT, w.finish());
+      expect(await pending).toEqual({ date: "01/01/01", echo: 0, state: 0 });
+    } finally {
+      rig.dispose();
+    }
+  });
+
   test("setSheathed and visibility sends fire without waiting", async () => {
     const rig = areaRig("character");
     try {
