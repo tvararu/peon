@@ -53,6 +53,7 @@ function initialSession(wake: boolean): SessionFlags {
   return {
     agent: "idle",
     agentGrant: undefined,
+    deliveredTexts: [],
     humanTexts: [],
     humanWaiting: false,
     lastNow: undefined,

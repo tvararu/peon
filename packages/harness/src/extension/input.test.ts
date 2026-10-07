@@ -126,6 +126,122 @@ describe("installInput", () => {
       jest.useRealTimers();
     }
   });
+  describe("clearing humanWaiting", () => {
+    const delivered = (text: string) => ({
+      message: { content: [{ text, type: "text" }], role: "user" },
+      type: "message_start",
+    });
+    const started = {
+      message: { content: [], role: "assistant" },
+      type: "message_start",
+    };
+    const said = (text: string) => ({
+      message: { content: [{ text, type: "text" }], role: "assistant" },
+      type: "message_end",
+    });
+    const call = (toolName: string, type: string) => ({
+      args: {},
+      isError: false,
+      result: {},
+      toolCallId: "c1",
+      toolName,
+      type,
+    });
+
+    async function pending() {
+      const ctx = await setup({}, { yields: createYieldGate() });
+      await ctx.fake.emit({ type: "agent_start" });
+      await ctx.fake.emit(human("how much health do you have?"));
+      return ctx;
+    }
+
+    test("new turns and read-only calls keep it set", async () => {
+      const { fake, rt } = await pending();
+      await fake.emit({ timestamp: 0, turnIndex: 1, type: "turn_start" });
+      await fake.emit(call("look", "tool_execution_start"));
+      await fake.emit(call("look", "tool_execution_end"));
+      await fake.emit({ timestamp: 0, turnIndex: 2, type: "turn_start" });
+      expect(rt.session.humanWaiting).toBe(true);
+      expect(() => admitAgent(rt, "engage")).toThrow("human_waiting");
+    });
+
+    test("an assistant reply after the human text is delivered clears it", async () => {
+      const { fake, rt } = await pending();
+      await fake.emit(delivered("how much health do you have?"));
+      await fake.emit(started);
+      await fake.emit(said("I have 80% health and 40% mana."));
+      expect(rt.session).toMatchObject({ humanTexts: [], humanWaiting: false });
+      expect(() => admitAgent(rt, "engage")).not.toThrow();
+    });
+
+    test("a reply already streaming when the human wrote does not clear it", async () => {
+      const { fake, rt } = await setup({}, { yields: createYieldGate() });
+      await fake.emit({ type: "agent_start" });
+      await fake.emit(started);
+      await fake.emit(human("how much health do you have?"));
+      await fake.emit(said("Engaging the wolf."));
+      expect(rt.session.humanWaiting).toBe(true);
+    });
+
+    test("a response whose start is delayed past the human text does not clear it", async () => {
+      const { fake, rt } = await setup({}, { yields: createYieldGate() });
+      await fake.emit({ type: "agent_start" });
+      await fake.emit(human("how much health do you have?"));
+      await fake.emit(started);
+      await fake.emit(said("Engaging the wolf."));
+      expect(rt.session.humanWaiting).toBe(true);
+      expect(() => admitAgent(rt, "engage")).toThrow("human_waiting");
+    });
+
+    test("an unrelated user message does not arm the reply", async () => {
+      const { fake, rt } = await setup({}, { yields: createYieldGate() });
+      await fake.emit({ type: "agent_start" });
+      await fake.emit(delivered("[now 12:00]"));
+      await fake.emit(human("how much health do you have?"));
+      await fake.emit(started);
+      await fake.emit(said("Engaging the wolf."));
+      expect(rt.session.humanWaiting).toBe(true);
+    });
+
+    test("an assistant message without text does not clear it", async () => {
+      const { fake, rt } = await pending();
+      await fake.emit(delivered("how much health do you have?"));
+      await fake.emit(started);
+      await fake.emit(said("  "));
+      expect(rt.session.humanWaiting).toBe(true);
+    });
+
+    test("an unanswered question survives an errored run and its retry", async () => {
+      const { fake, rt } = await pending();
+      await fake.emit(delivered("how much health do you have?"));
+      await fake.emit(started);
+      await fake.emit({ messages: [], type: "agent_end" });
+      expect(rt.session).toMatchObject({
+        agent: "idle",
+        humanTexts: ["how much health do you have?"],
+        humanWaiting: true,
+      });
+      await fake.emit({ type: "agent_start" });
+      expect(() => admitAgent(rt, "engage")).toThrow("human_waiting");
+      await fake.emit(started);
+      await fake.emit(said("I have 80% health."));
+      expect(() => admitAgent(rt, "engage")).not.toThrow();
+    });
+
+    test("a reply covers only the human messages that reached it", async () => {
+      const { fake, rt } = await pending();
+      await fake.emit(human("and your mana?"));
+      await fake.emit(delivered("how much health do you have?"));
+      await fake.emit(started);
+      await fake.emit(said("I have 80% health."));
+      expect(rt.session.humanTexts).toEqual(["and your mana?"]);
+      expect(() => admitAgent(rt, "engage")).toThrow("human_waiting");
+      await fake.emit(delivered("and your mana?"));
+      await fake.emit(started);
+      await fake.emit(said("I have 40% mana."));
+      expect(() => admitAgent(rt, "engage")).not.toThrow();
+    });
+  });
 
   test("an idle stop reflex stops nothing, logs the text and does not set humanWaiting", async () => {
     const { fake, rt } = await setup();
@@ -150,8 +266,8 @@ describe("installInput", () => {
     rt.session.humanWaiting = true;
     rt.session.humanTexts = ["rest first"];
     await fake.emit({ timestamp: 0, turnIndex: 0, type: "turn_start" });
-    expect(rt.session.humanWaiting).toBe(false);
-    expect(rt.session.humanTexts).toEqual([]);
+    expect(rt.session.humanWaiting).toBe(true);
+    expect(rt.session.humanTexts).toEqual(["rest first"]);
     await fake.emit({
       args: {},
       toolCallId: "c1",
