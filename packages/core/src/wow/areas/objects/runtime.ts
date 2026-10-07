@@ -27,9 +27,7 @@ import { loadAreaTriggers } from "#wow/areas/objects/trigger-catalog";
 import { GameOpcode } from "#wow/protocol/opcodes";
 import type { SelfEvent } from "#wow/self-store";
 import type { CoreStores } from "#wow/session-stores";
-
 export const PAGE_READ_TIMEOUT_MS = 5000;
-export const PAGE_READ_MAX_PAGES = 30;
 
 const ARRIVALS = new Set(["teleport", "near_teleport", "new_world"]);
 
