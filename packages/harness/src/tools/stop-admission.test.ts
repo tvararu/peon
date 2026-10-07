@@ -322,14 +322,23 @@ describe("stop hold per-operation admission", () => {
       totalSeconds: 100,
       trigger: false,
     });
-    const calendar = handle.calendar;
+    const calendar = handle.calendar as unknown as {
+      act: Record<string, unknown>;
+      state: () => unknown;
+    };
     const calendarState = calendar.state();
     calendar.act = {
       ...calendar.act,
       get: jest.fn(async () => ({ state: calendarState, status: "ok" })),
     };
     jest.spyOn(handle.guildadmin.act, "permissions").mockResolvedValue({
-      permissions: { goldPerDay: -1, rank: 0, rights: 0, tabCount: 0 },
+      permissions: {
+        goldPerDay: -1,
+        rank: 0,
+        rights: 0,
+        tabCount: 0,
+        tabs: [],
+      },
       status: "ok",
     });
     rt.session.stopped = true;
