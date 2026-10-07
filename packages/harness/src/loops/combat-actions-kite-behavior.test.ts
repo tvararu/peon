@@ -1,10 +1,11 @@
-import { expect, jest, test } from "bun:test";
+import { describe, expect, jest, test } from "bun:test";
 import { spell } from "@peon/core/test-support/spell-fixtures";
 import {
   KITE_CLOSING_RANGE_YD,
   KITE_MASK_MS,
   KITE_RANGE_MARGIN_YD,
-  KITE_RETREAT_GAP_YD,
+  KITE_SELF_SNARE_YD,
+  slowFirst,
 } from "#harness/loops/combat-actions-kite";
 import {
   COMBAT_MELEE_LEEWAY_YD,
@@ -294,8 +295,54 @@ test("kite names root and slow spells in candidates and the melee block", () => 
   }
 });
 
-test("kite retreat gates on the threshold constants", () => {
-  expect(KITE_RETREAT_GAP_YD).toBe(8);
-  expect(KITE_CLOSING_RANGE_YD).toBe(12);
-  expect(KITE_RANGE_MARGIN_YD).toBe(3);
+describe("slowFirst", () => {
+  const SELF = 1n;
+  const FOE = 2n;
+  const fireball = { effects: [{ applyAura: 0, effect: 2 }] };
+  const frostbolt = {
+    effects: [
+      { applyAura: 0, effect: 2 },
+      { applyAura: 33, effect: 6 },
+    ],
+  };
+  const nova = { effects: [{ applyAura: 26, effect: 6 }] };
+  const ready = [
+    { id: "fireball", spell: fireball, target: FOE },
+    { id: "frostbolt", spell: frostbolt, target: FOE },
+    { id: "nova", spell: nova, target: SELF },
+  ];
+  const ids = (list: readonly { id: string }[]) => list.map((a) => a.id);
+
+  test("an unsnared target at range is offered only the targeted slow", () => {
+    expect(
+      ids(slowFirst(ready, { distance: 25, selfGuid: SELF, snared: false })),
+    ).toEqual(["frostbolt"]);
+  });
+
+  test("a self-centred root joins once the target is close", () => {
+    expect(
+      ids(
+        slowFirst(ready, {
+          distance: KITE_SELF_SNARE_YD,
+          selfGuid: SELF,
+          snared: false,
+        }),
+      ),
+    ).toEqual(["frostbolt", "nova"]);
+  });
+
+  test("a snared target, or no snare to cast, keeps every spell", () => {
+    expect(
+      ids(slowFirst(ready, { distance: 25, selfGuid: SELF, snared: true })),
+    ).toEqual(["fireball", "frostbolt", "nova"]);
+    expect(
+      ids(
+        slowFirst(ready.slice(0, 1), {
+          distance: 25,
+          selfGuid: SELF,
+          snared: false,
+        }),
+      ),
+    ).toEqual(["fireball"]);
+  });
 });

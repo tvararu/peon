@@ -139,11 +139,12 @@ describe("pilotKite", () => {
   const fightStart = (
     line: number,
     ts: number,
-    over: { guid?: string; jevRun?: string; ref?: string } = {},
+    over: { guid?: string; ref?: string; runId?: string } = {},
   ) => ({
-    ...row(line, "fight/start", ts, { jevRun: over.jevRun ?? "e1" }),
+    ...row(line, "fight/start", ts),
     guid: over.guid ?? "f1",
     ref: over.ref ?? "u9",
+    runId: over.runId ?? "e1",
   });
   const kill = (
     line: number,
@@ -219,7 +220,7 @@ describe("pilotKite", () => {
     const byName = pilotKite(
       [
         engageStart(1000, { kite: true, target: "u9" }),
-        fightStart(2, 1050, { guid: "f2", jevRun: "e1", ref: "u9" }),
+        fightStart(2, 1050, { guid: "f2", ref: "u9", runId: "e1" }),
         kill(3, 3000, "Eversong Tender", "f2"),
       ],
       context(),
@@ -231,7 +232,7 @@ describe("pilotKite", () => {
     const byGuid = pilotKite(
       [
         engageStart(1000, { kite: true, target: "u9" }),
-        fightStart(2, 1050, { guid: "f2", jevRun: "e1", ref: "u9" }),
+        fightStart(2, 1050, { guid: "f2", ref: "u9", runId: "e1" }),
         kill(3, 3000, STALKER.name, "f1"),
       ],
       context(),
@@ -318,7 +319,7 @@ describe("pilotKite", () => {
   test("a fight started by a travel run counts from its first contact", () => {
     const measured = pilotKite(
       [
-        fightStart(1, 500, { jevRun: "t1" }),
+        fightStart(1, 500, { runId: "t1" }),
         swing(2, 700),
         engageStart(1000, undefined, 3),
         fightStart(4, 1050),

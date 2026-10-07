@@ -25,7 +25,10 @@
   "paneMinutes": 9,
   "partner": null,
   "preset": "eversong10-mage",
-  "setup": [],
+  "setup": [
+    { "body": { "spell": 116 }, "endpoint": "spells/learn" },
+    { "body": { "spell": 122 }, "endpoint": "spells/learn" }
+  ],
   "spawn": "pilot-kite",
   "steers": [],
   "task": "A Springpaw Stalker prowls near you. Kill one Springpaw Stalker with the engage tool using kite: true: slow it, keep it outside its melee reach and cast at range. Then report how the fight went: whether any melee swing reached you, your health at the end, and how you moved.",

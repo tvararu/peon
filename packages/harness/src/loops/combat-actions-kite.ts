@@ -35,6 +35,7 @@ export const KITE_CLOSING_RANGE_YD = 12;
 export const KITE_RANGE_MARGIN_YD = 3;
 export const KITE_MASK_MS = 4000;
 export const KITE_RUN_LEG_YD = 10;
+export const KITE_SELF_SNARE_YD = 10;
 
 export const KITE_FIGHT_GUIDANCE =
   "kite the target: keep it outside its melee reach; open with a slow at range and keep casting while the gap is open; root it (Frost Nova) when it reaches melee unrooted, run away while it is rooted or slowed, then turn and cast again once the gap is open";
@@ -302,6 +303,30 @@ export function kiteSpellSuffix(
   if (live.some((effect) => effect.applyAura === 33))
     return "; slows the target";
   return "";
+}
+
+type SnareCandidate = {
+  spell?: { effects: readonly { applyAura: number; effect: number }[] };
+  target: bigint;
+};
+
+export function slowFirst<T extends SnareCandidate>(
+  ready: readonly T[],
+  input: {
+    distance: number | undefined;
+    selfGuid: bigint;
+    snared: boolean;
+  },
+): readonly T[] {
+  if (input.snared) return ready;
+  const snaring = ready.filter(
+    (action) =>
+      action.spell !== undefined &&
+      kiteSpellSuffix(action.spell, true) !== "" &&
+      (action.target !== input.selfGuid ||
+        (input.distance ?? Number.POSITIVE_INFINITY) <= KITE_SELF_SNARE_YD),
+  );
+  return snaring.length > 0 ? snaring : ready;
 }
 
 export function kiteHolding(input: {

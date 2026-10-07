@@ -328,7 +328,7 @@ them. Gray creatures add none either, as in the pilot.
 reach: open with a slow at range, cast while the gap is open, root the
 target when it reaches melee, run while it is rooted or slowed, then turn
 and cast again. The `how` instruction, when given, keeps the kite guidance.
-In a kite fight code narrows the moves:
+In a kite fight code narrows the moves and spells:
 
 - The melee reach adds the server's 2.66 yd moving leeway.
 - Retreat is `run_away`, a full-speed run of up to 10 yd straight away from
@@ -338,7 +338,10 @@ In a kite fight code narrows the moves:
   `stop`.
 - No move may end more than the longest supported spell's range minus 3 yd
   from the target; approach moves appear only beyond that range.
-- Spell candidates that root or slow say so.
+- Spell candidates that root or slow say so. While the target carries
+  neither, only those spells are offered: a targeted slow at any range, a
+  root centred on the character once the target is within 10 yd. With no
+  such spell known, every spell stays.
 - A move the ground refuses (`obstructed`, `too_steep`, ...) is withdrawn
   for 4 s instead of ending the fight, and `target_unreachable` waits while
   the target is in spell range or closing.

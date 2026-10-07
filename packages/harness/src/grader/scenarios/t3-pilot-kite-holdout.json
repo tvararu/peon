@@ -25,7 +25,10 @@
   "paneMinutes": 9,
   "partner": null,
   "preset": "eversong10-mage",
-  "setup": [],
+  "setup": [
+    { "body": { "spell": 116 }, "endpoint": "spells/learn" },
+    { "body": { "spell": 122 }, "endpoint": "spells/learn" }
+  ],
   "spawn": "pilot-kite-holdout",
   "steers": [],
   "task": "An Elder Mottled Boar roots near you in Durotar. Kill one Elder Mottled Boar with the engage tool using kite: true: slow it, keep it outside its melee reach and cast at range. Then report how the fight went: whether any melee swing reached you, your health at the end, and how you moved.",

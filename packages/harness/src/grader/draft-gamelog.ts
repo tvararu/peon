@@ -13,6 +13,7 @@ export type GameLogRow = {
   data: unknown;
   guid?: unknown;
   ref?: unknown;
+  runId?: unknown;
 };
 
 type Row = GameLogRow;
@@ -33,8 +34,10 @@ export function parseGameLog(text: string): Row[] {
   return text.split("\n").flatMap((line, index) => {
     const value = parseJsonOutput(line);
     if (!isRecord(value) || typeof value["event"] !== "string") return [];
-    const { data, event, guid, ref, seq, text: said, ts } = value;
-    return [{ data, event, guid, line: index + 1, ref, seq, text: said, ts }];
+    const { data, event, guid, ref, runId, seq, text: said, ts } = value;
+    return [
+      { data, event, guid, line: index + 1, ref, runId, seq, text: said, ts },
+    ];
   });
 }
 

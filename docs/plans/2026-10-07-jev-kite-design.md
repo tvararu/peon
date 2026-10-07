@@ -44,6 +44,15 @@ Jev sees, in the same way the pilot masks moves that enter an aggro range:
 - The instruction gives the order: slow at range, cast while the gap is
   open, root at melee, run while rooted or slowed, turn and cast again.
 
+The second round (1/2 on training) showed why the order needs a rail too:
+the `eversong10-mage` template knows only Fireball, Fire Blast and Arcane
+Intellect, so the passing run killed the stalker before it closed and the
+failing one was caught. The kite scenarios therefore learn Frostbolt (116)
+and Frost Nova (122) in setup, the spells a level 10 mage has from its
+trainer. While the target carries no root or slow, code offers only the
+spells that put one on: a targeted slow at any range, and a root centred on
+the character once the target is within 10 yd.
+
 ## Frame
 
 The fight frame carries a `melee` field. `gapYd` is the distance to the

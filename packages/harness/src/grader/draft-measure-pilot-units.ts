@@ -211,10 +211,7 @@ function engagedGuids(
   for (const row of rows) {
     const guid = guidOf(row);
     if (guid === undefined) continue;
-    if (
-      row.event === "fight/start" &&
-      field(row, "jevRun") === field(engage, "id")
-    )
+    if (row.event === "fight/start" && row.runId === field(engage, "id"))
       guids.add(guid);
     if (ref && row.ref === target) guids.add(guid);
   }

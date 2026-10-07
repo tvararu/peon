@@ -5,10 +5,12 @@ import {
   type KiteWatch,
   kiteMasked,
   kiteSpellSuffix,
+  slowFirst,
 } from "#harness/loops/combat-actions-kite";
 import {
   type CombatMovesInput,
   combatMoveCandidates,
+  snares,
 } from "#harness/loops/combat-actions-moves";
 import { facing, separation } from "#harness/loops/combat-actions-observation";
 import { petCandidate, petOf } from "#harness/loops/combat-actions-pet";
@@ -65,8 +67,17 @@ export function addCandidates(
         state,
       } satisfies CombatMovesInput),
     );
-  for (const action of spells)
-    if (action.spell && !action.reason)
+  const ready = spells.filter((action) => action.spell && !action.reason);
+  const offered = kite
+    ? slowFirst(ready, {
+        distance: separation(state),
+        selfGuid: state.self.guid,
+        snared:
+          snares(state, (id) => scope.deps.combat.definition(id)).length > 0,
+      })
+    : ready;
+  for (const action of offered)
+    if (action.spell)
       candidates.push({
         id: action.id,
         description:
