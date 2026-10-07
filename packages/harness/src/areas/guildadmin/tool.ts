@@ -1,4 +1,9 @@
 import {
+  runCharter,
+  runDecline,
+  runSign,
+} from "#harness/areas/guildadmin/tool-charter";
+import {
   runLog,
   runPermissions,
   runStatus,
@@ -49,6 +54,9 @@ export function runGuild(
   if (verb === "tabard") return runTabard(args, ctx);
   if (verb === "emblem") return runEmblem(args, ctx);
   if (verb === "disband") return runDisband(args, ctx);
+  if (verb === "charter") return runCharter(args, ctx);
+  if (verb === "sign") return runSign(args, ctx);
+  if (verb === "decline") return runDecline(args, ctx);
   throw refuse("unknown_verb", `Unknown guild verb ${String(verb)}.`);
 }
 
