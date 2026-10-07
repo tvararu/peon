@@ -1,3 +1,5 @@
+import { ignoreFailure } from "#lib/ignore-failure";
+import { parseSystemStatus } from "#wow/areas/tickets/protocol";
 import type { TicketsCtx } from "#wow/areas/tickets/runtime-shared";
 import { TICKETS_ANSWER_MS } from "#wow/areas/tickets/runtime-shared";
 import type { TicketRecord, TicketsStore } from "#wow/areas/tickets/store";
@@ -15,13 +17,14 @@ export function ticketsReadActs(
   store: TicketsStore,
 ): TicketsReadActs {
   async function ticketSystem(): Promise<TicketQueryResult> {
-    const answered = ctx.until((incoming) => incoming.type === "ticket", {
-      signal: ctx.signal,
+    const answered = ctx.expect(GameOpcode.SMSG_GMTICKET_SYSTEMSTATUS, {
       timeoutMs: TICKETS_ANSWER_MS,
     });
+    answered.catch(ignoreFailure);
     ctx.send(GameOpcode.CMSG_GMTICKET_SYSTEMSTATUS);
-    await answered;
-    return { enabled: store.snapshot().systemEnabled ?? false };
+    const enabled = parseSystemStatus(await answered).enabled;
+    store.receiveSystemStatus(enabled);
+    return { enabled };
   }
 
   async function ticket(): Promise<TicketRecord | undefined> {

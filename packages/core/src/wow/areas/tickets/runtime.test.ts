@@ -110,6 +110,24 @@ describe("tickets store", () => {
 });
 
 describe("tickets acts", () => {
+  test("ticketSystem sends and resolves on the injected reply", async () => {
+    const rig = areaRig("tickets");
+    try {
+      const pending = rig.handle.act.ticketSystem();
+      await Promise.resolve();
+      expect(rig.sent.map((packet) => packet.opcode)).toEqual([
+        GameOpcode.CMSG_GMTICKET_SYSTEMSTATUS,
+      ]);
+      const w = new PacketWriter();
+      w.uint32LE(1);
+      rig.inject(GameOpcode.SMSG_GMTICKET_SYSTEMSTATUS, w.finish());
+      expect(await pending).toEqual({ enabled: true });
+      expect(rig.stores.areas.tickets.snapshot().systemEnabled).toBe(true);
+    } finally {
+      rig.dispose();
+    }
+  });
+
   test("ticket sends and resolves on the injected reply", async () => {
     const rig = areaRig("tickets");
     try {
