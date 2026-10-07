@@ -4,9 +4,19 @@ import type {
   PvpCredit,
 } from "#wow/areas/battlegrounds/protocol";
 import type {
+  AreaSpiritHealerTime,
+  PlayerPositions,
+  PvpLogData,
+} from "#wow/areas/battlegrounds/protocol-match";
+import type {
   BattlefieldList,
   BattlefieldStatus,
 } from "#wow/areas/battlegrounds/protocol-queue";
+import type {
+  BattlegroundsMatchEvent,
+  BattlegroundsMatchState,
+} from "#wow/areas/battlegrounds/store-match";
+import { BattlegroundsMatchTracker } from "#wow/areas/battlegrounds/store-match";
 import {
   type BattlegroundsQueue,
   type BattlegroundsQueueEvent,
@@ -47,11 +57,15 @@ export type BattlegroundsEvent =
   | BattlegroundsHonorInspect
   | BattlegroundsZoneAlert
   | BattlegroundsPvpKillQuest
-  | BattlegroundsQueueEvent;
+  | BattlegroundsQueueEvent
+  | BattlegroundsMatchEvent;
+
+export type BattlegroundsMatchView = BattlegroundsMatchState;
 
 export type BattlegroundsState = {
   self: BattlegroundsSelf;
   queue: BattlegroundsQueue;
+  match: BattlegroundsMatchState;
   credits: readonly PvpCredit[];
   zoneAlerts: readonly { areaId: number; at: number }[];
   inspect: ReadonlyMap<bigint, InspectHonorStats>;
@@ -65,16 +79,29 @@ export class BattlegroundsStore {
   private readonly now: () => number;
   private readonly selfTracker: BattlegroundsSelfTracker;
   private readonly queueTracker: BattlegroundsQueueTracker;
+  private readonly matchTracker: BattlegroundsMatchTracker;
   private readonly deps: SessionDeps;
   private credits: PvpCredit[] = [];
   private zoneAlerts: { areaId: number; at: number }[] = [];
   private inspect = new Map<bigint, InspectHonorStats>();
 
-  constructor(deps: SessionDeps, _core: CoreStores) {
+  constructor(deps: SessionDeps, core: CoreStores) {
     this.deps = deps;
     this.now = deps.now;
-    this.queueTracker = new BattlegroundsQueueTracker(deps.now, (event) =>
-      this.events.emit(event),
+    this.queueTracker = new BattlegroundsQueueTracker(deps.now, (event) => {
+      this.events.emit(event);
+      if (event.type === "bg_status" && event.status.kind === "active")
+        this.matchTracker.observeStatus(
+          event.status.kind,
+          event.status.bgType,
+          event.status.mapId,
+        );
+    });
+    this.matchTracker = new BattlegroundsMatchTracker(
+      deps,
+      core,
+      () => this.activeSlot(),
+      (event) => this.events.emit(event),
     );
     this.selfTracker = new BattlegroundsSelfTracker(deps);
     this.selfTracker.onEvent((event) => this.events.emit(event));
@@ -84,6 +111,7 @@ export class BattlegroundsStore {
     return {
       credits: [...this.credits],
       inspect: new Map(this.inspect),
+      match: this.matchTracker.snapshot(),
       queue: this.queueTracker.snapshot(),
       self: this.selfTracker.snapshot(),
       zoneAlerts: this.zoneAlerts.map((alert) => ({ ...alert })),
@@ -106,6 +134,18 @@ export class BattlegroundsStore {
 
   slot(index: number): BattlegroundsSlot {
     return this.queueTracker.slot(index);
+  }
+
+  observeMap(mapId: number): void {
+    this.matchTracker.observeMap(mapId);
+  }
+
+  activeSlot(): { bgType: number; mapId: number } | undefined {
+    for (const slot of this.queueTracker.snapshot().slots) {
+      if (slot.kind === "active")
+        return { bgType: slot.bgType, mapId: slot.mapId };
+    }
+    return undefined;
   }
 
   receiveBattlefieldStatus(status: BattlefieldStatus): void {
@@ -144,9 +184,26 @@ export class BattlegroundsStore {
     this.events.emit({ ...init, type: "pvp_kill_quest" });
   }
 
+  receiveMatchPlayer(guid: bigint, joined: boolean): void {
+    this.matchTracker.receivePlayer(guid, joined);
+  }
+
+  receiveMatchScore(score: PvpLogData): void {
+    this.matchTracker.receiveScore(score);
+  }
+
+  receiveMatchPositions(positions: PlayerPositions): void {
+    this.matchTracker.receivePositions(positions);
+  }
+
+  receiveMatchSpirit(time: AreaSpiritHealerTime): void {
+    this.matchTracker.receiveSpirit(time);
+  }
+
   dispose(): void {
     this.selfTracker.dispose();
     this.queueTracker.dispose();
+    this.matchTracker.dispose();
     this.credits = [];
     this.zoneAlerts = [];
     this.inspect = new Map();

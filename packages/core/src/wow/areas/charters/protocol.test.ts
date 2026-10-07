@@ -9,17 +9,24 @@ import {
   GUILD_ENTRY,
 } from "#test-support/areas/charters";
 import {
+  buildOfferPetition,
   buildPetitionBuy,
+  buildPetitionDecline,
   buildPetitionQuery,
   buildPetitionRename,
+  buildPetitionSign,
   buildShowlist,
   buildShowSignatures,
+  buildTurnInPetition,
+  parseDecline,
   parseQueryResponse,
   parseRename,
   parseShowlist,
   parseSignatures,
+  parseSignResult,
+  parseTurnInResult,
 } from "#wow/areas/charters/protocol";
-import { PacketReader } from "#wow/protocol/packet";
+import { PacketReader, PacketWriter } from "#wow/protocol/packet";
 
 const NAME = "FacAbCdeFghIjKlMn";
 
@@ -155,5 +162,76 @@ describe("charters protocol", () => {
     );
     const showlist = buildShowlist(CHARTERS_GUILD_MASTER);
     expect(new PacketReader(showlist).uint64LE()).toBe(CHARTERS_GUILD_MASTER);
+  });
+
+  test("sign is the item guid plus a zero byte", () => {
+    const body = buildPetitionSign(0x40_00_00_00_00_00_00_31n);
+    const reader = new PacketReader(body);
+    expect(reader.uint64LE()).toBe(0x40_00_00_00_00_00_00_31n);
+    expect(reader.uint8()).toBe(0);
+    expect(reader.remaining).toBe(0);
+  });
+
+  test("sign results carry the item, the signer and a u32 verdict", () => {
+    const w = new PacketWriter();
+    w.uint64LE(0x40_00_00_00_00_00_00_31n);
+    w.uint64LE(0x0c_00n);
+    w.uint32LE(0);
+    const parsed = parseSignResult(new PacketReader(w.finish()));
+    expect(parsed).toEqual({
+      item: 0x40_00_00_00_00_00_00_31n,
+      result: 0,
+      signer: 0x0c_00n,
+    });
+  });
+
+  test("decline bodies are a bare item guid on both sides", () => {
+    const out = buildPetitionDecline(0x40_00_00_00_00_00_00_31n);
+    expect(new PacketReader(out).uint64LE()).toBe(0x40_00_00_00_00_00_00_31n);
+    expect(parseDecline(new PacketReader(out))).toBe(
+      0x40_00_00_00_00_00_00_31n,
+    );
+  });
+
+  test("offer is junk zero then the charter and the target", () => {
+    const body = buildOfferPetition(0x40_00_00_00_00_00_00_31n, 0x0c_00n);
+    const reader = new PacketReader(body);
+    expect(reader.uint32LE()).toBe(0);
+    expect(reader.uint64LE()).toBe(0x40_00_00_00_00_00_00_31n);
+    expect(reader.uint64LE()).toBe(0x0c_00n);
+    expect(reader.remaining).toBe(0);
+  });
+
+  test("turn-in is a bare guid for a guild charter", () => {
+    const body = buildTurnInPetition(0x40_00_00_00_00_00_00_31n, undefined);
+    const reader = new PacketReader(body);
+    expect(reader.uint64LE()).toBe(0x40_00_00_00_00_00_00_31n);
+    expect(reader.remaining).toBe(0);
+  });
+
+  test("turn-in appends five emblem values for an arena charter", () => {
+    const body = buildTurnInPetition(0x40_00_00_00_00_00_00_31n, {
+      background: 1,
+      border: 4,
+      borderColor: 5,
+      icon: 2,
+      iconColor: 3,
+    });
+    const reader = new PacketReader(body);
+    expect(reader.uint64LE()).toBe(0x40_00_00_00_00_00_00_31n);
+    expect([
+      reader.uint32LE(),
+      reader.uint32LE(),
+      reader.uint32LE(),
+      reader.uint32LE(),
+      reader.uint32LE(),
+    ]).toEqual([1, 2, 3, 4, 5]);
+    expect(reader.remaining).toBe(0);
+  });
+
+  test("turn-in results are a bare u32 verdict", () => {
+    const w = new PacketWriter();
+    w.uint32LE(4);
+    expect(parseTurnInResult(new PacketReader(w.finish()))).toBe(4);
   });
 });

@@ -21,9 +21,10 @@ export const CHARTERS_OPCODES = {
     "SMSG_ITEM_PUSH_RESULT",
     "SMSG_BUY_FAILED",
     "SMSG_GUILD_COMMAND_RESULT",
+    "SMSG_ARENA_TEAM_COMMAND_RESULT",
     "SMSG_INVENTORY_CHANGE_FAILURE",
   ],
   stubs: [],
   dead: [],
-  unseen: [],
+  unseen: ["MSG_PETITION_DECLINE"],
 } as const satisfies AreaOpcodes;

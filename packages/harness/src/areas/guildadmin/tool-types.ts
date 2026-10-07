@@ -12,6 +12,17 @@ export const GUILD_VERBS = [
   "tabard",
   "emblem",
   "disband",
+  "charter",
+  "sign",
+  "decline",
+] as const;
+
+export const CHARTER_STEPS = [
+  "buy",
+  "status",
+  "offer",
+  "turn_in",
+  "rename",
 ] as const;
 
 export const guildParams = Type.Object({
@@ -23,6 +34,12 @@ export const guildParams = Type.Object({
   ),
   border_style: Type.Optional(
     Type.Integer({ description: "For emblem: border style number." }),
+  ),
+  charter: Type.Optional(
+    StringEnum(["guild", "2v2", "3v3", "5v5"], {
+      description:
+        "For charter: which charter. Default guild. The arena kinds come from an arena organizer.",
+    }),
   ),
   color: Type.Optional(
     Type.Integer({ description: "For emblem: emblem color number." }),
@@ -36,13 +53,13 @@ export const guildParams = Type.Object({
   do: Type.Optional(
     StringEnum([...GUILD_VERBS], {
       description:
-        "status: read the guild. permissions: read your rank rights. log: read the guild event log. rank: add, rename or remove a rank (leader). note: set a member's public note. officer_note: set an officer note. info_text: set the guild info text. tabard: open the tabard designer. emblem: save the emblem at the tabard designer. disband: disband the guild (leader). Default status.",
+        "status: read the guild. permissions: read your rank rights. log: read the guild event log. rank: add, rename or remove a rank (leader). note: set a member's public note. officer_note: set an officer note. info_text: set the guild info text. tabard: open the tabard designer. emblem: save the emblem at the tabard designer. disband: disband the guild (leader). charter: buy, status, offer, turn_in or rename a guild or arena charter. sign: sign a charter someone offered you. decline with step charter: decline that offer. Default status.",
     }),
   ),
   name: Type.Optional(
     Type.String({
       description:
-        "For rank add or rename: the rank name, 15 characters at most. For note and officer_note: the member name.",
+        "For rank add or rename: the rank name, 15 characters at most. For note and officer_note: the member name. For charter buy and rename: the charter name, letters only. For charter offer: the player name or ref to show it to.",
     }),
   ),
   npc: Type.Optional(
@@ -58,9 +75,9 @@ export const guildParams = Type.Object({
     }),
   ),
   step: Type.Optional(
-    StringEnum(["add", "rename", "remove"], {
+    StringEnum(["add", "rename", "remove", "charter", ...CHARTER_STEPS], {
       description:
-        "For rank: add a lowest rank, rename one, or remove the lowest rank.",
+        "For rank: add a lowest rank, rename one, or remove the lowest rank. For charter: buy, status, offer, turn_in or rename. For decline: charter.",
     }),
   ),
   style: Type.Optional(

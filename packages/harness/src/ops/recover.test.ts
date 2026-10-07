@@ -1,4 +1,8 @@
 import { describe, expect, jest, test } from "bun:test";
+import {
+  flushMicrotasks,
+  hasSettled,
+} from "@peon/core/test-support/microtasks";
 import { recoverOp } from "#harness/ops/recover";
 import {
   setLife,
@@ -10,7 +14,19 @@ import {
 import { createTestRuntime } from "#test-support/runtime-fixture";
 
 const HEALER = 0x40n;
+const GUIDE = 0x0d00n;
 
+function guideAt(distance: number) {
+  return unitRow({
+    distance,
+    guid: GUIDE,
+    name: "Spirit Guide",
+    relation: "friendly",
+    roles: ["spirit_guide"],
+    x: distance,
+    y: 0,
+  });
+}
 function healerAt(distance: number) {
   return unitRow({
     distance,
@@ -46,6 +62,7 @@ describe("recoverOp", () => {
     });
     expect(result.alternatives).toEqual([
       "no spirit healer in view",
+      "no spirit guide in view",
       "no resurrection offer",
       "no self-resurrection spell",
     ]);
@@ -64,6 +81,7 @@ describe("recoverOp", () => {
     expect(activated).toEqual([HEALER]);
     expect(result.outcome).toMatchObject({ ok: true, outcome: "resurrected" });
     expect(result.alternatives).toEqual([
+      "no spirit guide in view",
       "no resurrection offer",
       "walk back to your corpse",
       "no self-resurrection spell",
@@ -122,6 +140,7 @@ describe("recoverOp", () => {
     });
     expect(result.alternatives).toEqual([
       "no spirit healer in view",
+      "no spirit guide in view",
       "no resurrection offer",
       "walk back to your corpse",
     ]);
@@ -160,6 +179,7 @@ describe("recoverOp", () => {
     expect(result.outcome).toEqual({ cause: "no_self_res", ok: false });
     expect(result.alternatives).toEqual([
       "no spirit healer in view",
+      "no spirit guide in view",
       "no resurrection offer",
       "walk back to your corpse",
     ]);
@@ -245,8 +265,95 @@ describe("recoverOp", () => {
     expect(answer).toBe(true);
     expect(result.outcome).toMatchObject({ ok: true, outcome: "resurrected" });
     expect(result.alternatives[0]).toStartWith("spirit healer u");
-    expect(result.alternatives[1]).toBe("walk back to your corpse");
-    expect(result.alternatives[2]).toBe("no self-resurrection spell");
+    expect(result.alternatives[1]).toBe("no spirit guide in view");
+    expect(result.alternatives[2]).toBe("walk back to your corpse");
+    expect(result.alternatives[3]).toBe("no self-resurrection spell");
+  });
+
+  test("spirit guide: a resurrection inside the queued countdown succeeds", async () => {
+    const t = await createTestRuntime();
+    setSelf(t.handle, { life: "ghost" });
+    setUnits(t.handle, [guideAt(4)]);
+    Object.assign(t.handle.battlegrounds.act, {
+      queueSpiritGuide: jest.fn(async (guid: bigint) => {
+        setTimeout(() => setLife(t.handle, "alive"), 50);
+        return { guid, ms: 2000 };
+      }),
+    });
+    jest.spyOn(t.handle.battlegrounds, "state").mockReturnValue({
+      match: { current: { bgType: 2 }, spirit: undefined },
+    } as never);
+    jest.useFakeTimers();
+    try {
+      const pending = recoverOp(toolCtx(t), "spirit_guide");
+      for (let step = 0; step < 10; step++) {
+        await flushMicrotasks();
+        jest.advanceTimersByTime(10);
+      }
+      await flushMicrotasks();
+      const result = await pending;
+      expect(t.handle.battlegrounds.act.queueSpiritGuide).toHaveBeenCalledWith(
+        GUIDE,
+      );
+      expect(result.outcome).toMatchObject({
+        ok: true,
+        outcome: "resurrected",
+      });
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
+  test("spirit guide: silence settles at the queued countdown plus margin", async () => {
+    const t = await createTestRuntime();
+    setSelf(t.handle, { life: "ghost" });
+    setUnits(t.handle, [guideAt(4)]);
+    Object.assign(t.handle.battlegrounds.act, {
+      queueSpiritGuide: jest.fn(async (guid: bigint) => ({ guid, ms: 1000 })),
+    });
+    jest.spyOn(t.handle.battlegrounds, "state").mockReturnValue({
+      match: { current: { bgType: 2 }, spirit: undefined },
+    } as never);
+    jest.useFakeTimers();
+    try {
+      const pending = recoverOp(toolCtx(t), "spirit_guide");
+      for (let step = 0; step < 7; step++) {
+        await flushMicrotasks();
+        jest.advanceTimersByTime(500);
+      }
+      await flushMicrotasks();
+      jest.advanceTimersByTime(499);
+      await flushMicrotasks();
+      expect(await hasSettled(pending)).toBe(false);
+      jest.advanceTimersByTime(1);
+      await flushMicrotasks();
+      const result = await pending;
+      expect(result.outcome).toEqual({
+        cause: "spirit_guide_unanswered",
+        ok: false,
+      });
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
+  test("spirit guide: a rejected queue settles unanswered", async () => {
+    const t = await createTestRuntime();
+    setSelf(t.handle, { life: "ghost" });
+    setUnits(t.handle, [guideAt(4)]);
+    Object.assign(t.handle.battlegrounds.act, {
+      queueSpiritGuide: jest.fn(async () => {
+        throw new Error("no_reply");
+      }),
+    });
+    jest.spyOn(t.handle.battlegrounds, "state").mockReturnValue({
+      match: { current: { bgType: 2 }, spirit: undefined },
+    } as never);
+    const result = await recoverOp(toolCtx(t), "spirit_guide");
+    expect(result.outcome).toEqual({
+      cause: "spirit_guide_unanswered",
+      ok: false,
+    });
   });
 
   test("accept without an offer refuses in the outcome", async () => {

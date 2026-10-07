@@ -85,6 +85,10 @@ export const PUPPET_CALLS: Readonly<Record<string, PuppetCall>> = {
     run: (h, a) => h.arena.act.leave(count(a, 0)),
   },
   convertToRaid: { args: [], run: (h) => h.raid.act.convertToRaid() },
+  declineCharter: {
+    args: ["guid"],
+    run: (h, a) => h.charters.act.decline(guid(a, 0)),
+  },
   declineGuildInvite: { args: [], run: (h) => h.declineGuildInvite() },
   declineInvite: { args: [], run: (h) => h.declineInvite() },
   enterPlayerVehicle: {
@@ -118,6 +122,10 @@ export const PUPPET_CALLS: Readonly<Record<string, PuppetCall>> = {
     run: (h, a) => h.raid.act.moveToSubgroup(text(a, 0), count(a, 1)),
   },
   nextSeat: { args: [], run: (h) => h.vehicles.act.nextSeat() },
+  offerCharter: {
+    args: ["guid", "guid"],
+    run: (h, a) => h.charters.act.offer(guid(a, 0), guid(a, 1)),
+  },
   pingMinimap: {
     args: ["number", "number"],
     run: (h, a) => h.raid.act.pingMinimap(count(a, 0), count(a, 1)),
@@ -209,6 +217,10 @@ export const PUPPET_CALLS: Readonly<Record<string, PuppetCall>> = {
       const shared = h.quests.act.shareQuest(count(a, 0));
       if (!shared.ok) throw new Error(`Quest not shared: ${shared.reason}.`);
     },
+  },
+  signCharter: {
+    args: ["guid"],
+    run: (h, a) => h.charters.act.sign(guid(a, 0)),
   },
   startReadyCheck: { args: [], run: (h) => h.raid.act.startReadyCheck() },
   swapSubgroups: {

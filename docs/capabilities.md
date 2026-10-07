@@ -79,6 +79,7 @@ or the page names one that does not exist.
 | Read mail | `t9-mail-read` | The letter is staged by an offline quest reward; the answer quotes its fixed body. |
 | Collect gold and items from mail | `t9-mail-collect` | Takes money then attachments in order at a mailbox. |
 | Send gold or items by mail | `t9-mail-send` | Postage is 30 copper per item, 30 with no item. |
+| Buy a guild charter and read how many signatures it needs | `t9-guild-charter` | The guild charter needs 9 signatures on this realm; the 2v2 arena charter needs 1. Offer, sign, decline and turn in need other players and are proven by tests only. |
 | Open the tabard designer and try to save a guild emblem | `t9-guild-tabard` | Run guildless: the server refuses the save with code 2 and takes no gold. A leader's save, ranks, notes, the info text and the event log are proven by probe flows, not a scenario: an eval cannot stage a guild. |
 | Read play time, draw weapons, hide helm and cloak | `t0-character-appearance` | Sheathe, helm and cloak sends get no server reply. |
 | Share a quest with the group and take one shared back | `t8-quests-share`, `t8-quests-accept-shared` | A share with no member answer is `UNCONFIRMED` after 3 s. |
@@ -90,6 +91,11 @@ or the page names one that does not exist.
 | Spend pet talent points | `t8-pets-talent` | Hunter only; spends one point of the pet's own talent tree at owner level 25. |
 | Join and leave an arena skirmish queue (`arena` `queue`) | `t9-arena-skirmish` | Unrated 2v2 at battlemaster Gargok in the Barrens, with no team. Rated joins, teams, rosters and invites need a staged team (eval staging gap) and are proven by the probe flow `arena-team`. |
 | Inspect a nearby player's arena teams (`arena` `inspect`) | `t9-arena-inspect` | Shows the partner's teams from `MSG_INSPECT_ARENA_TEAMS`. Shows teams only: the agent's own teams, the roster, invites and the queue need a staged team (eval staging gap: needs an arena setup endpoint; `soap gm` is banned in evals) and are proven by the probe flow `arena-team`. |
+| Join Wintergrasp (`wintergrasp` `accept`, `leave`) | `t9-pvp-wintergrasp` | Waits for the grouping window with a read-only `bf-queue` console wait (a battle starts about every 3 hours: 150 minutes of peace, then a 30-minute war), then joins the battle and hearths out. |
+| Turn its PvP flag on and off (`pvp` `flag`) | `t9-pvp-flag` | The flag stays on for a few minutes after it is turned off. |
+| Join and leave a battleground queue (`pvp` `queue`) | `t9-pvp-queue` | Needs level 10. |
+| Recover at a battleground spirit guide (`recover` `how:spirit_guide`) | Not shown | Queues at the guide for the next mass resurrection; needs a battleground match, so no scenario shows it live. |
+| Play a battleground to the end (`t9-pvp-warsong`) | Not shown | Needs a Warsong Gulch match that random bots fill, which no eval setup can stage. |
 
 ## Not shown by any scenario
 
@@ -128,6 +134,6 @@ These have tools or code but no scenario that checks them live:
 - Answer a raid ready check (`t9-raid-answer`, the agent answers before the check starts, and the repeat guard then refuses its answer during the check).
 - Accept a quest a party member shares (`t8-quests-accept-shared`, the agent's early `accept_invite` is refused as a repeat, so it is not in the group when the partner shares).
 - Changing seats, riding with another player and ejecting a passenger (`vehicle` `seat`, `ride_with`, `eject`).
-- Fishing (`use` `do: fish` casts Fishing, uses the bobber on the bite and takes the catch; no scenario stages the pole, the skill and calm water, so the run is proven by probe traces and unit tests only).
+- Hearing a GM's answer to its ticket (`tickets/gm_reply` wakes the agent with the answer; there is no verb that files a ticket, so no scenario shows it, and the area doc records the wire proof).
 
 Peon has no tool for the auction house.

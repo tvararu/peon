@@ -16,7 +16,7 @@ import { type ProbeDeps, runProbe } from "#tools/probe-run";
 const ACCOUNT = "FAC0123456789";
 const PING = opcodeNumber("CMSG_PING") ?? -1;
 const PONG = opcodeNumber("SMSG_PONG") ?? -1;
-const STUBBED = opcodeNumber("SMSG_WARDEN_DATA") ?? -1;
+const UNHANDLED = opcodeNumber("SMSG_KICK_REASON") ?? -1;
 const GOSSIP = opcodeNumber("SMSG_GOSSIP_MESSAGE") ?? -1;
 const LOGOUT = opcodeNumber("CMSG_LOGOUT_REQUEST") ?? -1;
 const stops: (() => void)[] = [];
@@ -160,17 +160,19 @@ describe("runProbe", () => {
   });
 
   test("reports notices, including ones made before it subscribed", async () => {
-    const { deps } = await setup((ws) => ws.inject(STUBBED, new Uint8Array(8)));
+    const { deps } = await setup((ws) =>
+      ws.inject(UNHANDLED, new Uint8Array(8)),
+    );
     const { code, report } = await runProbe(
-      args({ until: [STUBBED], waitMs: 5000 }),
+      args({ until: [UNHANDLED], waitMs: 5000 }),
       deps,
     );
     expect(code).toBe(0);
     expect(report.notices).toEqual([
       {
         at: expect.any(Number),
-        label: "Warden anti-cheat",
-        opcode: "SMSG_WARDEN_DATA",
+        label: "SMSG_KICK_REASON",
+        opcode: "SMSG_KICK_REASON",
         text: expect.any(String),
       },
     ]);

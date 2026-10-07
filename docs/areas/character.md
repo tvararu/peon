@@ -9,12 +9,12 @@ sends and awaits them in-world like any other opcode.
 
 State: the last `SMSG_PLAYED_TIME` counters, whether the barber shop is
 open, the last barber result, the last character-screen operation, the
-last WHOIS line, the last play-time warning and the last declined-names
-result. Sheathe, helm and cloak visibility are derived live from the
+last WHOIS line, the last play-time warning, the last declined-names
+result and the last realm-split reply. Sheathe, helm and cloak visibility are derived live from the
 entity fields (`UNIT_FIELD_BYTES_2` byte 0, `PLAYER_FLAGS` hide bits)
 rather than stored. Events: `played_time`, `barber_open`,
-`barber_result`, `operation`, `whois`, `play_warning` and
-`declined_names`.
+`barber_result`, `operation`, `whois`, `play_warning`,
+`declined_names` and `realm_split`.
 
 The acts:
 
@@ -34,6 +34,8 @@ The acts:
 - `whois(name)` sends `CMSG_WHOIS` and returns the `SMSG_WHOIS` line.
   Without GM permission the server answers nothing and the wait times
   out.
+- `realmSplit(realm)` sends `CMSG_REALM_SPLIT` and returns the echoed
+  value, the split state and the split date from `SMSG_REALM_SPLIT`.
 - `deleteCharacter(guid)` sends `CMSG_CHAR_DELETE` and returns the
   `SMSG_CHAR_DELETE` result name. The server stays silent when the
   character is online, belongs to another account, or is missing, so the
@@ -94,6 +96,9 @@ The `character` tool verbs are `played`, `sheathe`, `helm`, `cloak` and
   time, sent only when consecutive play crosses the anti-addiction
   limits (`Server/WorldSession.cpp:695-701`,
   `Server/Packets/MiscPackets.cpp:172-178`).
+- `CMSG_REALM_SPLIT` is one `uint32` that the handler echoes; the reply
+  `SMSG_REALM_SPLIT` is that echo, a `uint32` split state (0 normal) and
+  the C string date `01/01/01` (`Handlers/MiscHandler.cpp:1168-1182`).
 - `CMSG_SET_PLAYER_DECLINED_NAMES` is a guid, name and five declined
   forms; `SMSG_SET_PLAYER_DECLINED_NAMES_RESULT` is a `uint32` code plus
   guid. The handler returns at once unless declined names are enabled,
@@ -115,6 +120,8 @@ The `character` tool verbs are `played`, `sheathe`, `helm`, `cloak` and
 - `SMSG_WHOIS` is parser- and rig-tested but not seen live: the reply
   needs GM permission the throwaway accounts lack, so the live probe
   shows the send accepted with no reply.
+- `SMSG_INVALIDATE_PLAYER` is `dead`: the opcode is `STATUS_NEVER` and
+  nothing in AzerothCore sends it (`Server/Protocol/Opcodes.cpp:927`).
 - Deleting the logged-in character, or a character of another account,
   gets no reply by server design; the act documents the timeout rather
   than working around it.
@@ -150,4 +157,7 @@ Live probes on `fresh` throwaway accounts (`tmp/probe/<ACCOUNT>-*/packets.jsonl`
 | `SMSG_WHOIS` | `rig` | account-line string from the writer; permission-gated, not seen live | `Handlers/MiscHandler.cpp:1128-1134` |
 | `CMSG_SET_PLAYER_DECLINED_NAMES` | `rig` | guid + name + five forms from the reader; realm-disabled | `Handlers/CharacterHandler.cpp:1453-1460` |
 | `SMSG_SET_PLAYER_DECLINED_NAMES_RESULT` | `rig` | `uint32` code + guid from the writer; realm-disabled | `Handlers/CharacterHandler.cpp:2678-2683` |
+| `CMSG_REALM_SPLIT` | `live` | probe `--send CMSG_REALM_SPLIT --body 00000000`, accepted | `Handlers/MiscHandler.cpp:1168-1182` |
+| `SMSG_REALM_SPLIT` | `live` | probe reply `000000000000000030312f30312f303100`: echo 0, state 0, date `01/01/01` (`guard-denied-realm-split/` in the guard artifacts) | `Handlers/MiscHandler.cpp:1176-1181` |
+| `SMSG_INVALIDATE_PLAYER` | `dead` | `STATUS_NEVER`, no send site | `Server/Protocol/Opcodes.cpp:927` |
 | `SMSG_PLAY_TIME_WARNING` | `rig` | flag + remaining time from the writer; needs hours of play | `Server/Packets/MiscPackets.cpp:172-178` |

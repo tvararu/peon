@@ -17,6 +17,9 @@ columns are explained in [the index](../protocol-coverage.md).
 | `0x2c7` | `CMSG_CHAR_RENAME` | client | handled |  |
 | `0x2c8` | `SMSG_CHAR_RENAME` | server | handled |  |
 | `0x2f5` | `SMSG_PLAY_TIME_WARNING` | server | handled | not seen live |
+| `0x31c` | `SMSG_INVALIDATE_PLAYER` | server | dead |  |
+| `0x38b` | `SMSG_REALM_SPLIT` | server | handled |  |
+| `0x38c` | `CMSG_REALM_SPLIT` | client | handled |  |
 | `0x419` | `CMSG_SET_PLAYER_DECLINED_NAMES` | client | dead |  |
 | `0x41a` | `SMSG_SET_PLAYER_DECLINED_NAMES_RESULT` | server | dead |  |
 | `0x426` | `CMSG_ALTER_APPEARANCE` | client | handled |  |

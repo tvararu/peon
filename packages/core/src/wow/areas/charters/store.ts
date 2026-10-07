@@ -1,9 +1,15 @@
 import { Emitter, type Unsubscribe } from "#lib/emitter";
-import type {
-  CharterOffer,
-  PetitionSignatures,
-  QueryResponse,
-  Showlist,
+import {
+  ARENA_REFUSAL_NAMES,
+  type CharterOffer,
+  type PetitionSignatures,
+  type PetitionSignResult,
+  type QueryResponse,
+  type Showlist,
+  SIGN_OK,
+  SIGN_REFUSAL_NAMES,
+  TURN_IN_OK,
+  TURN_IN_REFUSAL_NAMES,
 } from "#wow/areas/charters/protocol";
 import type { Entity } from "#wow/entity-store";
 import { distance } from "#wow/geometry";
@@ -63,7 +69,10 @@ export type CharterRequest =
       requestedAt: number;
     }
   | { kind: "signatures"; item: bigint; requestedAt: number }
-  | { kind: "rename"; item: bigint; name: string; requestedAt: number };
+  | { kind: "rename"; item: bigint; name: string; requestedAt: number }
+  | { kind: "offer"; item: bigint; target: bigint; requestedAt: number }
+  | { kind: "sign"; item: bigint; requestedAt: number }
+  | { kind: "turnIn"; item: bigint; arena: boolean; requestedAt: number };
 
 export type CharterResult =
   | { status: "ok"; item?: bigint | undefined }
@@ -97,14 +106,20 @@ export type ChartersEvent =
   | { type: "renamed"; item: bigint; name: string }
   | { type: "bought"; npc: bigint; item: bigint | undefined; name: string }
   | { type: "refused"; kind: CharterRequest["kind"]; reason: string }
-  | { type: "unanswered"; kind: CharterRequest["kind"] };
+  | { type: "unanswered"; kind: CharterRequest["kind"] }
+  | { type: "sign_result"; item: bigint; signer: bigint; result: number }
+  | { type: "declined"; item: bigint | undefined; signer: bigint }
+  | { type: "turn_in"; code: number };
 
 const COMMAND_CREATE = 0;
 const COMMAND_NAMES: Record<number, string> = {
+  3: "already_in_guild",
+  5: "already_invited",
   6: "name_invalid",
   7: "name_taken",
+  8: "permissions",
+  12: "not_allied",
 };
-
 function keyOf(guid: bigint): string {
   return `0x${guid.toString(16)}`;
 }
@@ -201,14 +216,32 @@ export class ChartersStore {
   }
 
   charterItems(): bigint[] {
+    return this.heldCharters().map((held) => held.guid);
+  }
+
+  isArenaCharter(item: bigint): boolean {
+    const held = this.heldCharters().find(
+      (candidate) => candidate.guid === item,
+    );
+    return (ARENA_CHARTER_ENTRIES as readonly number[]).includes(
+      held?.entry ?? 0,
+    );
+  }
+
+  offerOf(item: bigint): PendingOffer | undefined {
+    return this.offer?.item === item ? this.offer : undefined;
+  }
+
+  private heldCharters(): { guid: bigint; entry: number }[] {
     const inventory = readInventory(this.deps.selfGuid(), this.deps.getEntity);
-    const guids: bigint[] = [];
+    const held: { guid: bigint; entry: number }[] = [];
     for (const slot of [...inventory.slots, ...(inventory.bank?.slots ?? [])]) {
       if (slot.status !== "occupied") continue;
-      if (!isCharterEntry(slot.item.entry)) continue;
-      guids.push(slot.guid);
+      const entry = slot.item.entry;
+      if (entry === undefined || !isCharterEntry(entry)) continue;
+      held.push({ entry, guid: slot.guid });
     }
-    return guids;
+    return held;
   }
 
   petitionIdOf(item: bigint): number | undefined {
@@ -337,8 +370,90 @@ export class ChartersStore {
   }
 
   receiveCommandResult(command: number, result: number): void {
-    if (command !== COMMAND_CREATE || result === 0) return;
-    this.refuse(commandReason(result));
+    if (result === 0) return;
+    const kind = this.request?.kind;
+    if (kind === "sign" || kind === "offer") this.refuse(commandReason(result));
+    else if (
+      (kind === "buy" || kind === "turnIn" || kind === "rename") &&
+      command === COMMAND_CREATE
+    )
+      this.refuse(commandReason(result));
+  }
+
+  receiveArenaCommandResult(error: number): void {
+    if (error === 0) return;
+    const kind = this.request?.kind;
+    if (kind === "sign" || kind === "offer" || kind === "turnIn")
+      this.refuse(ARENA_REFUSAL_NAMES[error] ?? `arena_error_${error}`);
+  }
+
+  receiveSignResult(packet: PetitionSignResult): void {
+    const event: ChartersEvent = {
+      item: packet.item,
+      result: packet.result,
+      signer: packet.signer,
+      type: "sign_result",
+    };
+    const known = this.petitions.get(keyOf(packet.item));
+    if (
+      known &&
+      packet.result === SIGN_OK &&
+      !known.signers.includes(packet.signer)
+    )
+      this.petitions.set(keyOf(packet.item), {
+        ...known,
+        signers: [...known.signers, packet.signer],
+      });
+    const request = this.request;
+    const mine =
+      request?.kind === "sign" &&
+      request.item === packet.item &&
+      packet.signer === this.deps.selfGuid();
+    if (!mine) {
+      this.events.emit(event);
+      return;
+    }
+    if (packet.result === SIGN_OK) this.settle({ status: "ok" }, event);
+    else
+      this.settle(
+        {
+          reason:
+            SIGN_REFUSAL_NAMES[packet.result] ?? `sign_result_${packet.result}`,
+          status: "refused",
+        },
+        event,
+      );
+  }
+
+  receiveTurnIn(code: number): void {
+    const event: ChartersEvent = { code, type: "turn_in" };
+    if (this.request?.kind !== "turnIn") {
+      this.events.emit(event);
+      return;
+    }
+    if (code === TURN_IN_OK) this.settle({ status: "ok" }, event);
+    else
+      this.settle(
+        {
+          reason: TURN_IN_REFUSAL_NAMES[code] ?? `turn_in_${code}`,
+          status: "refused",
+        },
+        event,
+      );
+  }
+
+  receiveDecline(signer: bigint): void {
+    this.events.emit({ item: undefined, signer, type: "declined" });
+  }
+
+  declineOffer(item: bigint): void {
+    if (this.offer?.item !== item) return;
+    this.offer = undefined;
+    this.events.emit({
+      item,
+      signer: this.deps.selfGuid(),
+      type: "declined",
+    });
   }
 
   receiveInventoryFailure(packet: InventoryChangeFailure): void {

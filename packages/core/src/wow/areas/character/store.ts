@@ -4,6 +4,7 @@ import type {
   DeclinedNameResult,
   PlayedTime,
   PlayTimeWarning,
+  RealmSplit,
 } from "#wow/areas/character/protocol";
 import { SHEATH_NAMES, type SheathState } from "#wow/areas/character/protocol";
 import type { CharAppearance } from "#wow/areas/character/select";
@@ -35,6 +36,7 @@ export type CharacterState = {
   whois: string | undefined;
   warning: PlayTimeWarning | undefined;
   declined: DeclinedNameResult | undefined;
+  realmSplit: RealmSplit | undefined;
   sheath: SheathState | undefined;
   helmShown: boolean | undefined;
   cloakShown: boolean | undefined;
@@ -50,7 +52,8 @@ export type CharacterEvent =
   | { type: "operation"; state: CharacterState }
   | { type: "whois"; state: CharacterState }
   | { type: "play_warning"; state: CharacterState }
-  | { type: "declined_names"; state: CharacterState };
+  | { type: "declined_names"; state: CharacterState }
+  | { type: "realm_split"; state: CharacterState };
 
 export class CharacterStore {
   private readonly events = new Emitter<[CharacterEvent]>();
@@ -62,6 +65,7 @@ export class CharacterStore {
   private whois: string | undefined;
   private warning: PlayTimeWarning | undefined;
   private declined: DeclinedNameResult | undefined;
+  private realmSplit: RealmSplit | undefined;
 
   constructor(deps: SessionDeps) {
     this.deps = deps;
@@ -80,6 +84,7 @@ export class CharacterStore {
       whois: this.whois,
       warning: this.warning,
       declined: this.declined,
+      realmSplit: this.realmSplit,
       sheath: bytes === undefined ? undefined : SHEATH_NAMES[bytes & 0xff],
       helmShown: flags === undefined ? undefined : (flags & HIDE_HELM) === 0,
       cloakShown: flags === undefined ? undefined : (flags & HIDE_CLOAK) === 0,
@@ -124,6 +129,11 @@ export class CharacterStore {
   receiveDeclinedNames(declined: DeclinedNameResult): void {
     this.declined = declined;
     this.events.emit({ type: "declined_names", state: this.snapshot() });
+  }
+
+  receiveRealmSplit(split: RealmSplit): void {
+    this.realmSplit = split;
+    this.events.emit({ type: "realm_split", state: this.snapshot() });
   }
 
   dispose(): void {

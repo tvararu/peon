@@ -193,11 +193,13 @@ A result that is not `DONE` ends with a `Next:` step.
 | `trade` | Gives items and gold to another player, answers a trade request, changes the offer, accepts, cancels or reads both offers. |
 | `guildbank` | Opens the guild vault at a vault object within 10 yards, reads its tabs, buys and renames tabs, moves copper and items in and out or between slots, and reads the tab text, the log and the daily limits. |
 | `mail` | Reads the letters waiting in the inbox, collects copper and items from them, or sends a letter with copper or items at a mailbox within 10 yards. |
-| `guild` | Reads the guild and its rank rights, changes ranks, member notes and the info text as leader, reads the event log, disbands on confirm, and opens the tabard designer to save an emblem for 10 gold. |
+| `guild` | Reads the guild and its rank rights, changes ranks, member notes and the info text as leader, reads the event log, disbands on confirm, buys and reads guild and arena charters at a charter seller, signs and declines charter offers, and opens the tabard designer to save an emblem for 10 gold. |
 | `vehicle` | Takes a seat on a vehicle by walking to a unit and clicking it (`board`), leaves the seat (`leave`), changes seats (`seat`), asks to ride with a player (`ride_with`) and removes a passenger (`eject`). When a board gives control of the vehicle, the result says `travel` drives it and Next names a `travel` call. A seat request the server does not answer is `UNCONFIRMED` with the reason `no_answer`. |
 | `channel` | Joins and leaves chat channels, lists their members, and runs admin actions on a channel it moderates: kick, ban, unban, announce, moderate, invite and the rest. |
 | `character` | Reads play time, draws or sheathes weapons, shows or hides helm and cloak, or changes hairstyle in a barber chair. |
 | `arena` | Reads arena teams and their rosters, invites players and passes the captaincy, inspects a nearby player's teams, and joins or leaves an arena queue at a battlemaster. |
+| `wintergrasp` | Accepts or declines a pending Wintergrasp queue or war offer, leaves the queue, or hearths out of the zone during a war. Never answers offers by itself. |
+| `pvp` | Lists battlegrounds, joins and leaves their queues, answers invitations, reads the score and sets the PvP flag. |
 | `calendar` | Lists the calendar, reads one event, creates, updates, removes and copies personal events, invites a named player, answers an invite and reads who is coming. |
 
 `travel`, `engage`, `pilot`, `rest` and `recover` start a run (`r1`, `r2`, …).
@@ -319,7 +321,9 @@ from one sender are held back for 20 seconds, and repeated combat hits
 stay limited to one wake per attacker every 30 seconds. Lines that
 arrive together reach the agent as one message. Chat that wakes the
 agent while a run tool waits returns the tool early and reaches the
-agent in the same turn.
+agent in the same turn. A GM answering the character's ticket wakes it
+too (`tickets/gm_reply`, with the ticket id and the answer); like other
+non-chat wakes it passes through the wake guard.
 
 ## Who controls the character
 

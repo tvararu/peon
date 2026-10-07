@@ -4,6 +4,10 @@ import {
   type InspectHonorStats,
 } from "#wow/areas/battlegrounds/protocol";
 import {
+  type BattlegroundsMatchActs,
+  battlegroundsMatchRuntime,
+} from "#wow/areas/battlegrounds/runtime-match";
+import {
   type BattlegroundsQueueActs,
   battlegroundsQueueRuntime,
 } from "#wow/areas/battlegrounds/runtime-queue";
@@ -19,10 +23,11 @@ export const PVP_ANSWER_MS = 3000;
 
 export type BattlegroundsSetPvpResult = { kind: "set"; on: boolean };
 
-export type BattlegroundsActs = BattlegroundsQueueActs & {
-  setPvp: (on: boolean) => Promise<BattlegroundsSetPvpResult>;
-  inspectHonor: (guid: bigint) => Promise<InspectHonorStats>;
-};
+export type BattlegroundsActs = BattlegroundsQueueActs &
+  BattlegroundsMatchActs & {
+    setPvp: (on: boolean) => Promise<BattlegroundsSetPvpResult>;
+    inspectHonor: (guid: bigint) => Promise<InspectHonorStats>;
+  };
 
 function noAnswer(guid: bigint): Error {
   return new Error(`no_answer for ${guid.toString(10)}`);
@@ -72,8 +77,12 @@ export function battlegroundsRuntime(
   }
 
   const queue = battlegroundsQueueRuntime(ctx, store, core);
+  const match = battlegroundsMatchRuntime(ctx, store, core);
   return {
-    act: { ...queue.act, inspectHonor, setPvp },
-    dispose: queue.dispose,
+    act: { ...queue.act, ...match.act, inspectHonor, setPvp },
+    dispose: () => {
+      match.dispose();
+      queue.dispose();
+    },
   };
 }

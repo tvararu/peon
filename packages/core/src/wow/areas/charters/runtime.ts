@@ -1,10 +1,15 @@
 import { ignoreFailure } from "#lib/ignore-failure";
 import {
+  type ArenaEmblem,
+  buildOfferPetition,
   buildPetitionBuy,
+  buildPetitionDecline,
   buildPetitionQuery,
   buildPetitionRename,
+  buildPetitionSign,
   buildShowlist,
   buildShowSignatures,
+  buildTurnInPetition,
 } from "#wow/areas/charters/protocol";
 import type {
   CharterRequest,
@@ -24,6 +29,10 @@ export type ChartersActs = {
   query: (item: bigint) => Promise<CharterResult>;
   showSignatures: (item: bigint) => Promise<CharterResult>;
   rename: (item: bigint, name: string) => Promise<CharterResult>;
+  offer: (item: bigint, target: bigint) => Promise<CharterResult>;
+  sign: (item: bigint) => Promise<CharterResult>;
+  decline: (item: bigint) => Promise<{ status: "ok" | "no_offer" }>;
+  turnIn: (item: bigint, emblem?: ArenaEmblem) => Promise<CharterResult>;
 };
 
 const SETTLED = new Set<ChartersEvent["type"]>([
@@ -34,6 +43,8 @@ const SETTLED = new Set<ChartersEvent["type"]>([
   "bought",
   "refused",
   "unanswered",
+  "sign_result",
+  "turn_in",
 ]);
 
 type Env = {
@@ -154,6 +165,65 @@ function rename(env: Env, item: bigint, name: string): Promise<CharterResult> {
   ]);
 }
 
+const NO_EMBLEM: ArenaEmblem = {
+  background: 0,
+  border: 0,
+  borderColor: 0,
+  icon: 0,
+  iconColor: 0,
+};
+function offer(env: Env, item: bigint, target: bigint): Promise<CharterResult> {
+  requireWorld(env);
+  if (!env.store.charterItems().includes(item))
+    return Promise.resolve({ reason: "not_held", status: "refused" });
+  return send(
+    env,
+    { item, kind: "offer", requestedAt: env.ctx.now(), target },
+    [GameOpcode.CMSG_OFFER_PETITION, buildOfferPetition(item, target)],
+  );
+}
+
+function sign(env: Env, item: bigint): Promise<CharterResult> {
+  requireWorld(env);
+  if (env.store.offerOf(item) === undefined)
+    return Promise.resolve({ reason: "no_offer", status: "refused" });
+  return send(env, { item, kind: "sign", requestedAt: env.ctx.now() }, [
+    GameOpcode.CMSG_PETITION_SIGN,
+    buildPetitionSign(item),
+  ]);
+}
+
+function decline(
+  env: Env,
+  item: bigint,
+): Promise<{ status: "ok" | "no_offer" }> {
+  requireWorld(env);
+  if (env.store.offerOf(item) === undefined)
+    return Promise.resolve({ status: "no_offer" });
+  env.ctx.send(GameOpcode.MSG_PETITION_DECLINE, buildPetitionDecline(item));
+  env.store.declineOffer(item);
+  return Promise.resolve({ status: "ok" });
+}
+
+function turnIn(
+  env: Env,
+  item: bigint,
+  emblem?: ArenaEmblem,
+): Promise<CharterResult> {
+  requireWorld(env);
+  if (!env.store.charterItems().includes(item))
+    return Promise.resolve({ reason: "not_held", status: "refused" });
+  const arena = env.store.isArenaCharter(item);
+  return send(
+    env,
+    { arena, item, kind: "turnIn", requestedAt: env.ctx.now() },
+    [
+      GameOpcode.CMSG_TURN_IN_PETITION,
+      buildTurnInPetition(item, arena ? (emblem ?? NO_EMBLEM) : undefined),
+    ],
+  );
+}
+
 export function chartersRuntime(
   ctx: AreaRuntimeCtx<ChartersEvent>,
   store: ChartersStore,
@@ -163,10 +233,14 @@ export function chartersRuntime(
   return {
     act: {
       buy: (npc, name, index) => buy(env, npc, name, index),
+      decline: (item) => decline(env, item),
+      offer: (item, target) => offer(env, item, target),
       query: (item) => query(env, item),
       rename: (item, name) => rename(env, item, name),
       showList: (npc) => showList(env, npc),
       showSignatures: (item) => showSignatures(env, item),
+      sign: (item) => sign(env, item),
+      turnIn: (item, emblem) => turnIn(env, item, emblem),
     },
     dispose: () => undefined,
   };

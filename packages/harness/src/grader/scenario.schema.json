@@ -440,6 +440,16 @@
     "tier": {
       "minimum": 0,
       "type": "integer"
+    },
+    "wait": {
+      "additionalProperties": false,
+      "properties": {
+        "match": { "type": "string" },
+        "read": { "enum": ["bf-queue"] },
+        "timeoutMinutes": { "minimum": 1, "type": "integer" }
+      },
+      "required": ["match", "read", "timeoutMinutes"],
+      "type": "object"
     }
   },
   "required": [

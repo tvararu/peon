@@ -15,6 +15,7 @@ describe("character harness area", () => {
           helmShown: undefined,
           operation: undefined,
           played: { levelSeconds: 20, totalSeconds: 7260, trigger: false },
+          realmSplit: undefined,
           sheath: undefined,
           warning: undefined,
           whois: undefined,

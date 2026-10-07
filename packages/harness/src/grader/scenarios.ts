@@ -86,7 +86,8 @@ export type ConsoleVerb =
   | "reputation"
   | "pinfo"
   | "guild"
-  | "arena";
+  | "arena"
+  | "bf-queue";
 
 export type ConsoleRead = { read: ConsoleVerb; arg?: string; match: string };
 
@@ -137,11 +138,18 @@ export type ScenarioEnv = {
   PEON_PILOT_CHOOSER?: "greedy";
 };
 
+export type ScenarioWait = {
+  read: "bf-queue";
+  match: string;
+  timeoutMinutes: number;
+};
+
 export type Scenario = {
   id: string;
   tier: number;
   preset: string;
   partner: "partner" | "witness" | null;
+  wait?: ScenarioWait;
   setup: { endpoint: string; body: Record<string, unknown> }[];
   budget: { minutes: number; turns: number; tools: number };
   paneMinutes: number;
@@ -239,9 +247,13 @@ export const ROUND_1: readonly string[] = [
   "t9-mail-collect",
   "t9-mail-send",
   "t9-guild-tabard",
+  "t9-guild-charter",
   "t9-guildbank-guildless",
   "t9-calendar-event",
   "t9-arena-skirmish",
+  "t9-pvp-wintergrasp",
+  "t9-pvp-flag",
+  "t9-pvp-queue",
   "t3-pilot-circle",
   "t3-pilot-circle-holdout",
   "t3-pilot-detour",
@@ -350,6 +362,24 @@ function consoleErrors({ checks }: Scenario): string[] {
   });
 }
 
+function waitErrors(scenario: Scenario): string[] {
+  const { wait } = scenario;
+  if (wait === undefined) return [];
+  let error: string | undefined;
+  try {
+    new RegExp(wait.match);
+  } catch {
+    error = `$.wait.match: invalid regex: ${wait.match}`;
+  }
+  return [
+    ...(wait.read === "bf-queue" ? [] : ["$.wait.read: only bf-queue"]),
+    ...(Number.isInteger(wait.timeoutMinutes) && wait.timeoutMinutes >= 1
+      ? []
+      : ["$.wait.timeoutMinutes: at least 1 minute"]),
+    ...(error === undefined ? [] : [error]),
+  ];
+}
+
 function partnerErrors(scenario: Scenario): string[] {
   const {
     partner,
@@ -391,6 +421,7 @@ export function parseScenario(file: string, value: unknown): Scenario {
   if (errors.length === 0)
     errors.push(
       ...partnerErrors(value as Scenario),
+      ...waitErrors(value as Scenario),
       ...consoleErrors(value as Scenario),
       ...windowErrors(value as Scenario),
     );

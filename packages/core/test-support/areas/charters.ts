@@ -185,6 +185,44 @@ export function chartersBuyFailedBody(
   return w.finish();
 }
 
+export function chartersSignResultBody(
+  item: bigint,
+  signer: bigint,
+  result: number,
+): Uint8Array {
+  const w = new PacketWriter();
+  w.uint64LE(item);
+  w.uint64LE(signer);
+  w.uint32LE(result);
+  return w.finish();
+}
+
+export function chartersDeclineBody(signer: bigint): Uint8Array {
+  const w = new PacketWriter();
+  w.uint64LE(signer);
+  return w.finish();
+}
+
+export function chartersTurnInResultBody(code: number): Uint8Array {
+  const w = new PacketWriter();
+  w.uint32LE(code);
+  return w.finish();
+}
+
+export function chartersArenaCommandResultBody(
+  action: number,
+  team: string,
+  player: string,
+  error: number,
+): Uint8Array {
+  const w = new PacketWriter();
+  w.uint32LE(action);
+  w.cString(team);
+  w.cString(player);
+  w.uint32LE(error);
+  return w.finish();
+}
+
 export function chartersFailureBody(result: number): Uint8Array {
   const w = new PacketWriter();
   w.uint8(result);
@@ -242,6 +280,21 @@ export function chartersCharter(
   petitionId?: number | undefined,
 ): Entity {
   const entity = world.put(255, slot, { entry: 5863, guid });
+  if (petitionId !== undefined)
+    (entity.rawFields as Map<number, number>).set(
+      ITEM_FIELDS.ENCHANTMENT_1_1.offset,
+      petitionId,
+    );
+  return entity;
+}
+
+export function chartersArenaCharter(
+  world: ItemsWorld,
+  slot: number,
+  guid: bigint,
+  petitionId?: number | undefined,
+): Entity {
+  const entity = world.put(255, slot, { entry: 23_560, guid });
   if (petitionId !== undefined)
     (entity.rawFields as Map<number, number>).set(
       ITEM_FIELDS.ENCHANTMENT_1_1.offset,

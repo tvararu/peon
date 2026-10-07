@@ -14,6 +14,7 @@ import { combatlogArea } from "#wow/areas/combatlog/area";
 import { complaintsArea } from "#wow/areas/complaints/area";
 import { contactsArea } from "#wow/areas/contacts/area";
 import { emotesArea } from "#wow/areas/emotes/area";
+import { guardArea } from "#wow/areas/guard/area";
 import { guildadminArea } from "#wow/areas/guildadmin/area";
 import { guildbankArea } from "#wow/areas/guildbank/area";
 import { inspectArea } from "#wow/areas/inspect/area";
@@ -27,17 +28,20 @@ import { objectsArea } from "#wow/areas/objects/area";
 import { petsArea } from "#wow/areas/pets/area";
 import { questsArea } from "#wow/areas/quests/area";
 import { raidArea } from "#wow/areas/raid/area";
+import { referralArea } from "#wow/areas/referral/area";
 import { reputationArea } from "#wow/areas/reputation/area";
 import { selfstateArea } from "#wow/areas/selfstate/area";
 import { spellsArea } from "#wow/areas/spells/area";
 import { talentsArea } from "#wow/areas/talents/area";
 import { threatArea } from "#wow/areas/threat/area";
+import { ticketsArea } from "#wow/areas/tickets/area";
 import { timeArea } from "#wow/areas/time/area";
 import { tradeArea } from "#wow/areas/trade/area";
 import { transportsArea } from "#wow/areas/transports/area";
 import { travelArea } from "#wow/areas/travel/area";
 import { unitmotionArea } from "#wow/areas/unitmotion/area";
 import { vehiclesArea } from "#wow/areas/vehicles/area";
+import { wintergraspArea } from "#wow/areas/wintergrasp/area";
 
 export const AREAS = {
   account: accountArea,
@@ -56,6 +60,7 @@ export const AREAS = {
   complaints: complaintsArea,
   contacts: contactsArea,
   emotes: emotesArea,
+  guard: guardArea,
   guildadmin: guildadminArea,
   guildbank: guildbankArea,
   inspect: inspectArea,
@@ -69,15 +74,18 @@ export const AREAS = {
   pets: petsArea,
   quests: questsArea,
   raid: raidArea,
+  referral: referralArea,
   reputation: reputationArea,
   selfstate: selfstateArea,
   spells: spellsArea,
   talents: talentsArea,
   threat: threatArea,
+  tickets: ticketsArea,
   time: timeArea,
   trade: tradeArea,
   transports: transportsArea,
   travel: travelArea,
   unitmotion: unitmotionArea,
   vehicles: vehiclesArea,
+  wintergrasp: wintergraspArea,
 };
