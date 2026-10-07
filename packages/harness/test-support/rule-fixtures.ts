@@ -1,9 +1,9 @@
+import { createDealings } from "#harness/events/dealings";
 import {
   createRuleMemo,
   type RuleInput,
   type RuleLookup,
 } from "#harness/events/rules";
-
 export function testLookup(over: Partial<RuleLookup> = {}): RuleLookup {
   return {
     experience: () => ({ next: undefined, xp: undefined }),
@@ -21,6 +21,7 @@ export function testLookup(over: Partial<RuleLookup> = {}): RuleLookup {
 
 export function testRuleInput(over: Partial<RuleInput> = {}): RuleInput {
   return {
+    dealings: createDealings(),
     lookup: testLookup(),
     memo: createRuleMemo(),
     now: 1_000_000,

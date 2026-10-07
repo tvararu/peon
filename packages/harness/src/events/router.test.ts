@@ -2,6 +2,7 @@ import { describe, expect, jest, test } from "bun:test";
 import { type AreaEvent, ObjectType, type UnitEntity } from "@peon/core";
 import { type AreaRuleSet, areaRuleSet } from "#harness/areas/rules";
 import type { RunEnd, RunRegistry } from "#harness/contract/runs";
+import { createDealings } from "#harness/events/dealings";
 import { createWakeGuard } from "#harness/events/guard";
 import { createEventRouter } from "#harness/events/router";
 import { XP_SOURCE_WAIT_MS } from "#harness/events/rules-xp";
@@ -24,6 +25,7 @@ function ruledRouter(rules: AreaRuleSet) {
       lastHitAt: () => undefined,
     },
     context: () => ({
+      dealings: createDealings(),
       now: clock.now(),
       refOf: (guid) => `u${guid}`,
       runActive: false,

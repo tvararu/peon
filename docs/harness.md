@@ -310,7 +310,9 @@ step. Action tools refuse until the agent reads it.
 
 A whisper, a party, raid, guild or officer line, and open chat that
 names the character always start an agent turn, however many arrive in
-a row: chat wakes are exempt from the wake guard. Other wakes still
+a row: chat wakes are exempt from the wake guard. A whisper from a player
+the agent has not dealt with says it is unsolicited: no one named them,
+and the agent has not dealt with them. Other wakes still
 pass through it: non-chat wakes share a bucket of three, repeat lines
 from one sender are held back for 20 seconds, and repeated combat hits
 stay limited to one wake per attacker every 30 seconds. Lines that

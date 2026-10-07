@@ -55,7 +55,9 @@ The acts:
   `waiting_for_them` after 60 s with the trade left open. The `trade`
   tool's `accept` and `give` report the completed trade as what each side
   gave, with item names and counts, and `show` with no open trade says so
-  without printing the last offer as current.
+  without printing the last offer as current. Trade requests, opens,
+  answers, accepts, cancels and completions name the requester or partner;
+  a request also says whether the human's task named that player.
 - `unacceptTrade()` sends `CMSG_UNACCEPT_TRADE`
   (`Handlers/TradeHandler.cpp:683-690`) only when `selfAccepted`.
 - `cancelTrade()` sends `CMSG_CANCEL_TRADE` and enters `settling`. The

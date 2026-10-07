@@ -1,6 +1,7 @@
 import type { PlayerLife } from "@peon/core";
 import type { LogClass, LogDraft, LogEvent } from "#harness/contract/log";
 import type { RunEvent, RunRecord } from "#harness/contract/runs";
+import type { Dealings } from "#harness/events/dealings";
 import { runLabel } from "#harness/runs/registry";
 
 export type RuleContext = {
@@ -10,6 +11,7 @@ export type RuleContext = {
   wake: boolean;
   now: number;
   refOf: (guid: bigint) => string;
+  dealings: Dealings;
 };
 export type Drafts = LogDraft[];
 export type SelfVitals = {

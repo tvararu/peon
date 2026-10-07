@@ -230,11 +230,17 @@ export function playerName(ctx: TradeCtx, guid: bigint): string {
   return seen?.name ?? `player ${guid.toString(10)}`;
 }
 
-export function refusalFor(outcome: Settled, verb: TradeDo): Refusal {
+export function refusalFor(
+  outcome: Settled,
+  verb: TradeDo,
+  with_?: string,
+): Refusal {
   if (outcome.status === "unanswered")
     return refusalOf(
       "no_answer",
-      "The trade went unanswered.",
+      with_ === undefined
+        ? "The trade went unanswered."
+        : `The trade with ${with_} went unanswered.`,
       tradeNext(verb),
     );
   if (outcome.status === "superseded")
@@ -244,9 +250,10 @@ export function refusalFor(outcome: Settled, verb: TradeDo): Refusal {
       tradeNext(verb),
     );
   const why = outcome.status === "refused" ? outcome.reason : outcome.status;
+  const who = with_ === undefined ? "" : ` with ${with_}`;
   return refusalOf(
     "trade_refused",
-    `The trade was refused (${why}).`,
+    `The trade${who} was refused (${why}).`,
     tradeNext(verb),
   );
 }
@@ -256,8 +263,11 @@ export function settleOutcome(
   verb: TradeDo,
   ok: TradeAfter,
 ): ToolResult<TradeAfter> {
-  if (outcome.status !== "ok") throw refusalFor(outcome, verb);
-  return result("DONE", { after: ok, detail: ok.with ?? `${verb} done.` });
+  if (outcome.status !== "ok") throw refusalFor(outcome, verb, ok.with);
+  const who = ok.with === undefined ? "" : ` with ${ok.with}`;
+  const detail =
+    ok.do === "cancel" ? `Canceled the trade${who}.` : `${verb} done${who}.`;
+  return result("DONE", { after: ok, detail });
 }
 
 function transferIds(offer: TradeState["ownOffer"]): number[] {
@@ -297,19 +307,22 @@ export async function completedText(
   ctx: TradeCtx,
   outcome: Extract<TradeState["lastOutcome"], { kind: "completed" }>,
   signal?: AbortSignal | undefined,
+  with_?: string,
 ): Promise<string> {
-  return `Trade completed: you gave ${await transferText(ctx, outcome.gave, signal)}; you got ${await transferText(ctx, outcome.got, signal)}.`;
+  const who = with_ === undefined ? "" : ` with ${with_}`;
+  return `Trade completed${who}: you gave ${await transferText(ctx, outcome.gave, signal)}; you got ${await transferText(ctx, outcome.got, signal)}.`;
 }
 
 export async function lastCompletedLine(
   ctx: TradeCtx,
   signal?: AbortSignal | undefined,
+  with_?: string,
 ): Promise<string | undefined> {
   const last = ctx.handle.trade.state().lastOutcome;
   if (last?.kind !== "completed") return;
-  return (await completedText(ctx, last, signal)).replace(
-    "Trade completed: ",
-    "Last completed trade: ",
+  return (await completedText(ctx, last, signal, with_)).replace(
+    "Trade completed",
+    "Last completed trade",
   );
 }
 

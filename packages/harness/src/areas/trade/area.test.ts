@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import type { AreaEvent } from "@peon/core";
 import { areaDrafts, areaRuleSet } from "#harness/areas/rules";
+import { namedByHuman, noteHuman } from "#harness/events/dealings";
 import { testLookup, testRuleInput } from "#test-support/rule-fixtures";
 
 function trade(event: unknown): AreaEvent {
@@ -33,6 +34,53 @@ describe("trade harness rules", () => {
     expect(rows[0]?.text).toContain("Unit9");
   });
 
+  test("a requested trade says whether the human named the requester", () => {
+    const named = input();
+    noteHuman(named.dealings, "Wait for Unit9 and take their water.");
+    const [hit] = areaDrafts(
+      areaRuleSet(),
+      trade({ from: 9n, type: "requested" }),
+      named,
+    );
+    expect(hit?.text).toContain("Unit9");
+    const other = input();
+    noteHuman(other.dealings, "Wait for Unit10 and take their water.");
+    const [miss] = areaDrafts(
+      areaRuleSet(),
+      trade({ from: 9n, type: "requested" }),
+      other,
+    );
+    expect(miss?.text).toContain("Unit9");
+    expect(miss?.text).toContain("Unit9");
+    expect(miss?.text).not.toBe(hit?.text);
+  });
+
+  test("a requester whose name is unresolved gets no standing note", () => {
+    const unresolved = testRuleInput({
+      lookup: testLookup({ unitName: () => undefined }),
+    });
+    noteHuman(unresolved.dealings, "Trade with Bob at the gate.");
+    const [row] = areaDrafts(
+      areaRuleSet(),
+      trade({ from: 9n, type: "requested" }),
+      unresolved,
+    );
+    expect(row?.text).toBe("player 9 wants to trade with you.");
+  });
+
+  test("human names match whole Unicode names", () => {
+    const rc = testRuleInput({
+      lookup: testLookup({ unitName: () => "Éowyn" }),
+    });
+    noteHuman(rc.dealings, "Trade with Éowynn at the gate.");
+    const [row] = areaDrafts(
+      areaRuleSet(),
+      trade({ from: 9n, type: "requested" }),
+      rc,
+    );
+    expect(namedByHuman(rc.dealings, "Éowyn")).toBe(false);
+    expect(row?.text).toContain("Éowyn");
+  });
   test("opened and offer_changed write log rows", () => {
     const opened = areaDrafts(
       areaRuleSet(),

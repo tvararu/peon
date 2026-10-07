@@ -26,9 +26,9 @@ import type {
   NoProgress,
   PoseView,
 } from "#harness/contract/views";
+import type { Dealings } from "#harness/events/dealings";
 import type { Game } from "#harness/loops/game";
 import type { ControlArbiter, Grant } from "#harness/runtime/control-owner";
-
 export type Clock = { now: () => number };
 
 export type HandleObserver = { attach: (handle: Game) => Unsubscribe };
@@ -261,6 +261,7 @@ export type HarnessRuntime = {
   yields: YieldGate;
   travel: TravelMemory;
   quests: QuestMemory;
+  dealings: Dealings;
   session: SessionFlags;
   handle: () => Game | undefined;
   requireHandle: () => Game;

@@ -21,6 +21,7 @@ import type {
   GameLog,
   JsonlSink,
 } from "#harness/contract/services";
+import { type Dealings, noteDealt, noteHuman } from "#harness/events/dealings";
 import type { WakeGuard } from "#harness/events/guard";
 import { createMoveJoin } from "#harness/events/move-join";
 import {
@@ -433,6 +434,29 @@ function jevRouteFor(
   };
 }
 
+type Remembered = {
+  lookup: () => RuleLookup;
+  dealings: () => Dealings;
+};
+
+function rememberDealings(entry: GameLogEntry, from: Remembered): void {
+  const dealings = from.dealings();
+  if (entry.event === "human/input") {
+    const raw = entry.data["text"];
+    noteHuman(dealings, typeof raw === "string" ? raw : entry.text);
+  }
+  if (entry.event === "chat/out") {
+    const to = entry.data["to"];
+    if (typeof to === "string") noteDealt(dealings, to);
+  }
+  if (entry.event === "trade/opened") {
+    const with_ = entry.data["with"];
+    const guid = typeof with_ === "string" ? BigInt(`0x${with_}`) : 0n;
+    const name = guid === 0n ? undefined : from.lookup().unitName(guid);
+    if (name) noteDealt(dealings, name);
+  }
+}
+
 export function createEventRouter(init: RouterInit): EventRouter {
   const { log, runs } = init;
   const areaRules = init.areaRules ?? areaRuleSet();
@@ -449,7 +473,12 @@ export function createEventRouter(init: RouterInit): EventRouter {
   let attached: Game | undefined;
   const pilot = pilotRouteFor({ attached: () => attached, route, tallies });
   const jev = jevRouteFor(init);
+  const remembered: Remembered = {
+    dealings: () => init.context().dealings,
+    lookup: () => lookup,
+  };
   log.subscribe((entry) => {
+    rememberDealings(entry, remembered);
     writer.observe(entry);
     if (sink) deliver(sink, entry);
   });
