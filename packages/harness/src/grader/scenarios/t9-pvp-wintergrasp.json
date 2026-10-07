@@ -29,7 +29,7 @@
           "y": -6357.29
         }
       },
-      "expect": "T final position at the home bind point in Durotar: the agent hearthed out",
+      "expect": "T final position at the max80 home bind point in Eversong Woods: the agent hearthed out",
       "id": "hearthed-out",
       "source": "truth"
     },
