@@ -94,7 +94,7 @@ describe("acting-tool admission", () => {
       "Get back to your body. Don't use the spirit healer.",
     ];
     expect((await runTool(probe(said).definition(rt), {})).text).toBe(
-      "REFUSED human_waiting: the human wrote: \"Get back to your body. Don't use the spirit healer.\" Answer it before you act.\nNext: reply to the human now in plain text, as an agent message and not a tool call such as social, then act.",
+      'REFUSED human_waiting: the human wrote: "Get back to your body. Don\'t use the spirit healer." Answer it before you act.\nNext: reply to the human now in plain text, as an agent message and not a tool call such as social, then act.',
     );
     rt.session.humanTexts = ["x".repeat(300)];
     expect((await runTool(probe(said).definition(rt), {})).text).toContain(
