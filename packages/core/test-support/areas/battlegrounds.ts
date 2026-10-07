@@ -236,3 +236,102 @@ export function battlegroundsGroupJoinedBody(
   if (guid !== undefined) w.uint64LE(guid);
   return w.finish();
 }
+
+export function battlegroundsJoinedLeftBody(guid: bigint): Uint8Array {
+  const w = new PacketWriter();
+  w.uint64LE(guid);
+  return w.finish();
+}
+
+export type BattlegroundsPvpPlayer = {
+  guid: bigint;
+  killingBlows?: number;
+  honorableKills?: number;
+  deaths?: number;
+  bonusHonor?: number;
+  arenaTeam?: number;
+  damage?: number;
+  healing?: number;
+  objectives?: readonly number[];
+};
+
+export type BattlegroundsPvpLogInit = {
+  arena?: boolean;
+  teams?: readonly {
+    ratingLost: number;
+    ratingWon: number;
+    mmr: number;
+    name: string;
+  }[];
+  ended?: boolean;
+  winner?: number;
+  players?: readonly BattlegroundsPvpPlayer[];
+};
+
+export function battlegroundsPvpLogBody(
+  init: BattlegroundsPvpLogInit = {},
+): Uint8Array {
+  const w = new PacketWriter();
+  const arena = init.arena === true;
+  w.uint8(arena ? 1 : 0);
+  const teams = init.teams ?? [];
+  if (arena) {
+    for (const team of teams) {
+      w.uint32LE(team.ratingLost);
+      w.uint32LE(team.ratingWon);
+      w.uint32LE(team.mmr);
+    }
+    for (let i = teams.length; i < 2; i++) {
+      w.uint32LE(0);
+      w.uint32LE(0);
+      w.uint32LE(0);
+    }
+    for (const team of teams) w.cString(team.name);
+    for (let i = teams.length; i < 2; i++) w.cString("");
+  }
+  w.uint8(init.ended === true ? 1 : 0);
+  if (init.ended === true) w.uint8(init.winner ?? 0);
+  const players = init.players ?? [];
+  w.uint32LE(players.length);
+  for (const player of players) {
+    w.uint64LE(player.guid);
+    w.uint32LE(player.killingBlows ?? 0);
+    if (arena) {
+      w.uint8(player.arenaTeam ?? 0);
+    } else {
+      w.uint32LE(player.honorableKills ?? 0);
+      w.uint32LE(player.deaths ?? 0);
+      w.uint32LE(player.bonusHonor ?? 0);
+    }
+    w.uint32LE(player.damage ?? 0);
+    w.uint32LE(player.healing ?? 0);
+    const objectives = player.objectives ?? [];
+    w.uint32LE(objectives.length);
+    for (const objective of objectives) w.uint32LE(objective);
+  }
+  return w.finish();
+}
+
+export function battlegroundsPositionsBody(
+  carriers: readonly { guid: bigint; x: number; y: number }[] = [],
+): Uint8Array {
+  const w = new PacketWriter();
+  w.uint32LE(0);
+  w.uint32LE(carriers.length);
+  for (const carrier of carriers) {
+    w.uint64LE(carrier.guid);
+    w.floatLE(carrier.x);
+    w.floatLE(carrier.y);
+  }
+  return w.finish();
+}
+
+export function battlegroundsSpiritTimeBody(init: {
+  guid: bigint;
+  ms: number;
+}): Uint8Array {
+  const w = new PacketWriter();
+  w.uint64LE(init.guid);
+  w.uint32LE(init.ms);
+  return w.finish();
+}
