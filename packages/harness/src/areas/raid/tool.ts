@@ -335,6 +335,7 @@ export const groupRenderers: ToolRenderers<"group", GroupAfter> = {
 
 export const groupSpec: GameToolSpec<typeof groupParams, "group", GroupAfter> =
   {
+    allowStopped: (args) => args.do === undefined || args.do === "status",
     fallback: emptyGroup,
     kind: "action",
     maxLines: 24,

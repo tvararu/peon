@@ -84,6 +84,25 @@ describe("installInput", () => {
     });
   });
 
+  test("after a stop reflex acting tools stay refused through new turns until the next human message", async () => {
+    const { fake, rt } = await setup();
+    await fake.emit(human("Stop, we're done."));
+    expect(() => admitAgent(rt, "engage")).toThrow(/stopped/);
+    await fake.emit({ timestamp: 0, turnIndex: 0, type: "turn_start" });
+    expect(() => admitAgent(rt, "engage")).toThrow(/stopped/);
+    await fake.emit(human("stop"));
+    expect(() => admitAgent(rt, "engage")).toThrow(/stopped/);
+    await fake.emit(human("carry on"));
+    await fake.emit({ timestamp: 0, turnIndex: 0, type: "turn_start" });
+    expect(() => admitAgent(rt, "engage")).not.toThrow();
+  });
+
+  test("a stop key holds the agent too", async () => {
+    const { rt } = await setup();
+    humanStop({ rt, text: "F9", via: "key" });
+    expect(() => admitAgent(rt, "travel")).toThrow(/stopped/);
+  });
+
   test("--stop-reflex off lets a stop message through without stopping", async () => {
     const { fake, handle, rt } = await setup({ stopReflex: false });
     await fake.emit(human("stop"));

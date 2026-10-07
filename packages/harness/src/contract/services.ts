@@ -182,6 +182,7 @@ export type SessionFlags = {
   humanWaiting: boolean;
   humanTexts: readonly string[];
   deliveredTexts: readonly string[];
+  stopped: boolean;
   agent: AgentState;
   turnToolCalls: number;
   tool: string | undefined;

@@ -310,7 +310,9 @@ async function admit<P extends TSchema, N extends ToolName, A>(
       reason: "turn_budget",
     });
   const handle = rt.requireHandle();
-  if (ACTING.has(spec.kind)) admitAgent(rt, spec.name);
+  const acting = ACTING.has(spec.kind);
+  const stopOk = spec.allowStopped?.(call.args) === true;
+  if (acting) admitAgent(rt, spec.name, stopOk);
   if (!(await rt.ready.whenReady(READY_WAIT_MS))) {
     throw new Refusal({
       detail: "the world is still loading.",
@@ -318,6 +320,7 @@ async function admit<P extends TSchema, N extends ToolName, A>(
       reason: "not_ready",
     });
   }
+  if (acting) admitAgent(rt, spec.name, stopOk);
   const hit =
     spec.name === "look"
       ? undefined

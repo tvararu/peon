@@ -72,6 +72,7 @@ export const tradeRenderers: ToolRenderers<"trade", TradeAfter> = {
 
 export const tradeSpec: GameToolSpec<typeof tradeParams, "trade", TradeAfter> =
   {
+    allowStopped: (args) => args.do === undefined || args.do === "show",
     fallback: emptyTrade,
     kind: "run",
     minimalArgs: { do: "show" },
