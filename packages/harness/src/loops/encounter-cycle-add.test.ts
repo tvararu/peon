@@ -129,3 +129,36 @@ test("re-engages a line-of-sight skipped unit that came to attack", async () => 
   });
   expect(starts).toEqual([LYNX_U59, LYNX_U59, LYNX_U61]);
 });
+
+test("stops on an attacker whose retries are spent instead of pulling", async () => {
+  const starts: bigint[] = [];
+  const attackers: bigint[] = [];
+  const runtime = makeCycle({
+    attackers: () => attackers,
+    control: fakeControl(),
+    loot: fakeLoot({}),
+    now: () => 0,
+    recovery: fakeRecovery({ life: ["alive"] }),
+    tactics: {
+      start: async (ctx) => {
+        starts.push(ctx.targetGuid);
+        attackers.length = 0;
+        attackers.push(LYNX_U58);
+      },
+      stop: () => {},
+      snapshot: () => ({
+        lastOutcome: {
+          status: "blocked" as const,
+          reason: "server_action_rejected:line_of_sight",
+        },
+      }),
+    },
+  });
+  await runtime.start({
+    guids: [LYNX_U58, LYNX_U61],
+    instruction: "fight",
+    maxStarts: 5,
+  });
+  expect(starts).toEqual([LYNX_U58, LYNX_U58]);
+  expect(runtime.snapshot().stopCause).toBe("attacker_unreachable");
+});

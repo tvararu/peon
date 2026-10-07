@@ -180,22 +180,36 @@ export function kills(tally: Tally): number {
   return tally.targets.filter((target) => target.outcome === "killed").length;
 }
 
+function cycleTarget(
+  ctx: ViewCtx,
+  record: CycleState["queue"][number],
+  ref: string,
+): EngageTarget {
+  const killed = isKill(record.outcome?.reason);
+  return {
+    durationMs: undefined,
+    name: nameOf(ctx, record.guid),
+    outcome: killed ? "killed" : "skipped",
+    reason: killed
+      ? record.outcome?.reason
+      : (record.cause ?? record.outcome?.reason),
+    ref,
+    xp: killed ? killXp(record.outcome?.reason) : undefined,
+  };
+}
+
 export function noteCycle(ctx: ViewCtx, tally: Tally, state: CycleState): void {
   for (const record of state.queue) {
     if (record.status === "queued") continue;
     const ref = ctx.rt.refs.refOf(record.guid);
-    if (tally.targets.some((target) => target.ref === ref)) continue;
-    const killed = isKill(record.outcome?.reason);
-    tally.targets.push({
-      durationMs: undefined,
-      name: nameOf(ctx, record.guid),
-      outcome: killed ? "killed" : "skipped",
-      reason: killed
-        ? record.outcome?.reason
-        : (record.cause ?? record.outcome?.reason),
-      ref,
-      xp: killed ? killXp(record.outcome?.reason) : undefined,
-    });
+    const known = tally.targets.findIndex((target) => target.ref === ref);
+    const entry = cycleTarget(ctx, record, ref);
+    if (known < 0) tally.targets.push(entry);
+    else if (
+      entry.outcome === "killed" &&
+      tally.targets[known]?.outcome !== "killed"
+    )
+      tally.targets[known] = entry;
   }
 }
 

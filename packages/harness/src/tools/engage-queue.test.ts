@@ -53,6 +53,30 @@ describe("engage cycle queue", () => {
   });
 });
 
+describe("engage retried attacker", () => {
+  test("a kill after a skipped try counts as a kill", async () => {
+    const t = await field();
+    cycleEnds(
+      t.handle,
+      [
+        {
+          cause: "server_action_rejected:line_of_sight",
+          guid: STALKER,
+          status: "skipped",
+        },
+        { guid: STALKER, loot: "looted", outcome: KILL, status: "done" },
+      ],
+      "queue_exhausted",
+    );
+    const res = await engageSpec.run(
+      { count: 2, target: "Springpaw Stalker" },
+      toolCtx<EngageAfter>(t),
+    );
+    expect(res.after?.kills).toBe(1);
+    expect(res.after?.targets).toMatchObject([{ outcome: "killed" }]);
+  });
+});
+
 describe("engage pull gate", () => {
   function lowAfterOneKill(
     stopCause: string,
