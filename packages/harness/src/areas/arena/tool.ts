@@ -508,7 +508,11 @@ export const arenaRenderers: ToolRenderers<"arena", ArenaAfter> = {
 export const arenaSpec: GameToolSpec<typeof arenaParams, "arena", ArenaAfter> =
   {
     allowStopped: (args) =>
-      args.do === undefined || args.do === "show" || args.do === "inspect",
+      args.do === undefined ||
+      args.do === "show" ||
+      args.do === "inspect" ||
+      (args.do === "team" &&
+        ["info", "roster"].includes(args.action ?? "info")),
     fallback: () => emptyArena(),
     kind: "action",
     minimalArgs: { do: "show" },

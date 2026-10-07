@@ -65,7 +65,6 @@ const mailRenderers: ToolRenderers<"mail", MailAfter> = {
 };
 
 export const mailSpec: GameToolSpec<typeof mailParams, "mail", MailAfter> = {
-  allowStopped: (args) => args.do === "check",
   fallback: emptyMail,
   kind: "action",
   maxLines: 30,

@@ -7,7 +7,6 @@ import { characterTool } from "#harness/areas/character/tool";
 import { guildTool } from "#harness/areas/guildadmin/tool";
 import { dungeonTool } from "#harness/areas/instances/tool";
 import { gearTool } from "#harness/areas/items/tool";
-import { mailSpec } from "#harness/areas/mail/tool";
 import { petTool } from "#harness/areas/pets/tool";
 import { groupTool } from "#harness/areas/raid/tool";
 import { talentsTool } from "#harness/areas/talents/tool";
@@ -395,7 +394,7 @@ describe("stop hold per-operation admission", () => {
     expect((await pending).details.result.status).toBe("DONE");
   });
 
-  test("read-only verbs of calendar, arena, channel and mail are admitted while stopped and writes are not", () => {
+  test("read-only verbs of calendar, arena and channel are admitted while stopped and writes are not", () => {
     const admits = (
       spec: { allowStopped?: (args: never) => boolean },
       args: object,
@@ -407,8 +406,9 @@ describe("stop hold per-operation admission", () => {
     expect(admits(arenaSpec, { do: "queue" })).toBe(false);
     expect(admits(channelSpec, { do: "count" })).toBe(true);
     expect(admits(channelSpec, { do: "join" })).toBe(false);
-    expect(admits(mailSpec, { do: "check" })).toBe(true);
-    expect(admits(mailSpec, { do: "send" })).toBe(false);
+    expect(admits(channelSpec, { do: "owner" })).toBe(true);
+    expect(admits(arenaSpec, { action: "roster", do: "team" })).toBe(true);
+    expect(admits(arenaSpec, { action: "disband", do: "team" })).toBe(false);
   });
 
   test("a human message through the input path lifts the stop hold for actions", async () => {
