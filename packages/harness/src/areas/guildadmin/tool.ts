@@ -76,6 +76,8 @@ const guildRenderers: ToolRenderers<"guild", GuildAfter> = {
 
 export const guildSpec: GameToolSpec<typeof guildParams, "guild", GuildAfter> =
   {
+    allowStopped: (args) =>
+      ["status", "permissions", "log"].includes(args.do ?? "status"),
     fallback: emptyGuild,
     kind: "action",
     maxLines: 30,

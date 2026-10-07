@@ -78,6 +78,8 @@ export const calendarSpec: GameToolSpec<
   "calendar",
   CalendarAfter
 > = {
+  allowStopped: (args) =>
+    (args.do ?? "list") === "list" || (args.do ?? "list") === "read",
   fallback: emptyCalendar,
   kind: "action",
   maxLines: 30,

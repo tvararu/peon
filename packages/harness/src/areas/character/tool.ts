@@ -217,6 +217,7 @@ export const characterSpec: GameToolSpec<
   "character",
   CharacterAfter
 > = {
+  allowStopped: (args) => (args.do ?? "played") === "played",
   fallback: emptyCharacter,
   kind: "action",
   minimalArgs: { do: "played" },

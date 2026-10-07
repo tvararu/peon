@@ -1,5 +1,8 @@
 import { describe, expect, jest, test } from "bun:test";
 import { ChatType, ObjectType, type UnitEntity } from "@peon/core";
+import { calendarTool } from "#harness/areas/calendar/tool";
+import { characterTool } from "#harness/areas/character/tool";
+import { guildTool } from "#harness/areas/guildadmin/tool";
 import { dungeonTool } from "#harness/areas/instances/tool";
 import { gearTool } from "#harness/areas/items/tool";
 import { petTool } from "#harness/areas/pets/tool";
@@ -292,6 +295,73 @@ describe("stop hold per-operation admission", () => {
       status: "REFUSED",
     });
     expect(handle.invite).not.toHaveBeenCalled();
+  });
+
+  test("a readiness timeout after a stop refuses stopped, not not_ready", async () => {
+    const { rt } = await createTestRuntime();
+    const gate = Promise.withResolvers<boolean>();
+    rt.ready.whenReady = () => gate.promise;
+    const pending = runTool(socialTool.definition(rt), {
+      do: "invite",
+      to: "Kaelyn",
+    });
+    await Promise.resolve();
+    rt.session.stopped = true;
+    gate.resolve(false);
+    const invite = await pending;
+    expect(invite.details.result).toMatchObject({
+      reason: "stopped",
+      status: "REFUSED",
+    });
+  });
+
+  test("character played, calendar list and guild permissions run while stopped; their acting verbs stay refused", async () => {
+    const { handle, rt } = await createTestRuntime();
+    jest.spyOn(handle.character.act, "playedTime").mockResolvedValue({
+      levelSeconds: 20,
+      totalSeconds: 100,
+      trigger: false,
+    });
+    const calendar = handle.calendar;
+    const calendarState = calendar.state();
+    calendar.act = {
+      ...calendar.act,
+      get: jest.fn(async () => ({ state: calendarState, status: "ok" })),
+    };
+    jest.spyOn(handle.guildadmin.act, "permissions").mockResolvedValue({
+      permissions: { goldPerDay: -1, rank: 0, rights: 0, tabCount: 0 },
+      status: "ok",
+    });
+    rt.session.stopped = true;
+    const played = await runTool(characterTool.definition(rt), {
+      do: "played",
+    });
+    expect(played.details.result.status).toBe("DONE");
+    const list = await runTool(calendarTool.definition(rt), { do: "list" });
+    expect(list.details.result.status).toBe("DONE");
+    const permissions = await runTool(guildTool.definition(rt), {
+      do: "permissions",
+    });
+    expect(permissions.details.result.status).toBe("DONE");
+    const sheathe = await runTool(characterTool.definition(rt), {
+      do: "sheathe",
+    });
+    expect(sheathe.details.result).toMatchObject({
+      reason: "stopped",
+      status: "REFUSED",
+    });
+    const create = await runTool(calendarTool.definition(rt), {
+      do: "create",
+    });
+    expect(create.details.result).toMatchObject({
+      reason: "stopped",
+      status: "REFUSED",
+    });
+    const rank = await runTool(guildTool.definition(rt), { do: "rank" });
+    expect(rank.details.result).toMatchObject({
+      reason: "stopped",
+      status: "REFUSED",
+    });
   });
 
   test("a read-only call that waits for readiness still runs after a stop", async () => {
