@@ -64,7 +64,7 @@ mise eval run <id> --round <n>
 
 `mise eval scenario` lists the round-1 scenario ids;
 `mise eval scenario <id>` prints one scenario. The scenario files are in
-`packages/harness/src/grader/scenarios/`. The run creates the accounts, sets them up, waits on a read-only console read when the scenario names one (`wait`, a `bf-queue` match polled every 60 s before the baseline; a timeout aborts the run as infrastructure), takes
+`packages/harness/src/grader/scenarios/`. The run creates the accounts, sets them up, waits on a read-only console read when the scenario names one (`wait`, a `bf-queue` match polled every 10 s before the baseline; a timeout aborts the run as infrastructure), takes
 the baseline truth, opens the harness in a pane with its default model and
 thinking level, types the task and the
 steers, ends on done, budget, stuck or abort, takes the final truth,

@@ -1,7 +1,11 @@
 import { describe, expect, test } from "bun:test";
 import { mkdir } from "node:fs/promises";
 import { scratchDir } from "@peon/core/test-support/scratch";
-import { consoleWaitArgv, waitConsoleRead } from "#harness/grader/console-wait";
+import {
+  CONSOLE_WAIT_POLL_MS,
+  consoleWaitArgv,
+  waitConsoleRead,
+} from "#harness/grader/console-wait";
 import { failed, fakeExec, ok } from "#test-support/fake-exec";
 
 const ACC = "FAC0123456789";
@@ -45,7 +49,7 @@ describe("console-wait", () => {
     expect(text).toBe(WAR);
   });
 
-  test("it polls every 60 seconds until the text matches", async () => {
+  test("it polls until the text matches", async () => {
     const dir = await runDir();
     const sleeps: number[] = [];
     let calls = 0;
@@ -64,7 +68,7 @@ describe("console-wait", () => {
     });
     expect(text).toBe(WAR);
     expect(calls).toBe(3);
-    expect(sleeps).toEqual([60_000, 60_000]);
+    expect(sleeps).toEqual([CONSOLE_WAIT_POLL_MS, CONSOLE_WAIT_POLL_MS]);
   });
 
   test("an invalid regex throws without calling the server", async () => {

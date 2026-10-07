@@ -69,10 +69,10 @@
     }
   ],
   "steers": [],
-  "task": "Stand in Wintergrasp and watch for its invitation. When the Wintergrasp queue or war offers, accept it with the wintergrasp tool, fight for 5 minutes, then leave with the wintergrasp tool and tell me how it went.",
+  "task": "The Wintergrasp battle starts in a few seconds. Join its queue with the wintergrasp tool, accept the war invitation when it comes, then leave the battle with the wintergrasp tool and tell me how it went.",
   "tier": 9,
   "wait": {
-    "match": "Waiting for battle \\| Timer: ([0-8]?[0-9]{1,2}|900)s",
+    "match": "Waiting for battle \\| Timer: (1?[0-9]|20)s",
     "read": "bf-queue",
     "timeoutMinutes": 180
   }

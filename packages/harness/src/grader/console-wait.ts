@@ -3,7 +3,7 @@ import { SOAP } from "#harness/grader/accounts";
 import { type Exec, isRecord, parseJsonOutput } from "#harness/grader/exec";
 
 export const CONSOLE_WAIT_FILE = "console-wait.jsonl";
-export const CONSOLE_WAIT_POLL_MS = 60_000;
+export const CONSOLE_WAIT_POLL_MS = 10_000;
 
 export type ConsoleWait = {
   read: string;
