@@ -1,0 +1,79 @@
+{
+  "botRisk": "low",
+  "budget": {
+    "minutes": 50,
+    "tools": 30,
+    "turns": 20
+  },
+  "checks": [
+    {
+      "evidence": {
+        "events": ["wintergrasp/invited"]
+      },
+      "expect": "GL has a wintergrasp/invited row: the server offered the queue or the war",
+      "id": "invited",
+      "source": "game_log"
+    },
+    {
+      "evidence": {
+        "events": ["wintergrasp/entered"]
+      },
+      "expect": "GL has a wintergrasp/entered row after the invited row: the agent entered the battle",
+      "id": "entered",
+      "source": "game_log"
+    },
+    {
+      "evidence": {
+        "point": {
+          "x": 10349.6,
+          "y": -6357.29
+        }
+      },
+      "expect": "T final position at the home bind point in Durotar: the agent hearthed out",
+      "id": "hearthed-out",
+      "source": "truth"
+    },
+    {
+      "expect": "the session shows the agent calling the wintergrasp tool with action accept when invited, not ending REFUSED",
+      "id": "accept-called",
+      "source": "session"
+    },
+    {
+      "expect": "the session shows the agent calling the wintergrasp tool with action leave during the war, not ending REFUSED",
+      "id": "leave-called",
+      "source": "session"
+    },
+    {
+      "expect": "the agent's answer says it joined the Wintergrasp battle and hearthed out",
+      "id": "answer-reports",
+      "source": "session"
+    }
+  ],
+  "id": "t9-pvp-wintergrasp",
+  "navBound": false,
+  "needsWatcher": false,
+  "paneMinutes": 53,
+  "partner": null,
+  "preset": "max80",
+  "setup": [
+    {
+      "body": {
+        "map": 571,
+        "o": 1.13,
+        "x": 4760.7,
+        "y": 2143.7,
+        "z": 423,
+        "zone": 4197
+      },
+      "endpoint": "position"
+    }
+  ],
+  "steers": [],
+  "task": "Stand in Wintergrasp and watch for its invitation. When the Wintergrasp queue or war offers, accept it with the wintergrasp tool, fight for 5 minutes, then leave with the wintergrasp tool and tell me how it went.",
+  "tier": 9,
+  "wait": {
+    "match": "Waiting for battle \\| Timer: ([0-8]?[0-9]{1,2}|900)s",
+    "read": "bf-queue",
+    "timeoutMinutes": 180
+  }
+}

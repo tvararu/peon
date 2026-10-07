@@ -25,7 +25,8 @@ export type ToolName =
   | "guild"
   | "channel"
   | "arena"
-  | "calendar";
+  | "calendar"
+  | "wintergrasp";
 
 export type ToolKind = "read" | "action" | "run" | "control";
 
