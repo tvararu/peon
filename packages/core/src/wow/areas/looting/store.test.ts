@@ -137,6 +137,7 @@ describe("LootingStore", () => {
   test("a master list binds to the opened corpse and emits master_loot_candidates", () => {
     const { rig, seen } = setup();
     try {
+      rig.stores.rewards.requestOpen(CREATURE);
       rig.inject(
         GameOpcode.SMSG_LOOT_MASTER_LIST,
         lootingLootMasterListBody([ME, PARTNER]),
@@ -163,6 +164,7 @@ describe("LootingStore", () => {
   test("a release keeps the bound candidates for the re-open", () => {
     const { rig, seen } = setup();
     try {
+      rig.stores.rewards.requestOpen(CREATURE);
       rig.inject(
         GameOpcode.SMSG_LOOT_MASTER_LIST,
         lootingLootMasterListBody([PARTNER]),
@@ -190,6 +192,7 @@ describe("LootingStore", () => {
   test("a re-open without a new list keeps the bound candidates", () => {
     const { rig } = setup();
     try {
+      rig.stores.rewards.requestOpen(CREATURE);
       rig.inject(
         GameOpcode.SMSG_LOOT_MASTER_LIST,
         lootingLootMasterListBody([ME, PARTNER]),
@@ -229,6 +232,7 @@ describe("LootingStore", () => {
       rig.stores.rewards.requestClose(
         rig.stores.rewards.snapshot().loot as never,
       );
+      rig.stores.rewards.requestOpen(CREATURE);
       rig.inject(
         GameOpcode.SMSG_LOOT_MASTER_LIST,
         lootingLootMasterListBody([PARTNER]),
@@ -278,6 +282,24 @@ describe("LootingStore", () => {
         ME,
         PARTNER,
       ]);
+    } finally {
+      rig.dispose();
+    }
+  });
+
+  test("a broadcast while no corpse is opening binds to no later open", () => {
+    const { rig } = setup();
+    try {
+      rig.inject(
+        GameOpcode.SMSG_LOOT_MASTER_LIST,
+        lootingLootMasterListBody([PARTNER]),
+      );
+      rig.stores.rewards.requestOpen(CREATURE);
+      rig.inject(
+        GameOpcode.SMSG_LOOT_RESPONSE,
+        lootingLootOpenBody(CREATURE, []),
+      );
+      expect(rig.handle.state().masterCandidates.get(CREATURE)).toBeUndefined();
     } finally {
       rig.dispose();
     }

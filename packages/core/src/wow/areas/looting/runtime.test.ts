@@ -198,6 +198,7 @@ describe("looting runtime", () => {
   test("giveMasterLoot resolves its own name through @self and sends one CMSG_LOOT_MASTER_GIVE (LootHandler.cpp:484-559)", async () => {
     const party = inParty();
     try {
+      party.rig.stores.rewards.requestOpen(CREATURE);
       party.rig.inject(
         GameOpcode.SMSG_LOOT_MASTER_LIST,
         lootingLootMasterListBody([ME, PARTNER]),
@@ -229,6 +230,7 @@ describe("looting runtime", () => {
   test("giveMasterLoot resolves a partner name, and a removal for another slot does not settle it", async () => {
     const party = inParty();
     try {
+      party.rig.stores.rewards.requestOpen(CREATURE);
       party.rig.inject(
         GameOpcode.SMSG_LOOT_MASTER_LIST,
         lootingLootMasterListBody([PARTNER]),
@@ -258,6 +260,7 @@ describe("looting runtime", () => {
   test("giveMasterLoot throws for a target outside the candidates and sends nothing", () => {
     const party = inParty();
     try {
+      party.rig.stores.rewards.requestOpen(CREATURE);
       party.rig.inject(
         GameOpcode.SMSG_LOOT_MASTER_LIST,
         lootingLootMasterListBody([PARTNER]),
@@ -274,6 +277,7 @@ describe("looting runtime", () => {
   test("giveMasterLoot rejects with the server loot error (Player.cpp:8398-8405)", async () => {
     const party = inParty();
     try {
+      party.rig.stores.rewards.requestOpen(CREATURE);
       party.rig.inject(
         GameOpcode.SMSG_LOOT_MASTER_LIST,
         lootingLootMasterListBody([PARTNER]),
@@ -300,6 +304,7 @@ describe("looting runtime", () => {
     await withFakeTimers(async () => {
       const party = inParty();
       try {
+        party.rig.stores.rewards.requestOpen(CREATURE);
         party.rig.inject(
           GameOpcode.SMSG_LOOT_MASTER_LIST,
           lootingLootMasterListBody([PARTNER]),

@@ -83,8 +83,10 @@ export class LootingStore {
 
   receiveMasterList(packet: LootMasterList): void {
     const loot = this.rewards.loot;
-    if (loot.phase === "opening") this.pendingFor = loot.guid;
-    this.pending = [...packet.candidates];
+    if (loot.phase === "opening") {
+      this.pendingFor = loot.guid;
+      this.pending = [...packet.candidates];
+    }
     this.events.emit({
       type: "master_loot_candidates",
       candidates: [...packet.candidates],
@@ -94,10 +96,7 @@ export class LootingStore {
   receiveLooted(response: LootResponse): void {
     if (response.kind !== "loot") return;
     if (this.pending.length === 0) return;
-    const creature =
-      this.pendingFor === undefined || this.pendingFor === response.guid
-        ? response.guid
-        : this.pendingFor;
+    const creature = this.pendingFor ?? response.guid;
     this.candidates.delete(creature);
     this.candidates.set(creature, [...this.pending]);
     this.pending = [];
