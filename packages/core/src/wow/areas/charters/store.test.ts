@@ -7,13 +7,18 @@ import {
   CHARTERS_ORGANIZER,
   CHARTERS_PETITION_ID,
   CHARTERS_SIGNER,
+  chartersArenaCharter,
+  chartersArenaCommandResultBody,
   chartersCharter,
   chartersCommandResultBody,
+  chartersDeclineBody,
   chartersQueryResponseBody,
   chartersScene,
   chartersSetGuild,
   chartersShowlistBody,
   chartersSignaturesBody,
+  chartersSignResultBody,
+  chartersTurnInResultBody,
   GUILD_ENTRY,
 } from "#test-support/areas/charters";
 import type { ChartersEvent } from "#wow/areas/charters/store";
@@ -256,6 +261,218 @@ describe("charters store", () => {
         reason: "in_guild",
         status: "refused",
       });
+    } finally {
+      rig.dispose();
+    }
+  });
+
+  test("sign without an offer refuses locally without sending", () => {
+    const { rig } = chartersScene((seeded) => {
+      chartersCharter(seeded, 24, CHARTERS_CHARTER, CHARTERS_PETITION_ID);
+    });
+    try {
+      return expect(rig.handle.act.sign(CHARTERS_CHARTER)).resolves.toEqual({
+        reason: "no_offer",
+        status: "refused",
+      });
+    } finally {
+      rig.dispose();
+    }
+  });
+
+  test("a sign result for the pending sign settles it ok", async () => {
+    const { rig } = chartersScene();
+    try {
+      rig.inject(
+        GameOpcode.SMSG_PETITION_SHOW_SIGNATURES,
+        chartersSignaturesBody({
+          item: CHARTERS_CHARTER,
+          petition: CHARTERS_PETITION_ID,
+          requester: CHARTERS_ME,
+          signers: [],
+        }),
+      );
+      const pending = rig.handle.act.sign(CHARTERS_CHARTER);
+      await Promise.resolve();
+      rig.inject(
+        GameOpcode.SMSG_PETITION_SIGN_RESULTS,
+        chartersSignResultBody(CHARTERS_CHARTER, CHARTERS_ME, 0),
+      );
+      expect(await pending).toEqual({ status: "ok" });
+    } finally {
+      rig.dispose();
+    }
+  });
+
+  test("a repeated sign refuses as already_signed", () => {
+    const { rig } = chartersScene();
+    try {
+      rig.inject(
+        GameOpcode.SMSG_PETITION_SHOW_SIGNATURES,
+        chartersSignaturesBody({
+          item: CHARTERS_CHARTER,
+          petition: CHARTERS_PETITION_ID,
+          requester: CHARTERS_ME,
+          signers: [],
+        }),
+      );
+      const pending = rig.handle.act.sign(CHARTERS_CHARTER);
+      const done = pending.then((outcome) => outcome);
+      rig.inject(
+        GameOpcode.SMSG_PETITION_SIGN_RESULTS,
+        chartersSignResultBody(CHARTERS_CHARTER, CHARTERS_ME, 1),
+      );
+      return expect(done).resolves.toEqual({
+        reason: "already_signed",
+        status: "refused",
+      });
+    } finally {
+      rig.dispose();
+    }
+  });
+
+  test("a guild refusal answers a pending offer", () => {
+    const { rig } = chartersScene((seeded) => {
+      chartersCharter(seeded, 24, CHARTERS_CHARTER, CHARTERS_PETITION_ID);
+    });
+    try {
+      const pending = rig.handle.act.offer(CHARTERS_CHARTER, CHARTERS_SIGNER);
+      const done = pending.then((outcome) => outcome);
+      rig.inject(
+        GameOpcode.SMSG_GUILD_COMMAND_RESULT,
+        chartersCommandResultBody(0, NAME, 3),
+      );
+      return expect(done).resolves.toEqual({
+        reason: "already_in_guild",
+        status: "refused",
+      });
+    } finally {
+      rig.dispose();
+    }
+  });
+
+  test("an arena refusal answers a pending offer", () => {
+    const { rig } = chartersScene((seeded) => {
+      chartersCharter(seeded, 24, CHARTERS_CHARTER, CHARTERS_PETITION_ID);
+    });
+    try {
+      const pending = rig.handle.act.offer(CHARTERS_CHARTER, CHARTERS_SIGNER);
+      const done = pending.then((outcome) => outcome);
+      rig.inject(
+        GameOpcode.SMSG_ARENA_TEAM_COMMAND_RESULT,
+        chartersArenaCommandResultBody(1, NAME, NAME, 12),
+      );
+      return expect(done).resolves.toEqual({
+        reason: "not_allied",
+        status: "refused",
+      });
+    } finally {
+      rig.dispose();
+    }
+  });
+
+  test("decline clears the pending offer and reports ok", async () => {
+    const { rig } = chartersScene();
+    try {
+      rig.inject(
+        GameOpcode.SMSG_PETITION_SHOW_SIGNATURES,
+        chartersSignaturesBody({
+          item: CHARTERS_CHARTER,
+          petition: CHARTERS_PETITION_ID,
+          requester: CHARTERS_ME,
+          signers: [],
+        }),
+      );
+      expect(await rig.handle.act.decline(CHARTERS_CHARTER)).toEqual({
+        status: "ok",
+      });
+      expect(rig.handle.state().pendingOffer).toBeUndefined();
+      expect(await rig.handle.act.decline(CHARTERS_CHARTER)).toEqual({
+        status: "no_offer",
+      });
+    } finally {
+      rig.dispose();
+    }
+  });
+
+  test("a turn-in refusal names the missing signatures", () => {
+    const { rig } = chartersScene((seeded) => {
+      chartersCharter(seeded, 24, CHARTERS_CHARTER, CHARTERS_PETITION_ID);
+    });
+    try {
+      const pending = rig.handle.act.turnIn(CHARTERS_CHARTER);
+      const done = pending.then((outcome) => outcome);
+      rig.inject(
+        GameOpcode.SMSG_TURN_IN_PETITION_RESULTS,
+        chartersTurnInResultBody(4),
+      );
+      return expect(done).resolves.toEqual({
+        reason: "need_more_signatures",
+        status: "refused",
+      });
+    } finally {
+      rig.dispose();
+    }
+  });
+
+  test("a turn-in ok settles the pending turn-in", async () => {
+    const { rig } = chartersScene((seeded) => {
+      chartersCharter(seeded, 24, CHARTERS_CHARTER, CHARTERS_PETITION_ID);
+    });
+    try {
+      const pending = rig.handle.act.turnIn(CHARTERS_CHARTER);
+      await Promise.resolve();
+      rig.inject(
+        GameOpcode.SMSG_TURN_IN_PETITION_RESULTS,
+        chartersTurnInResultBody(0),
+      );
+      expect(await pending).toEqual({ status: "ok" });
+    } finally {
+      rig.dispose();
+    }
+  });
+
+  test("an arena turn-in sends the five emblem values", async () => {
+    const arenaCharter = 0x40_00_00_00_00_00_00_41n;
+    const { rig } = chartersScene((seeded) => {
+      chartersArenaCharter(seeded, 24, arenaCharter, CHARTERS_PETITION_ID);
+    });
+    try {
+      const pending = rig.handle.act.turnIn(arenaCharter);
+      await Promise.resolve();
+      expect(rig.sent.map((packet) => packet.opcode)).toEqual([
+        GameOpcode.CMSG_TURN_IN_PETITION,
+      ]);
+      const body = rig.sent[0]?.body ?? new Uint8Array();
+      expect(body.byteLength).toBe(8 + 5 * 4);
+      const done = pending.then((outcome) => outcome);
+      rig.inject(
+        GameOpcode.SMSG_TURN_IN_PETITION_RESULTS,
+        chartersTurnInResultBody(0),
+      );
+      return expect(done).resolves.toEqual({ status: "ok" });
+    } finally {
+      rig.dispose();
+    }
+  });
+  test("a server decline emits a declined event with the signer", () => {
+    const { rig } = chartersScene();
+    try {
+      const seen: ChartersEvent[] = [];
+      const off = rig.handle.onEvent((event) => {
+        seen.push(event);
+      });
+      try {
+        rig.inject(
+          GameOpcode.MSG_PETITION_DECLINE,
+          chartersDeclineBody(CHARTERS_SIGNER),
+        );
+      } finally {
+        off();
+      }
+      expect(seen).toEqual([
+        { item: undefined, signer: CHARTERS_SIGNER, type: "declined" },
+      ]);
     } finally {
       rig.dispose();
     }

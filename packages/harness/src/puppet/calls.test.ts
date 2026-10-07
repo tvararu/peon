@@ -191,4 +191,36 @@ describe("PUPPET_CALLS", () => {
       await done;
       expect(accept).toHaveBeenCalledWith(4);
     }));
+  test("signCharter signs the offered charter", async () => {
+    const game = createMockGame();
+    const sign = spyOn(game.charters.act, "sign").mockResolvedValue({
+      status: "ok",
+    });
+    const call = decodeCall("signCharter", '["4611686018427387905"]');
+    if ("error" in call) throw new Error(call.error);
+    await PUPPET_CALLS["signCharter"]?.run(game, call.args);
+    expect(sign).toHaveBeenCalledWith(0x40_00_00_00_00_00_00_01n);
+  });
+
+  test("declineCharter declines the offered charter", async () => {
+    const game = createMockGame();
+    const decline = spyOn(game.charters.act, "decline").mockResolvedValue({
+      status: "ok",
+    });
+    const call = decodeCall("declineCharter", '["4611686018427387905"]');
+    if ("error" in call) throw new Error(call.error);
+    await PUPPET_CALLS["declineCharter"]?.run(game, call.args);
+    expect(decline).toHaveBeenCalledWith(0x40_00_00_00_00_00_00_01n);
+  });
+
+  test("offerCharter offers the charter to the target", async () => {
+    const game = createMockGame();
+    const offer = spyOn(game.charters.act, "offer").mockResolvedValue({
+      status: "ok",
+    });
+    const call = decodeCall("offerCharter", '["4611686018427387905", "3072"]');
+    if ("error" in call) throw new Error(call.error);
+    await PUPPET_CALLS["offerCharter"]?.run(game, call.args);
+    expect(offer).toHaveBeenCalledWith(0x40_00_00_00_00_00_00_01n, 0x0c_00n);
+  });
 });
