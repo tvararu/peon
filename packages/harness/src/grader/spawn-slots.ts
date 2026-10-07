@@ -364,6 +364,28 @@ const UNDERCITY_WARRIOR: Spawn = {
   zone: 1497,
 };
 
+const PILOT_KITE: Spawn = {
+  map: 530,
+  o: 1.686,
+  points: [
+    [9044.4, -6714.6, 13.15],
+    [9046.4, -6718.1, 13.3],
+    [9048.4, -6721.5, 13.4],
+    [9050.4, -6725, 13.5],
+  ],
+  zone: 3430,
+};
+const PILOT_KITE_HOLDOUT: Spawn = {
+  map: 1,
+  o: 1.686,
+  points: [
+    [1113.5, -3924.2, 17.23],
+    [1113.5, -3928.2, 19.77],
+    [1113.5, -3932.2, 21.44],
+    [1113.5, -3936.2, 21.72],
+  ],
+  zone: 14,
+};
 const NAMED: Readonly<Record<string, Spawn>> = {
   eversong: EVERSONG,
   "eversong-glyph": EVERSONG_GLYPH,
@@ -377,6 +399,8 @@ const NAMED: Readonly<Record<string, Spawn>> = {
   "fairbreeze-emotes": FAIRBREEZE_EMOTES,
   "fairbreeze-south": FAIRBREEZE_SOUTH,
   ghostlands: GHOSTLANDS,
+  "pilot-kite": PILOT_KITE,
+  "pilot-kite-holdout": PILOT_KITE_HOLDOUT,
   "silvermoon-bank": SILVERMOON_BANK,
   "stormwind-stone": STORMWIND_STONE,
   "undercity-warrior": UNDERCITY_WARRIOR,

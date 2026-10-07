@@ -14,6 +14,7 @@ import {
   pilotReach,
 } from "#harness/grader/draft-measure-pilot";
 import {
+  pilotKite,
   pilotNoAggro,
   travelNoAggro,
 } from "#harness/grader/draft-measure-pilot-units";
@@ -143,6 +144,7 @@ const MEASURES: Record<
   no_fight_after_stop: noFightAfterStop,
   pilot_circle: pilotCircle,
   pilot_jumps: pilotJumps,
+  pilot_kite: pilotKite,
   pilot_no_aggro: pilotNoAggro,
   pilot_only_moves: pilotOnlyMoves,
   pilot_reach: pilotReach,

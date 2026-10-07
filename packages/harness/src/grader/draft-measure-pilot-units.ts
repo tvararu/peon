@@ -1,4 +1,4 @@
-import type { Measured } from "#harness/grader/draft-anchors";
+import type { MeasureContext, Measured } from "#harness/grader/draft-anchors";
 import type { GameLogRow } from "#harness/grader/draft-gamelog";
 import { pilotRun } from "#harness/grader/draft-measure-pilot";
 import { isRecord } from "#harness/grader/exec";
@@ -116,4 +116,160 @@ export function pilotNoAggro(rows: readonly GameLogRow[]): Measured {
 
 export function travelNoAggro(rows: readonly GameLogRow[]): Measured {
   return noAggro(rows, travelWindow(rows), "no travel run/started");
+}
+
+const MOVE_STARTS = [
+  "MSG_MOVE_START_FORWARD",
+  "MSG_MOVE_START_BACKWARD",
+  "MSG_MOVE_START_STRAFE_LEFT",
+  "MSG_MOVE_START_STRAFE_RIGHT",
+  "MSG_MOVE_START_SWIM",
+];
+
+type FightMoves = { away: number; total: number };
+
+function kiteMoves(
+  packets: unknown[] | null,
+  jev: unknown[] | null,
+  from: number,
+  until: number,
+): FightMoves | undefined {
+  if (packets === null || jev === null) return undefined;
+  const moves = packets.flatMap((entry) => {
+    if (!isRecord(entry) || entry["dir"] !== "out") return [];
+    const at = entry["at"];
+    if (typeof at !== "number" || !Number.isFinite(at)) return [];
+    if (at < from || at > until) return [];
+    return typeof entry["opcode"] === "string" &&
+      MOVE_STARTS.includes(entry["opcode"])
+      ? [at]
+      : [];
+  });
+  const requests = (jev ?? []).flatMap((entry) => {
+    if (!isRecord(entry) || entry["type"] !== "request") return [];
+    const ts = entry["ts"];
+    const observation = entry["observation"];
+    const separation = isRecord(observation)
+      ? observation["separation"]
+      : undefined;
+    if (
+      typeof ts !== "number" ||
+      !Number.isFinite(ts) ||
+      typeof separation !== "number" ||
+      !Number.isFinite(separation)
+    )
+      return [];
+    return ts >= from && ts <= until ? [{ separation, ts }] : [];
+  });
+  const away = moves.filter((at) => {
+    const before = requests.filter((request) => request.ts <= at).at(-1);
+    const after = requests.find((request) => request.ts > at);
+    return (
+      before !== undefined &&
+      after !== undefined &&
+      after.separation > before.separation
+    );
+  }).length;
+  return { away, total: moves.length };
+}
+
+type FightKill = { kill: GameLogRow; from: number; until: number };
+
+function kiteKill(
+  rows: readonly GameLogRow[],
+  engage: GameLogRow,
+): FightKill | undefined {
+  const args = field(engage, "args");
+  const wanted = isRecord(args) ? args["target"] : undefined;
+  const targetName =
+    typeof wanted === "string" && !wanted.startsWith("u") ? wanted : undefined;
+  const kill = rows.find(
+    (row, index) =>
+      row.event === "combat/kill_credit" &&
+      index > rows.indexOf(engage) &&
+      (targetName === undefined ||
+        (typeof field(row, "name") === "string" &&
+          (field(row, "name") as string).toLowerCase() ===
+            targetName.toLowerCase())),
+  );
+  if (kill === undefined) return undefined;
+  return { from: timeOf(engage), kill, until: timeOf(kill) };
+}
+
+function kiteSwings(
+  rows: readonly GameLogRow[],
+  from: number,
+  until: number,
+): number {
+  return rows.filter(
+    (row) =>
+      row.event === "combatlog/swing_in" &&
+      timeOf(row) >= from &&
+      timeOf(row) <= until,
+  ).length;
+}
+
+function kiteHealth(
+  rows: readonly GameLogRow[],
+  from: number,
+  until: number,
+): number | null {
+  const worlds = rows.filter(
+    (row) =>
+      row.event === "snapshot/world" &&
+      timeOf(row) >= from &&
+      timeOf(row) <= until &&
+      isRecord(field(row, "self")),
+  );
+  const self = field(worlds.at(-1), "self");
+  const hp = isRecord(self) ? self["hp"] : undefined;
+  const maxHp = isRecord(self) ? self["maxHp"] : undefined;
+  return typeof hp === "number" &&
+    typeof maxHp === "number" &&
+    Number.isFinite(hp) &&
+    Number.isFinite(maxHp) &&
+    maxHp > 0
+    ? Math.round((hp / maxHp) * 100)
+    : null;
+}
+
+export function pilotKite(
+  rows: readonly GameLogRow[],
+  { jev, packets }: MeasureContext,
+): Measured {
+  const engage = rows.find(
+    (row) => row.event === "run/started" && field(row, "kind") === "engage",
+  );
+  const fight = engage === undefined ? undefined : kiteKill(rows, engage);
+  if (engage === undefined || fight === undefined)
+    return {
+      line: engage?.line,
+      met: false,
+      observed: {
+        reason:
+          engage === undefined
+            ? "no engage run/started"
+            : "no combat/kill_credit after engage",
+      },
+    };
+  const { from, kill, until } = fight;
+  const swings = kiteSwings(rows, from, until);
+  const dead = rows.find(
+    (row) => row.event === "life/dead" && timeOf(row) >= until,
+  );
+  const moves = kiteMoves(packets, jev, from, until);
+  return {
+    line: kill.line,
+    met: swings === 0 && dead === undefined,
+    observed: {
+      dead: dead === undefined ? null : { line: dead.line, text: dead.text },
+      endHealthPct: kiteHealth(rows, from, until),
+      kill: { guid: kill.guid, line: kill.line, name: field(kill, "name") },
+      movesAway: moves?.away ?? null,
+      movesTotal: moves?.total ?? null,
+      reason:
+        moves === undefined ? "packets.jsonl or jev.jsonl is missing" : null,
+      swings,
+    },
+  };
 }

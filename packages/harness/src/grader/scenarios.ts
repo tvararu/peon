@@ -51,6 +51,7 @@ export type CheckMeasure =
   | "pilot_jumps"
   | "pilot_only_moves"
   | "pilot_no_aggro"
+  | "pilot_kite"
   | "travel_no_aggro";
 
 export type TruthPick =
@@ -266,6 +267,8 @@ export const ROUND_1: readonly string[] = [
   "t3-pilot-camp-holdout-travel",
   "t3-pilot-camp-greedy",
   "t3-pilot-camp-holdout-greedy",
+  "t3-pilot-kite",
+  "t3-pilot-kite-holdout",
 ];
 const DIR = `${import.meta.dir}/scenarios`;
 const JSON_FILE = /\.json$/;

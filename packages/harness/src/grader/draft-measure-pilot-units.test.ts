@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import type { GameLogRow } from "#harness/grader/draft-gamelog";
 import {
+  pilotKite,
   pilotNoAggro,
   travelNoAggro,
 } from "#harness/grader/draft-measure-pilot-units";
@@ -125,5 +126,139 @@ describe("travelNoAggro", () => {
     ]);
     expect(measured.met).toBe(false);
     expect(measured.line).toBe(2);
+  });
+});
+
+describe("pilotKite", () => {
+  const engageStart = (ts: number, target: string, line = 1) =>
+    row(line, "run/started", ts, {
+      args: { kite: true, target },
+      id: "e1",
+      kind: "engage",
+    });
+  const kill = (line: number, ts: number, name = "Springpaw Stalker") => ({
+    ...row(line, "combat/kill_credit", ts, { name, xp: 80 }),
+    guid: "f1",
+  });
+  const world = (line: number, ts: number, hp: number, maxHp = 500) =>
+    row(line, "snapshot/world", ts, {
+      attackers: [],
+      self: { hp, maxHp },
+    });
+  const context = (
+    packets: unknown[] | null = [],
+    jev: unknown[] | null = [],
+  ) => ({ jev, packets, steers: [] });
+  const separated = (ts: number, separation: number) => ({
+    loop: "combat",
+    observation: { separation },
+    ts,
+    type: "request",
+  });
+  const fight = () => [
+    engageStart(1000, "Springpaw Stalker"),
+    world(2, 1100, 480),
+    world(3, 2000, 430),
+    kill(4, 3000),
+  ];
+  const awayContext = () =>
+    context(
+      [
+        { at: 1500, dir: "out", opcode: "MSG_MOVE_START_BACKWARD" },
+        { at: 2500, dir: "out", opcode: "MSG_MOVE_START_STRAFE_LEFT" },
+      ],
+      [separated(1200, 8), separated(1800, 14), separated(2800, 18)],
+    );
+
+  test("a kill with no swings in the fight is met with health and moves", () => {
+    const measured = pilotKite(fight(), awayContext());
+    expect(measured.met).toBe(true);
+    expect(measured.line).toBe(4);
+    expect(measured.observed).toMatchObject({
+      endHealthPct: 86,
+      movesAway: 2,
+      movesTotal: 2,
+      swings: 0,
+    });
+  });
+
+  test("a swing between engage and the kill fails", () => {
+    const measured = pilotKite(
+      [
+        engageStart(1000, "Springpaw Stalker"),
+        row(2, "combatlog/swing_in", 2000, { outcome: "hits" }),
+        kill(3, 3000),
+      ],
+      context(),
+    );
+    expect(measured.met).toBe(false);
+    expect(measured.observed).toMatchObject({ swings: 1 });
+  });
+
+  test("swings before engage or after the kill do not count", () => {
+    const measured = pilotKite(
+      [
+        row(1, "combatlog/swing_in", 500, { outcome: "miss" }),
+        ...fight(),
+        row(6, "combatlog/swing_in", 4000, { outcome: "hits" }),
+      ],
+      context(),
+    );
+    expect(measured.met).toBe(true);
+  });
+
+  test("no kill fails, and a kill for another creature does not count", () => {
+    const missing = pilotKite(
+      [engageStart(1000, "Springpaw Stalker")],
+      context(),
+    );
+    expect(missing.met).toBe(false);
+    const other = pilotKite(
+      [
+        engageStart(1000, "Springpaw Stalker"),
+        kill(2, 2000, "Eversong Tender"),
+      ],
+      context(),
+    );
+    expect(other.met).toBe(false);
+  });
+
+  test("death after the kill fails", () => {
+    const measured = pilotKite(
+      [...fight(), row(5, "life/dead", 4000, {})],
+      context(),
+    );
+    expect(measured.met).toBe(false);
+  });
+
+  test("no engage fails", () => {
+    const measured = pilotKite([kill(1, 1000)], context());
+    expect(measured.met).toBe(false);
+  });
+
+  test("only moves that open the separation count as away", () => {
+    const measured = pilotKite(
+      fight(),
+      context(
+        [
+          { at: 1500, dir: "out", opcode: "MSG_MOVE_START_BACKWARD" },
+          { at: 2500, dir: "out", opcode: "MSG_MOVE_START_FORWARD" },
+          { at: 2600, dir: "out", opcode: "MSG_MOVE_START_TURN_LEFT" },
+          { at: 2700, dir: "in", opcode: "MSG_MOVE_START_BACKWARD" },
+        ],
+        [separated(1200, 8), separated(1800, 14), separated(2800, 10)],
+      ),
+    );
+    expect(measured.met).toBe(true);
+    expect(measured.observed).toMatchObject({ movesAway: 1, movesTotal: 2 });
+  });
+
+  test("missing packets or jev leaves moves null with a reason", () => {
+    const measured = pilotKite(fight(), context(null, null));
+    expect(measured.met).toBe(true);
+    expect(measured.observed).toMatchObject({
+      movesAway: null,
+      reason: "packets.jsonl or jev.jsonl is missing",
+    });
   });
 });

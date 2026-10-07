@@ -183,6 +183,7 @@
               "pilot_jumps",
               "pilot_only_moves",
               "pilot_no_aggro",
+              "pilot_kite",
               "travel_no_aggro"
             ]
           },
