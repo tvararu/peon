@@ -23,6 +23,7 @@ export type RecoverOpResult = {
 const RELEASE_MS = 5000;
 const ACCEPT_MS = 10_000;
 const HEALER_MS = 12_000;
+const GUIDE_MARGIN_MS = 3000;
 
 function waitLife(
   ctx: OpsCtx,
@@ -144,8 +145,20 @@ async function useGuide(ctx: OpsCtx): Promise<RecoveryOutcome> {
   const match = ctx.handle.battlegrounds.state().match;
   if (match.current === undefined && match.spirit === undefined)
     return { cause: "no_battleground", ok: false };
-  const alive = await waitLife(ctx, "alive", HEALER_MS, () =>
-    ctx.rt.mutex.run(() => ctx.handle.battlegrounds.act.queueSpiritGuide(guid)),
+  const queued = await ctx.rt.mutex
+    .run(() => ctx.handle.battlegrounds.act.queueSpiritGuide(guid))
+    .catch(() => {
+      ctx.signal.throwIfAborted();
+    });
+  if (queued === undefined)
+    return { cause: "spirit_guide_unanswered", ok: false };
+  const alive = await waitLife(
+    ctx,
+    "alive",
+    queued.ms + GUIDE_MARGIN_MS,
+    () => {
+      ctx.handle.takeControl("manual_override");
+    },
   );
   return alive
     ? { ok: true, outcome: "resurrected" }
