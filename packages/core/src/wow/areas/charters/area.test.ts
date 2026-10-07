@@ -4,6 +4,7 @@ import {
   CHARTERS_GUILD_MASTER,
   CHARTERS_ME,
   CHARTERS_PETITION_ID,
+  CHARTERS_SIGNER,
   chartersBuyFailedBody,
   chartersCharter,
   chartersFailureBody,
@@ -17,7 +18,9 @@ import {
 } from "#test-support/areas/charters";
 import { elapse, withFakeTimers } from "#test-support/fake-time";
 import {
+  buildOfferPetition,
   buildPetitionBuy,
+  buildPetitionDecline,
   buildPetitionQuery,
   buildPetitionRename,
 } from "#wow/areas/charters/protocol";
@@ -252,6 +255,63 @@ describe("charters acts", () => {
       const outcome = await rig.handle.act.buy(0x99n, NAME, 1);
       expect(outcome).toEqual({ reason: "not_petitioner", status: "refused" });
       expect(rig.sent).toHaveLength(0);
+    } finally {
+      rig.dispose();
+    }
+  });
+
+  test("offer sends the junk zero, charter and target guids", async () => {
+    const { rig } = chartersScene((seeded) => {
+      chartersCharter(seeded, 24, CHARTERS_CHARTER, CHARTERS_PETITION_ID);
+    });
+    try {
+      const pending = rig.handle.act.offer(CHARTERS_CHARTER, CHARTERS_SIGNER);
+      await Promise.resolve();
+      expect(rig.sent.map((packet) => packet.opcode)).toEqual([
+        GameOpcode.CMSG_OFFER_PETITION,
+      ]);
+      expect(sentBodies(rig)[0]).toEqual(
+        buildOfferPetition(CHARTERS_CHARTER, CHARTERS_SIGNER),
+      );
+      rig.dispose();
+      await expect(pending).rejects.toThrow();
+    } finally {
+      rig.dispose();
+    }
+  });
+
+  test("offer of an unheld charter refuses without sending", () => {
+    const { rig } = chartersScene();
+    try {
+      return expect(
+        rig.handle.act.offer(CHARTERS_CHARTER, CHARTERS_SIGNER),
+      ).resolves.toEqual({ reason: "not_held", status: "refused" });
+    } finally {
+      rig.dispose();
+    }
+  });
+
+  test("decline sends the charter guid and clears the offer", async () => {
+    const { rig } = chartersScene();
+    try {
+      rig.inject(
+        GameOpcode.SMSG_PETITION_SHOW_SIGNATURES,
+        chartersSignaturesBody({
+          item: CHARTERS_CHARTER,
+          petition: CHARTERS_PETITION_ID,
+          requester: CHARTERS_ME,
+          signers: [],
+        }),
+      );
+      expect(await rig.handle.act.decline(CHARTERS_CHARTER)).toEqual({
+        status: "ok",
+      });
+      expect(rig.sent.map((packet) => packet.opcode)).toEqual([
+        GameOpcode.MSG_PETITION_DECLINE,
+      ]);
+      expect(sentBodies(rig)[0]).toEqual(
+        buildPetitionDecline(CHARTERS_CHARTER),
+      );
     } finally {
       rig.dispose();
     }

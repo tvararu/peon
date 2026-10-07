@@ -61,4 +61,54 @@ describe("charters harness rules", () => {
     );
     expect(rows).toEqual([]);
   });
+  test("an offered charter writes one wake row", () => {
+    const rows = areaDrafts(
+      areaRuleSet(),
+      charters({ item: ITEM, offered: true, signers: [], type: "signatures" }),
+      testRuleInput(),
+    );
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({
+      class: "wake",
+      domain: "charters",
+      event: "charters/offer",
+    });
+  });
+
+  test("a sign result writes one passive row", () => {
+    const rows = areaDrafts(
+      areaRuleSet(),
+      charters({ item: ITEM, result: 0, signer: 2n, type: "sign_result" }),
+      testRuleInput(),
+    );
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({
+      class: "passive",
+      domain: "charters",
+      event: "charters/signed",
+    });
+  });
+
+  test("a turn-in writes a wake row unless it succeeded", () => {
+    const refused = areaDrafts(
+      areaRuleSet(),
+      charters({ code: 4, type: "turn_in" }),
+      testRuleInput(),
+    );
+    expect(refused).toHaveLength(1);
+    expect(refused[0]).toMatchObject({
+      class: "wake",
+      event: "charters/turned_in",
+    });
+    const created = areaDrafts(
+      areaRuleSet(),
+      charters({ code: 0, type: "turn_in" }),
+      testRuleInput(),
+    );
+    expect(created).toHaveLength(1);
+    expect(created[0]).toMatchObject({
+      class: "log",
+      event: "charters/turned_in",
+    });
+  });
 });

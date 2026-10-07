@@ -1,9 +1,13 @@
+import { parseTeamCommandResult } from "#wow/areas/arena/protocol";
 import { CHARTERS_OPCODES } from "#wow/areas/charters/opcodes";
 import {
+  parseDecline,
   parseQueryResponse,
   parseRename,
   parseShowlist,
   parseSignatures,
+  parseSignResult,
+  parseTurnInResult,
 } from "#wow/areas/charters/protocol";
 import { chartersRuntime } from "#wow/areas/charters/runtime";
 import { ChartersStore } from "#wow/areas/charters/store";
@@ -25,6 +29,9 @@ export const chartersArea = defineArea({
     "bought",
     "refused",
     "unanswered",
+    "sign_result",
+    "declined",
+    "turn_in",
   ],
   store: (deps, core) => new ChartersStore(deps, core),
   register: (wire, store) => {
@@ -40,6 +47,15 @@ export const chartersArea = defineArea({
     wire.on(GameOpcode.MSG_PETITION_RENAME, (reader) => {
       const renamed = parseRename(reader);
       store.receiveRename(renamed.item, renamed.name);
+    });
+    wire.on(GameOpcode.SMSG_PETITION_SIGN_RESULTS, (reader) => {
+      store.receiveSignResult(parseSignResult(reader));
+    });
+    wire.on(GameOpcode.MSG_PETITION_DECLINE, (reader) => {
+      store.receiveDecline(parseDecline(reader));
+    });
+    wire.on(GameOpcode.SMSG_TURN_IN_PETITION_RESULTS, (reader) => {
+      store.receiveTurnIn(parseTurnInResult(reader));
     });
     wire.peek(GameOpcode.SMSG_ITEM_PUSH_RESULT, (reader) => {
       const push = parseItemPushResult(reader);
@@ -63,8 +79,12 @@ export const chartersArea = defineArea({
     });
     wire.peek(GameOpcode.SMSG_GUILD_COMMAND_RESULT, (reader) => {
       const result = parseGuildCommandResult(reader);
-      if (result.command === 0 && result.result !== 0)
+      if (result.result !== 0)
         store.receiveCommandResult(result.command, result.result);
+    });
+    wire.peek(GameOpcode.SMSG_ARENA_TEAM_COMMAND_RESULT, (reader) => {
+      const result = parseTeamCommandResult(reader);
+      if (result.error !== 0) store.receiveArenaCommandResult(result.error);
     });
     wire.peek(GameOpcode.SMSG_INVENTORY_CHANGE_FAILURE, (reader) => {
       const failure = parseInventoryChangeFailure(reader);

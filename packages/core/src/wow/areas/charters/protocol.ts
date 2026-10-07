@@ -142,3 +142,114 @@ export function parseRename(r: PacketReader): PetitionRename {
   const name = r.cString();
   return { item, name };
 }
+
+export type ArenaEmblem = {
+  background: number;
+  icon: number;
+  iconColor: number;
+  border: number;
+  borderColor: number;
+};
+
+export const NO_EMBLEM: ArenaEmblem = {
+  background: 0,
+  border: 0,
+  borderColor: 0,
+  icon: 0,
+  iconColor: 0,
+};
+
+export function buildPetitionSign(item: bigint): Uint8Array {
+  const w = new PacketWriter();
+  w.uint64LE(item);
+  w.uint8(0);
+  return w.finish();
+}
+
+export function buildPetitionDecline(item: bigint): Uint8Array {
+  const w = new PacketWriter();
+  w.uint64LE(item);
+  return w.finish();
+}
+
+export function buildOfferPetition(item: bigint, target: bigint): Uint8Array {
+  const w = new PacketWriter();
+  w.uint32LE(0);
+  w.uint64LE(item);
+  w.uint64LE(target);
+  return w.finish();
+}
+
+export function buildTurnInPetition(
+  item: bigint,
+  emblem: ArenaEmblem | undefined,
+): Uint8Array {
+  const w = new PacketWriter();
+  w.uint64LE(item);
+  if (emblem) {
+    w.uint32LE(emblem.background);
+    w.uint32LE(emblem.icon);
+    w.uint32LE(emblem.iconColor);
+    w.uint32LE(emblem.border);
+    w.uint32LE(emblem.borderColor);
+  }
+  return w.finish();
+}
+
+export const SIGN_OK = 0;
+export const TURN_IN_OK = 0;
+
+export const SIGN_REFUSAL_NAMES: Record<number, string> = {
+  1: "already_signed",
+  2: "already_in_guild",
+  3: "cant_sign_own",
+  4: "not_server",
+};
+
+export const TURN_IN_REFUSAL_NAMES: Record<number, string> = {
+  2: "already_in_guild",
+  4: "need_more_signatures",
+};
+
+export const ARENA_REFUSAL_NAMES: Record<number, string> = {
+  0: "ok",
+  1: "internal",
+  2: "already_in_team",
+  3: "target_already_in_team",
+  4: "already_invited",
+  5: "target_already_invited",
+  6: "name_invalid",
+  7: "name_exists",
+  8: "permissions",
+  9: "not_in_team",
+  10: "target_not_in_team",
+  11: "player_not_found",
+  12: "not_allied",
+  19: "ignoring_you",
+  21: "target_too_low",
+  22: "target_too_high",
+  23: "team_full",
+  27: "not_found",
+  30: "teams_locked",
+};
+
+export type PetitionSignResult = {
+  item: bigint;
+  signer: bigint;
+  result: number;
+};
+
+export function parseSignResult(r: PacketReader): PetitionSignResult {
+  const item = r.uint64LE();
+  const signer = r.uint64LE();
+  const result = r.uint32LE();
+  return { item, result, signer };
+}
+
+export function parseDecline(r: PacketReader): bigint {
+  return r.uint64LE();
+}
+
+export function parseTurnInResult(r: PacketReader): number {
+  return r.uint32LE();
+}
