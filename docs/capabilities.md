@@ -48,7 +48,7 @@ or the page names one that does not exist.
 | Cancel one of its own buffs | `t4-spells-cancel-aura` | Harmful and passive auras cannot be cancelled. |
 | Drop a profession | `t4-spells-unlearn-profession` | Only primary professions. |
 | Stop a channelled spell with stop | `t4-spells-stop-channel` | Stop also ends a channel. |
-| Turn a blood rune into a death rune with Blood Tap | `t4-spells-death-runes` | Death knight only: the `eversong55-deathknight` preset. The `journal about:spells` rune lines name readiness only, so the report check failed on the first pass run; the conversion itself is proven by the wire and the game log. |
+| Turn a blood rune into a death rune with Blood Tap | `t4-spells-death-runes` | Death knight only: the `eversong55-deathknight` preset. The conversion shows as "Rune 1 is now a death rune." and `journal about:spells` names each rune's type and readiness; Blood Tap's death rune turns back into blood after 20 s. |
 | Make an inn its home | `t8-travel-bind-inn` | `interact` `bind` walks to the innkeeper first. A bind the server does not answer (dead, out of range or in an instance) is `UNCONFIRMED`. |
 | Use the hearthstone to go home | `t8-travel-hearth-home` | `travel` `hearth` refuses without the stone, on cooldown, in combat or in flight. The scenario starts at the preset's own home, so it does not show a bind at another inn. |
 | Ride a boat or zeppelin to another dock | `t8-vehicles-zeppelin` | `travel` `ride <stop>` needs the transport path and taxi node files from the game's data files. The scenario rides the Orgrimmar zeppelin to Thunder Bluff on map 1; cross-map rides are not shown. |

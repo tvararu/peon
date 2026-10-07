@@ -167,7 +167,7 @@ describe("journal about spells professions, totems and runes", () => {
     expect(lines.slice(1, 4)).toEqual([
       "Mining: 12/75.",
       "Totem (earth): Stoneskin Totem.",
-      "Rune 1: ready.",
+      "Runes: blood ready, death on cooldown.",
     ]);
     expect(out.details.result.after).toMatchObject({
       professions: [{ id: 186, max: 75, name: "Mining", value: 12 }],

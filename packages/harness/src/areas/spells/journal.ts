@@ -1,5 +1,6 @@
 import type { SpellDefinition } from "@peon/core";
 import { visibleSpellbook } from "#harness/areas/spells/book";
+import { runeName } from "#harness/areas/spells/rune-names";
 import { auraName, isCancellable } from "#harness/areas/spells/tool-aura";
 import { barLines, barText } from "#harness/areas/spells/tool-bar";
 import type {
@@ -72,6 +73,10 @@ function totemLines(handle: Game): {
   };
 }
 
+function runeText({ ready, type }: RuneLine): string {
+  return `${runeName(type)} ${ready ? "ready" : "on cooldown"}`;
+}
+
 function runeLines(handle: Game): {
   lines: RuneLine[] | undefined;
   rows: string[];
@@ -83,13 +88,7 @@ function runeLines(handle: Game): {
     ready,
     type,
   }));
-  return {
-    lines,
-    rows: lines.map(
-      ({ index, ready }) =>
-        `Rune ${index + 1}: ${ready ? "ready" : "on cooldown"}.`,
-    ),
-  };
+  return { lines, rows: [`Runes: ${lines.map(runeText).join(", ")}.`] };
 }
 
 export function spellsJournalExtras(handle: Game): {

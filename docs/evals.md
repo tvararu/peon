@@ -170,12 +170,12 @@ unmeet it.
 
 `t4-spells-death-runes` runs on the `eversong55-deathknight` preset, a
 level-55 Blood Elf death knight created over the protocol at security 1.
-Its setup teaches Blood Tap (45529). The task asks for one cast; the
-`rune-converted` check is met when the game log holds a
-`spells/rune_converted` row with index 0, from 0 and to 3. The run also
-draws a second conversion when the aura fades. The `journal about:spells`
-rune lines name readiness only, so the check reads the wire event, not
-the journal.
+Its setup teaches Blood Tap (45529). The task asks for one cast and a
+report on the runes; the `rune-converted` check is met when the game log
+holds a `spells/rune_converted` row with index 0, from 0 and to 3. The
+aura turns the death rune back into blood after 20 s, which draws a second
+conversion, so the report check also accepts a reply that says the death
+rune already turned back.
 
 `t9-lfg-queue` keeps `queued` and `left` required and grades the wait on the rows the server sends in either case. An `lfg/queue` row that arrived before the answer is authoritative, with its reported wait matching the row's queuedTime: the proposal path calls LFGQueue::RemoveFromQueue with partial true (src/server/game/DungeonFinding/LFGQueue.cpp:469-471), which keeps the QueueDataStore entry (src/server/game/DungeonFinding/LFGQueue.cpp:50-84), so UpdateQueueTimers still sends the status for it (src/server/game/DungeonFinding/LFGQueue.cpp:478-576).
 

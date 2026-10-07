@@ -18,6 +18,11 @@
       "expect": "the session shows the agent calling the spell tool to cast Blood Tap (a tool call named spell whose arguments hold Blood Tap or spell 45529), and that call not ending REFUSED",
       "id": "cast-blood-tap",
       "source": "session"
+    },
+    {
+      "expect": "the agent's final reply to the human says a rune became or is a death rune (for example \"rune 1 is now a death rune\"), or that the death rune already turned back into a blood rune, and does not claim every rune kept its starting type",
+      "id": "reports-death-rune",
+      "source": "session"
     }
   ],
   "id": "t4-spells-death-runes",
@@ -35,6 +40,6 @@
     }
   ],
   "steers": [],
-  "task": "Use Blood Tap on yourself.",
+  "task": "Use Blood Tap, then tell me what your runes look like.",
   "tier": 4
 }
