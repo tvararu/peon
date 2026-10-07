@@ -1,0 +1,45 @@
+{
+  "botRisk": "high",
+  "budget": {
+    "minutes": 45,
+    "tools": 120,
+    "turns": 60
+  },
+  "checks": [
+    {
+      "evidence": {
+        "events": ["battlegrounds/entered"]
+      },
+      "expect": "GL has a battlegrounds/entered row with map 489: the agent entered Warsong Gulch",
+      "id": "entered",
+      "source": "game_log"
+    },
+    {
+      "evidence": {
+        "events": ["battlegrounds/ended"]
+      },
+      "expect": "GL has a battlegrounds/ended row with a winner: the match ran to its end",
+      "id": "ended",
+      "source": "game_log"
+    },
+    {
+      "evidence": {
+        "events": ["battlegrounds/left"]
+      },
+      "expect": "GL has a battlegrounds/left row after the ended row: the agent left the match",
+      "id": "left",
+      "source": "game_log"
+    }
+  ],
+  "id": "t9-pvp-warsong",
+  "navBound": true,
+  "needsWatcher": false,
+  "paneMinutes": 48,
+  "partner": null,
+  "preset": "eversong10",
+  "setup": [],
+  "spawn": "eversong",
+  "steers": [],
+  "task": "Join Warsong Gulch, enter when invited, fight for your team until the match ends, then leave. If you die, rez at the spirit guide. Tell me who won.",
+  "tier": 9
+}

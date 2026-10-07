@@ -1,0 +1,39 @@
+{
+  "botRisk": "low",
+  "budget": {
+    "minutes": 8,
+    "tools": 16,
+    "turns": 8
+  },
+  "checks": [
+    {
+      "evidence": {
+        "events": ["battlegrounds/flag"]
+      },
+      "expect": "GL has a battlegrounds/flag row with wants true, then one with wants false",
+      "id": "flag-toggle",
+      "source": "game_log"
+    },
+    {
+      "expect": "the session shows the agent calling the pvp tool with do flag and on true, then do flag and on false, not ending REFUSED",
+      "id": "flag-called",
+      "source": "session"
+    },
+    {
+      "expect": "the agent's answer says it turned the PvP flag on and off",
+      "id": "answer-reports",
+      "source": "session"
+    }
+  ],
+  "id": "t9-pvp-flag",
+  "navBound": false,
+  "needsWatcher": false,
+  "paneMinutes": 11,
+  "partner": null,
+  "preset": "fresh",
+  "setup": [],
+  "spawn": "eversong",
+  "steers": [],
+  "task": "Turn your PvP flag on. Then turn it off. Tell me whether the flag was on and whether it is off now.",
+  "tier": 9
+}

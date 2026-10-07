@@ -1,0 +1,47 @@
+{
+  "botRisk": "med",
+  "budget": {
+    "minutes": 15,
+    "tools": 30,
+    "turns": 12
+  },
+  "checks": [
+    {
+      "evidence": {
+        "events": ["battlegrounds/queued"]
+      },
+      "expect": "GL has a battlegrounds/queued row with bg type 2: the server confirmed the Warsong Gulch queue",
+      "id": "queued",
+      "source": "game_log"
+    },
+    {
+      "evidence": {
+        "events": ["battlegrounds/queue_left"]
+      },
+      "expect": "GL has a battlegrounds/queue_left row after the queued row: the queue emptied",
+      "id": "queue-emptied",
+      "source": "game_log"
+    },
+    {
+      "expect": "the session shows the agent calling the pvp tool with do list (Warsong Gulch), then do queue to join, then do leave, not ending REFUSED",
+      "id": "queue-called",
+      "source": "session"
+    },
+    {
+      "expect": "the agent's answer says it joined the Warsong Gulch queue and then left it",
+      "id": "answer-reports",
+      "source": "session"
+    }
+  ],
+  "id": "t9-pvp-queue",
+  "navBound": false,
+  "needsWatcher": false,
+  "paneMinutes": 18,
+  "partner": null,
+  "preset": "eversong10",
+  "setup": [],
+  "spawn": "eversong",
+  "steers": [],
+  "task": "Look at the Warsong Gulch rewards, join its queue, then leave the queue. Tell me what the rewards are and whether you left.",
+  "tier": 9
+}
