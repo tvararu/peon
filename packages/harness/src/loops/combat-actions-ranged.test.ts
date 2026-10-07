@@ -111,21 +111,25 @@ test("Auto Shot starts once, stays on beside other shots, and can be stopped", (
   expect(ids()).toContain(`spell:${AUTO_SHOT}:target`);
 });
 
-test("a caster spell with a slow aura stays unsupported", () => {
+test.each([
+  [33, []],
+  [26, []],
+  [4, [{ id: "spell:17:target", reason: "unsupported_aura:4" }]],
+])("a caster spell applying aura %i reports %j", (aura, unavailable) => {
   const { actions, combat } = setup();
   const frostbolt = spell();
   frostbolt.effects.push({
     ...must(frostbolt.effects[0]),
-    applyAura: 33,
+    applyAura: aura,
     effect: 6,
   });
   const definition = jest
     .spyOn(combat, "definition")
     .mockReturnValue(frostbolt);
   try {
-    expect(actions.observe(context).observation["unavailable"]).toEqual([
-      { id: "spell:17:target", reason: "unsupported_aura:33" },
-    ]);
+    expect(actions.observe(context).observation["unavailable"]).toEqual(
+      unavailable,
+    );
   } finally {
     definition.mockRestore();
   }

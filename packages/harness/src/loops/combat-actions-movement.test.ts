@@ -26,12 +26,24 @@ test("movement candidates are offered exactly when movement is allowed", () => {
   try {
     let frame = actions.observe(context);
     expect(frame.outcome).toBeUndefined();
-    for (const id of ["run_ahead", "strafe_left", "strafe_right", "back_up", "stop"])
+    for (const id of [
+      "run_ahead",
+      "strafe_left",
+      "strafe_right",
+      "back_up",
+      "stop",
+    ])
       expect(frame.candidates.map((c) => c.id)).toContain(id);
     control.forceRoot(1);
     frame = actions.observe(context);
     expect(frame.outcome).toBeUndefined();
-    for (const id of ["run_ahead", "strafe_left", "strafe_right", "back_up", "stop"])
+    for (const id of [
+      "run_ahead",
+      "strafe_left",
+      "strafe_right",
+      "back_up",
+      "stop",
+    ])
       expect(frame.candidates.map((c) => c.id)).not.toContain(id);
   } finally {
     definition.mockRestore();
@@ -124,9 +136,21 @@ test("movement candidates are the pilot's collision-checked moves", () => {
     const frame = actions.observe(context);
     expect(frame.outcome).toBeUndefined();
     const ids = frame.candidates.map((candidate) => candidate.id);
-    for (const id of ["run_ahead", "veer_left", "veer_right", "turn_left", "turn_right", "turn_around", "strafe_left", "strafe_right", "back_up", "stop"])
+    for (const id of [
+      "run_ahead",
+      "veer_left",
+      "veer_right",
+      "turn_left",
+      "turn_right",
+      "turn_around",
+      "strafe_left",
+      "strafe_right",
+      "back_up",
+      "stop",
+    ])
       expect(ids).toContain(id);
-    for (const id of ["move_forward", "move_backward", "stop_moving"]) expect(ids).not.toContain(id);
+    for (const id of ["move_forward", "move_backward", "stop_moving"])
+      expect(ids).not.toContain(id);
   } finally {
     definition.mockRestore();
   }

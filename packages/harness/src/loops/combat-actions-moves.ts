@@ -1,5 +1,12 @@
-import type { CombatState, NearbyRow } from "@peon/core";
+import {
+  type CombatState,
+  type EntityLookup,
+  isUnit,
+  type NearbyRow,
+  type SpellDefinition,
+} from "@peon/core";
 import type { JevCandidate } from "#harness/jev/contract";
+import type { ActionDeps } from "#harness/loops/combat-actions-frame";
 import { separation } from "#harness/loops/combat-actions-observation";
 import { poseOf } from "#harness/loops/pilot-geometry";
 import {
@@ -14,7 +21,6 @@ import {
   dangerUnits,
   unitLines,
 } from "#harness/loops/pilot-units";
-import type { ActionDeps } from "#harness/loops/combat-actions-frame";
 import type { TacticsContext } from "#harness/loops/tactics";
 
 export const COMBAT_MELEE_DISTANCE_YD = 5;
@@ -25,16 +31,27 @@ export type CombatMovesInput = {
   state: CombatState;
 };
 
-export function meleeReachOf(state: CombatState): number | undefined {
+export function meleeReachOf(
+  state: CombatState,
+  entity: EntityLookup,
+): number | undefined {
   const target = state.target;
   if (!target) return undefined;
-  return COMBAT_MELEE_DISTANCE_YD;
+  const self = entity(state.self.guid);
+  const foe = entity(target.guid);
+  const a = isUnit(self) ? self.combatReach : undefined;
+  const b = isUnit(foe) ? foe.combatReach : undefined;
+  if (a === undefined || b === undefined) return COMBAT_MELEE_DISTANCE_YD;
+  return Math.max(COMBAT_MELEE_DISTANCE_YD, a + b + 4 / 3);
 }
 
-export function targetGap(state: CombatState): number | undefined {
+export function targetGap(
+  state: CombatState,
+  entity: EntityLookup,
+): number | undefined {
   const gap = separation(state);
   if (gap === undefined) return undefined;
-  const reach = meleeReachOf(state);
+  const reach = meleeReachOf(state, entity);
   if (reach === undefined) return undefined;
   return Math.round((gap - reach) * 10) / 10;
 }
@@ -42,13 +59,13 @@ export function targetGap(state: CombatState): number | undefined {
 function selfPoseOf(input: CombatMovesInput) {
   const snapshot = input.deps.control.snapshot();
   const pose = snapshot.pose;
-  if (!pose) return undefined;
+  if (!pose) return;
   return poseOf(pose, snapshot.speed, snapshot.airborne);
 }
 
 function foePointOf(state: CombatState) {
   const pose = state.target?.pose;
-  if (!pose || state.self.pose?.mapId !== pose.mapId) return undefined;
+  if (!pose || state.self.pose?.mapId !== pose.mapId) return;
   return { x: pose.x, y: pose.y };
 }
 
@@ -61,7 +78,8 @@ function excludedGuids(input: CombatMovesInput): Set<bigint> {
 function rangeCircles(input: CombatMovesInput) {
   const nearby = input.deps.nearby?.() ?? [];
   const pose = selfPoseOf(input);
-  if (!pose) return { circles: [], lines: "none in view" as const, rows: nearby };
+  if (!pose)
+    return { circles: [], lines: "none in view" as const, rows: nearby };
   const listed = buildPilotUnits(nearby, pose, input.deps.aggro);
   const excluded = excludedGuids(input);
   const circles = aggroCircles(
@@ -76,7 +94,7 @@ function rangeCircles(input: CombatMovesInput) {
 export function combatMoves(input: CombatMovesInput): PilotOption[] {
   const pose = selfPoseOf(input);
   const foe = foePointOf(input.state);
-  if (!pose || !foe) return [];
+  if (!(pose && foe)) return [];
   const { circles } = rangeCircles(input);
   return buildOptions({
     circles,
@@ -101,33 +119,67 @@ export function combatMoveOption(
   return combatMoves(input).find((option) => option.id === id);
 }
 
+function travelHeading(option: PilotOption): number | undefined {
+  const { input } = option;
+  if (!input) return undefined;
+  if (input.move === "backward") return option.heading + Math.PI;
+  if (input.strafe === "left") return option.heading + Math.PI / 2;
+  if (input.strafe === "right") return option.heading - Math.PI / 2;
+  return input.move === "forward" ? option.heading : undefined;
+}
+
 export function combatDangerText(input: CombatMovesInput): string {
   const pose = selfPoseOf(input);
   if (!pose) return "danger: position unobserved";
   const { circles, lines } = rangeCircles(input);
   const units = Array.isArray(lines) ? lines.join(" | ") : lines;
-  const foe = foePointOf(input.state);
-  if (!foe) return `units: ${units}; danger: target unobserved`;
-  const heading = Math.atan2(foe.y - pose.y, foe.x - pose.x);
-  const hit = dangerAlong(pose, heading, circles, DANGER_ANNOTATE_YD);
+  if (!foePointOf(input.state))
+    return `units: ${units}; danger: target unobserved`;
+  const hits = combatMoves(input).flatMap((option) => {
+    const heading = travelHeading(option);
+    if (heading === undefined) return [];
+    const hit = dangerAlong(pose, heading, circles, DANGER_ANNOTATE_YD);
+    return hit
+      ? [
+          `${option.id} enters ${hit.name}'s range after ${Math.round(hit.yd)} yd`,
+        ]
+      : [];
+  });
   const line =
-    hit === undefined
-      ? "the way to the target crosses no inferred range"
-      : `the way to the target enters ${hit.name}'s range after ${Math.round(hit.yd)} yd`;
+    hits.length === 0
+      ? "no offered move crosses an inferred range"
+      : hits.join("; ");
   return `units: ${units}; danger: ${line}`;
 }
 
 export function closingText(
   state: CombatState,
+  entity: EntityLookup,
   previous: number | undefined,
 ): string {
-  const gap = targetGap(state);
+  const gap = targetGap(state, entity);
   if (gap === undefined || previous === undefined) return "unknown";
   if (gap < previous) return "closing";
   if (gap > previous) return "opening";
   return "holding";
 }
 
-export function snareNames(state: CombatState): string[] {
-  return state.targetAuras.map((aura) => aura.name ?? `spell ${aura.spellId}`);
+const AURA_MOD_ROOT = 26;
+const AURA_MOD_DECREASE_SPEED = 33;
+
+export type Snare = { name: string; kind: "root" | "slow" };
+
+export function snares(
+  state: CombatState,
+  definition: (id: number) => SpellDefinition | undefined,
+): Snare[] {
+  return state.targetAuras.flatMap((aura): Snare[] => {
+    const effects = definition(aura.spellId)?.effects ?? [];
+    const name = aura.name ?? `spell ${aura.spellId}`;
+    if (effects.some((effect) => effect.applyAura === AURA_MOD_ROOT))
+      return [{ kind: "root", name }];
+    if (effects.some((effect) => effect.applyAura === AURA_MOD_DECREASE_SPEED))
+      return [{ kind: "slow", name }];
+    return [];
+  });
 }

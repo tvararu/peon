@@ -3,7 +3,7 @@ import type { JevCandidate } from "#harness/jev/contract";
 export const WAIT_CANDIDATE = {
   id: "wait",
   description:
-    "Hold current state and start nothing new: if moving, this refreshes the current direction's movement lease; if stationary, this is a no-op. Use stop_moving to release movement explicitly.",
+    "Hold current state and start nothing new: if moving, this refreshes the current direction's movement lease; if stationary, this is a no-op. Use stop to release movement explicitly.",
 } as const;
 
 export function judge(

@@ -307,12 +307,15 @@ describe("pilot options", () => {
       pose,
     });
     const ids = options.map((o) => o.id);
-    for (const id of ["run_ahead", "back_up", "stop"]) expect(ids).toContain(id);
+    for (const id of ["run_ahead", "back_up", "stop"])
+      expect(ids).toContain(id);
     expect(ids).not.toContain("jump_ahead");
     const ahead = options.find((o) => o.id === "run_ahead");
     expect(ahead?.description).toContain("20 yd");
     expect(ahead?.description).toContain("target");
-    expect(options.find((o) => o.id === "stop")?.description).toContain("target");
+    expect(options.find((o) => o.id === "stop")?.description).toContain(
+      "target",
+    );
   });
 });
 

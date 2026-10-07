@@ -17,15 +17,13 @@ import {
   type ActionDeps,
   baseObservation,
 } from "#harness/loops/combat-actions-frame";
-import {
-  WAIT,
-} from "#harness/loops/combat-actions-movement";
+import { WAIT } from "#harness/loops/combat-actions-movement";
 import {
   closingText,
   combatDangerText,
   combatMoveCandidates,
   combatMoveOption,
-  snareNames,
+  snares,
   targetGap,
 } from "#harness/loops/combat-actions-moves";
 import {
@@ -55,8 +53,8 @@ import {
 import { targetReason } from "#harness/loops/combat-actions-target";
 import { approached, ProgressWatch } from "#harness/loops/combat-progress";
 import { RejectionTracker } from "#harness/loops/combat-rejections";
-import type { TacticsContext, TacticsFrame } from "#harness/loops/tactics";
 import { PILOT_DEADMAN_MS } from "#harness/loops/pilot-actions";
+import type { TacticsContext, TacticsFrame } from "#harness/loops/tactics";
 
 type SpellAction = {
   spell?: SpellDefinition;
@@ -110,8 +108,8 @@ export class CombatActions {
     if (channel && !outcome)
       candidates.push(...channelCandidates(state, channel, context.targetGuid));
     else if (!outcome) this.addCandidates(candidates, spells, state, context);
-    const closing = closingText(state, this.gap);
-    this.gap = targetGap(state) ?? this.gap;
+    const closing = closingText(state, this.deps.entity, this.gap);
+    this.gap = targetGap(state, this.deps.entity) ?? this.gap;
     const extra = channel
       ? channelObservation(
           channel,
@@ -133,8 +131,8 @@ export class CombatActions {
         ...extra,
         melee: {
           closing,
-          gapYd: targetGap(state) ?? null,
-          snares: snareNames(state),
+          gapYd: targetGap(state, this.deps.entity) ?? null,
+          snares: snares(state, (id) => this.deps.combat.definition(id)),
         },
         danger: combatDangerText(moves),
       }),

@@ -313,7 +313,12 @@ describe("danger ranges", () => {
 
   test("danger skips units the caller excludes", () => {
     const rows = [selfRow(), mob(2n, 12, 0), mob(3n, 0, 12)];
-    const danger = dangerUnits(rows, pose(), () => true, (unit) => unit.guid === 2n);
+    const danger = dangerUnits(
+      rows,
+      pose(),
+      () => true,
+      (unit) => unit.guid === 2n,
+    );
     expect(danger.map((unit) => unit.guid)).toEqual([3n]);
   });
 });

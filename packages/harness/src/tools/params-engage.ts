@@ -16,6 +16,12 @@ export const engageParams = Type.Object({
       maxLength: 120,
     }),
   ),
+  kite: Type.Optional(
+    Type.Boolean({
+      description:
+        "Keep the target outside its melee reach while fighting: slow it, back away and cast at range.",
+    }),
+  ),
   loot: Type.Optional(
     Type.Boolean({ description: "Loot each kill. Default true." }),
   ),
@@ -29,12 +35,6 @@ export const engageParams = Type.Object({
     Type.String({
       description:
         'Unit id (u9) or name ("Springpaw Stalker"). Default: the nearest hostile you can attack.',
-    }),
-  ),
-  kite: Type.Optional(
-    Type.Boolean({
-      description:
-        "Keep the target outside its melee reach while fighting: slow it, back away and cast at range.",
     }),
   ),
 });
