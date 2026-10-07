@@ -69,6 +69,7 @@ const pinfoTries = 100;
 const pinfoPollMs = 50;
 const onlineTries = 120;
 const gmLevelLine = (level: number) => new RegExp(`GMLevel:\\s*${level}\\b`);
+const gmReadsPerSet = 20;
 const skillBase = 636;
 const skillSlots = 384;
 const skillStride = 3;
@@ -239,13 +240,18 @@ async function setGmLevel(
 ): Promise<void> {
   const identity = new RegExp(`Account:\\s*${account}\\b`);
   const applied = gmLevelLine(level);
-  await run(`account set gmlevel ${account} ${level} -1`);
+  let set = "";
+  let text = "";
   for (let i = 0; i < pinfoTries; i++) {
-    const text = (await run(`account info ${account}`)).text;
+    if (i % gmReadsPerSet === 0)
+      set = (await run(`account set gmlevel ${account} ${level} -1`)).text;
+    text = (await run(`account info ${account}`)).text;
     if (identity.test(text) && applied.test(text)) return;
     await sleep(pinfoPollMs);
   }
-  throw new Error(`${step} of ${account} could not be confirmed`);
+  throw new Error(
+    `${step} of ${account} could not be confirmed: ${set} / ${text}`,
+  );
 }
 
 export type { CharEndpoint, Json } from "#factory/realm-service";
