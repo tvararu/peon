@@ -319,7 +319,9 @@ from one sender are held back for 20 seconds, and repeated combat hits
 stay limited to one wake per attacker every 30 seconds. Lines that
 arrive together reach the agent as one message. Chat that wakes the
 agent while a run tool waits returns the tool early and reaches the
-agent in the same turn.
+agent in the same turn. A GM answering the character's ticket wakes it
+too (`tickets/gm_reply`, with the ticket id and the answer); like other
+non-chat wakes it passes through the wake guard.
 
 ## Who controls the character
 
