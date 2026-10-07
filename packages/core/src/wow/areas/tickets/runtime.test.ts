@@ -96,6 +96,30 @@ describe("tickets store", () => {
     }
   });
 
+  test("gm response without a prior ticket keeps the response ticket id", () => {
+    const rig = areaRig("tickets");
+    try {
+      const w = new PacketWriter();
+      w.uint32LE(1);
+      w.uint32LE(7);
+      w.cString("peon probe");
+      const reply = new TextEncoder().encode("gm answer");
+      w.rawBytes(reply);
+      w.uint8(0);
+      w.uint8(0);
+      w.uint8(0);
+      w.uint8(0);
+      rig.inject(GameOpcode.SMSG_GMRESPONSE_RECEIVED, w.finish());
+      const snapshot = rig.stores.areas.tickets.snapshot();
+      expect(snapshot.ticket).toMatchObject({
+        status: "completed",
+        ticket: { id: 7 },
+      });
+    } finally {
+      rig.dispose();
+    }
+  });
+
   test("survey update keeps the offered flag", () => {
     const rig = areaRig("tickets");
     try {

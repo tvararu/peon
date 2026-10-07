@@ -82,7 +82,7 @@ export class TicketsStore {
           };
     this.ticket = {
       status: "completed",
-      ticket: { ...prior, text: response.text },
+      ticket: { ...prior, id: response.ticketId, text: response.text },
     };
     this.events.emit({
       text: response.response,
