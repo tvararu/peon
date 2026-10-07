@@ -96,7 +96,9 @@ async function runAcceptDecline(
   });
 }
 
-async function runLeave(ctx: WintergraspCtx): Promise<ToolResult<WintergraspAfter>> {
+async function runLeave(
+  ctx: WintergraspCtx,
+): Promise<ToolResult<WintergraspAfter>> {
   const state = ctx.handle.wintergrasp.state();
   if (state.phase === "at_war") return await runLeaveWar(ctx);
   if (state.phase !== "queue_offered" && state.phase !== "entry_offered")
