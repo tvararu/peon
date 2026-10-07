@@ -318,10 +318,22 @@ describe("ready check store", () => {
       }
     });
 
-    test("the initiator keeps seeing answers after a demotion", () => {
+    test("an initiator demoted mid-check hears no later answers", () => {
       const rig = rigAs(1);
       try {
         start(rig, PEON);
+        rig.inject(GameOpcode.SMSG_GROUP_LIST, roster(2, 0));
+        expect(rig.handle.state().readyCheck?.seen).toBe(false);
+      } finally {
+        rig.dispose();
+      }
+    });
+
+    test("a demotion after the finish leaves the outcome as heard", () => {
+      const rig = rigAs(1);
+      try {
+        start(rig);
+        rig.inject(GameOpcode.MSG_RAID_READY_CHECK_FINISHED, new Uint8Array(0));
         rig.inject(GameOpcode.SMSG_GROUP_LIST, roster(2, 0));
         expect(rig.handle.state().readyCheck?.seen).toBe(true);
       } finally {

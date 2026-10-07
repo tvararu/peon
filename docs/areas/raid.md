@@ -87,9 +87,10 @@ already says; `invite_blocked` writes one `log` row.
 The server routes each answer by the recipient's rank at the moment it
 arrives (`Groups/Group.cpp:1982-1989`), and the leader can change an
 assistant's rank mid-check (`Handlers/GroupHandler.cpp:709-725`). So `seen`
-starts true only for the initiator, the leader or an assistant, and turns
-false for good when a roster update takes the rank away or gives it after the
-start, because a roster update never replays past answers.
+starts true only for the leader or an assistant, with no exception for the
+initiator, and turns false when a roster update takes the rank away or gives
+it while the check is open, because a roster update never replays past
+answers. A finished check keeps its `seen`.
 
 The area also keeps `marks`, eight guids where `0` is an empty slot. A
 kind 0 `MSG_RAID_TARGET_UPDATE` sets one slot, clears the same target

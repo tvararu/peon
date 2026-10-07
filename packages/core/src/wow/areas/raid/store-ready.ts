@@ -43,10 +43,8 @@ export function isOnline(status: number): boolean {
 
 export function seesAnswers(
   group: RaidGroup | undefined,
-  check: Pick<ReadyCheck, "initiator">,
   selfGuid: bigint,
 ): boolean {
-  if (check.initiator === selfGuid) return true;
   if (group?.leader === selfGuid) return true;
   const me = group?.members.find((member) => member.guid === selfGuid);
   const flags = me ? me.flags : (group?.self.flags ?? 0);
@@ -109,7 +107,6 @@ export class ReadyStore {
     selfGuid: bigint,
   ): ReadyEvent {
     this.lastId += 1;
-    const draft = { initiator };
     this.check = {
       answers: new Map(),
       finishedAt: undefined,
@@ -119,7 +116,7 @@ export class ReadyStore {
         (group?.members ?? []).map((member) => [member.guid, member.name]),
       ),
       ownAnswer: undefined,
-      seen: seesAnswers(group, draft, selfGuid),
+      seen: seesAnswers(group, selfGuid),
       silent: undefined,
       startedAt: now,
     };
@@ -165,7 +162,8 @@ export class ReadyStore {
 
   rankChanged(group: RaidGroup | undefined, selfGuid: bigint): void {
     const check = this.check;
-    if (!check?.seen || seesAnswers(group, check, selfGuid)) return;
+    if (!check?.seen || check.finishedAt !== undefined) return;
+    if (seesAnswers(group, selfGuid)) return;
     this.check = { ...check, seen: false };
   }
 
