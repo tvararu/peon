@@ -194,3 +194,37 @@ test("fights an attacker that joined during the approach before the pulled targe
   });
   expect(starts).toEqual([LYNX_U58, LYNX_U59]);
 });
+
+test("two attackers joining on the approach do not defer forever", async () => {
+  const starts: bigint[] = [];
+  const attackers: bigint[] = [LYNX_U58, LYNX_U61];
+  const runtime = makeCycle({
+    approach: () => Promise.resolve(undefined),
+    attackers: () => attackers,
+    control: fakeControl(),
+    loot: fakeLoot({}),
+    now: () => 0,
+    recovery: fakeRecovery({ life: ["alive"] }),
+    tactics: {
+      start: async (ctx) => {
+        const at = attackers.indexOf(ctx.targetGuid);
+        if (at >= 0) attackers.splice(at, 1);
+        starts.push(ctx.targetGuid);
+      },
+      stop: () => {},
+      snapshot: () => ({
+        lastOutcome: {
+          status: "completed" as const,
+          reason: "server_kill_credit",
+        },
+      }),
+    },
+  });
+  await runtime.start({
+    guids: [LYNX_U59],
+    instruction: "fight",
+    maxStarts: 3,
+  });
+  expect(starts).toHaveLength(3);
+  expect(new Set(starts)).toEqual(new Set([LYNX_U59, LYNX_U58, LYNX_U61]));
+});
