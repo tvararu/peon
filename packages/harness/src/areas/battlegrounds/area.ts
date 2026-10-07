@@ -237,7 +237,8 @@ function matchRows(
   if (event.type === "bg_player_joined" || event.type === "bg_player_left")
     return [rosterRow(event, rc)];
   if (event.type === "bg_score") return scoreRows(event);
-  return [rezRow(event)];
+  if (event.type === "bg_rez_time") return [rezRow(event)];
+  return [];
 }
 
 function onEvent(

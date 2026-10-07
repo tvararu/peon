@@ -283,8 +283,8 @@ async function runFlag(
   });
 }
 
-function reportSend(ctx: PvpCtx, guid: bigint): Promise<{ kind: string }> {
-  return ctx.rt.mutex.run(() => ctx.handle.battlegrounds.act.reportAfk(guid));
+async function reportSend(ctx: PvpCtx, guid: bigint): Promise<void> {
+  await ctx.rt.mutex.run(() => ctx.handle.battlegrounds.act.reportAfk(guid));
 }
 
 async function runReport(
