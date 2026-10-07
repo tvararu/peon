@@ -79,6 +79,7 @@ or the page names one that does not exist.
 | Read mail | `t9-mail-read` | The letter is staged by an offline quest reward; the answer quotes its fixed body. |
 | Collect gold and items from mail | `t9-mail-collect` | Takes money then attachments in order at a mailbox. |
 | Send gold or items by mail | `t9-mail-send` | Postage is 30 copper per item, 30 with no item. |
+| Buy a guild charter and read how many signatures it needs | `t9-guild-charter` | The guild charter needs 9 signatures on this realm; the 2v2 arena charter needs 1. Offer, sign, decline and turn in need other players and are proven by tests only. |
 | Open the tabard designer and try to save a guild emblem | `t9-guild-tabard` | Run guildless: the server refuses the save with code 2 and takes no gold. A leader's save, ranks, notes, the info text and the event log are proven by probe flows, not a scenario: an eval cannot stage a guild. |
 | Read play time, draw weapons, hide helm and cloak | `t0-character-appearance` | Sheathe, helm and cloak sends get no server reply. |
 | Share a quest with the group and take one shared back | `t8-quests-share`, `t8-quests-accept-shared` | A share with no member answer is `UNCONFIRMED` after 3 s. |

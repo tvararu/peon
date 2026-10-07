@@ -247,6 +247,7 @@ export const ROUND_1: readonly string[] = [
   "t9-mail-collect",
   "t9-mail-send",
   "t9-guild-tabard",
+  "t9-guild-charter",
   "t9-guildbank-guildless",
   "t9-calendar-event",
   "t9-arena-skirmish",
