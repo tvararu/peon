@@ -23,6 +23,7 @@ import {
 } from "#harness/tools/define";
 import { findUnits, kindOf, rememberedRows } from "#harness/tools/look-find";
 import { movementWords, withMovement } from "#harness/tools/look-movement";
+import { pvpLookLine } from "#harness/tools/look-pvp";
 import {
   headerLine,
   moreLine,
@@ -84,6 +85,17 @@ function lookSaves(ctx: ToolCtx<LookAfter>): string[] {
   }
 }
 
+function pvpLine(ctx: ToolCtx<LookAfter>): string[] {
+  try {
+    return pvpLookLine(
+      ctx.handle.battlegrounds.state(),
+      ctx.handle.arena.state(),
+    );
+  } catch {
+    return [];
+  }
+}
+
 function lookBody(
   ctx: ToolCtx<LookAfter>,
   after: LookAfter,
@@ -108,7 +120,7 @@ function lookBody(
           ...after.remembered.map((unit) => rowLine(unit, after.self.level)),
           nearestLine(after),
         ];
-  return [...lines, ...lookSaves(ctx), ...calm, ...stale];
+  return [...lines, ...lookSaves(ctx), ...pvpLine(ctx), ...calm, ...stale];
 }
 
 function lookDigest(rows: readonly UnitView[], snapshot: NowSnapshot): string {
