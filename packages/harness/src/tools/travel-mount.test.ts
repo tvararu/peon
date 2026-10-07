@@ -1,6 +1,5 @@
 import { describe, expect, jest, test } from "bun:test";
 import type { SpellDefinition } from "@peon/core";
-import { dbcFiles, packDbc } from "@peon/core/test-support/dbc";
 import { flushMicrotasks } from "@peon/core/test-support/microtasks";
 import type { TravelAfter } from "#harness/contract/details";
 import { createRefTable } from "#harness/ops/refs";
@@ -26,7 +25,6 @@ import {
 const MOUNTED_AURA = 78;
 const FLIGHT_AURA = 207;
 const OUTDOORS = 0x80_00;
-const FORCE_INTERIOR = 4602;
 const HORSE = definition({
   aura: MOUNTED_AURA,
   id: 458,
@@ -52,16 +50,7 @@ const GRYPHON = flying({
   raw: OUTDOORS,
 });
 
-function areaSource(flags: number) {
-  const cell = new Array<number>(36).fill(0);
-  cell[0] = FORCE_INTERIOR;
-  cell[4] = flags;
-  return dbcFiles(new Map([["AreaTable.dbc", packDbc(36, [cell])]]));
-}
-
 type Init = {
-  areaFlags?: number;
-  areaId?: number;
   book?: SpellDefinition[];
   distance?: number;
   learned?: number[];
@@ -103,14 +92,6 @@ async function world(init: Init = {}): Promise<TestRuntime> {
       serverPose: poseAt,
     });
   }
-  if (init.areaId !== undefined) {
-    const areaId = init.areaId;
-    const place = t.handle.getPlaceState();
-    t.handle.getPlaceState = () => ({ ...place, areaId });
-  }
-  if (init.areaFlags !== undefined) {
-    t.rt.profile.client.dbc = areaSource(init.areaFlags);
-  }
   jest.spyOn(t.handle.selfstate, "state").mockReturnValue({
     ...t.handle.selfstate.state(),
     mounted: init.mounted ?? false,
@@ -146,24 +127,16 @@ describe("travel mount hint", () => {
     expect(await travelText(far, "Far Innkeeper")).toContain("mount");
   });
 
-  test("an instance map gets no hint", async () => {
+  test("a route on an instance map gets no hint", async () => {
     const t = await world({ mapId: 36 });
     expect(await travelText(t, "Far Innkeeper")).not.toContain("mount");
   });
 
-  test("an inside-flagged area on an open-world map gets no hint", async () => {
-    const t = await world({
-      areaFlags: 0x02_00_00_00,
-      areaId: FORCE_INTERIOR,
-      mapId: 571,
-    });
-    expect(await travelText(t, "Far Innkeeper")).not.toContain("mount");
-  });
-
-  test("a corrupted area table keeps the outdoor hint", async () => {
-    const t = await world({ areaId: 1, mapId: 571 });
-    t.rt.profile.client.dbc = async () => new Uint8Array([1, 2, 3]);
-    expect(await travelText(t, "Far Innkeeper")).toContain("mount");
+  test("a route on each continent map gets the hint", async () => {
+    for (const mapId of [0, 1, 530, 571]) {
+      const t = await world({ mapId });
+      expect(await travelText(t, "Far Innkeeper")).toContain("mount");
+    }
   });
 
   test("a failing spellbook lookup while the walk runs leaks no rejection", async () => {
