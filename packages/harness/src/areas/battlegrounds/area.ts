@@ -13,6 +13,14 @@ type Status = Extract<BattlegroundsEvent, { type: "bg_status" }>;
 type Invited = Extract<BattlegroundsEvent, { type: "bg_invited" }>;
 type Left = Extract<BattlegroundsEvent, { type: "bg_left" }>;
 type JoinResult = Extract<BattlegroundsEvent, { type: "bg_join_result" }>;
+type Entered = Extract<BattlegroundsEvent, { type: "bg_entered" }>;
+type LeftMatch = Extract<BattlegroundsEvent, { type: "bg_left_match" }>;
+type Roster = Extract<
+  BattlegroundsEvent,
+  { type: "bg_player_joined" } | { type: "bg_player_left" }
+>;
+type Score = Extract<BattlegroundsEvent, { type: "bg_score" }>;
+type Rez = Extract<BattlegroundsEvent, { type: "bg_rez_time" }>;
 
 const BG_NAMES: Readonly<Record<number, string>> = {
   1: "Alterac Valley",
@@ -152,6 +160,86 @@ function killRow(event: Kill): AreaDraft {
   };
 }
 
+function enteredRow(event: Entered): AreaDraft {
+  return {
+    class: "log",
+    data: { bgType: event.bgType, mapId: event.mapId },
+    name: "entered",
+    text: `Entered ${bgName(event.bgType)}.`,
+  };
+}
+
+function leftMatchRow(event: LeftMatch): AreaDraft {
+  return {
+    class: "log",
+    data: { mapId: event.mapId },
+    name: "left",
+    text: "Left the battleground.",
+  };
+}
+
+function rosterRow(event: Roster, rc: RuleInput): AreaDraft {
+  const joined = event.type === "bg_player_joined";
+  return {
+    class: "passive",
+    data: { target: guidText(event.guid) },
+    guid: guidText(event.guid),
+    name: joined ? "joined" : "departed",
+    ref: rc.refOf(event.guid),
+    text: joined
+      ? `${rc.refOf(event.guid)} joined the battleground.`
+      : `${rc.refOf(event.guid)} left the battleground.`,
+  };
+}
+
+function scoreText(event: Score): string {
+  if (event.score.ended)
+    return `The battleground ended; winner team ${event.score.winner}.`;
+  return `Battleground score: ${event.score.players.length} players on the board.`;
+}
+
+function scoreRows(event: Score): AreaDraft[] {
+  const row: AreaDraft = {
+    class: event.score.ended ? "wake" : "log",
+    data: {
+      ended: event.score.ended,
+      players: event.score.players.length,
+      winner: event.score.winner,
+    },
+    name: "score",
+    text: scoreText(event),
+  };
+  if (!event.score.ended) return [row];
+  const ended: AreaDraft = {
+    class: "wake",
+    data: { winner: event.score.winner },
+    name: "ended",
+    text: scoreText(event),
+  };
+  return [row, ended];
+}
+
+function rezRow(event: Rez): AreaDraft {
+  return {
+    class: "passive",
+    data: { ms: event.ms, nextAt: event.nextAt },
+    name: "rez_time",
+    text: `The next mass resurrection is in ${Math.round(event.ms / 1000)} s.`,
+  };
+}
+
+function matchRows(
+  event: Entered | LeftMatch | Roster | Score | Rez,
+  rc: RuleInput,
+): readonly AreaDraft[] {
+  if (event.type === "bg_entered") return [enteredRow(event)];
+  if (event.type === "bg_left_match") return [leftMatchRow(event)];
+  if (event.type === "bg_player_joined" || event.type === "bg_player_left")
+    return [rosterRow(event, rc)];
+  if (event.type === "bg_score") return scoreRows(event);
+  return [rezRow(event)];
+}
+
 function onEvent(
   event: BattlegroundsEvent,
   rc: RuleInput,
@@ -165,7 +253,8 @@ function onEvent(
   if (event.type === "bg_invited") return [invitedRow(event)];
   if (event.type === "bg_left") return leftRows(event);
   if (event.type === "bg_join_result") return joinRows(event);
-  return [];
+  if (event.type === "bg_carriers") return [];
+  return matchRows(event, rc);
 }
 
 export const battlegroundsHarness = defineHarnessArea({
@@ -179,5 +268,10 @@ export const battlegroundsHarness = defineHarnessArea({
     "join",
     "answer",
     "leaveQueue",
+    "requestScore",
+    "requestCarriers",
+    "leaveBattleground",
+    "reportAfk",
+    "queueSpiritGuide",
   ],
 });

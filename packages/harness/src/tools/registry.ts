@@ -1,4 +1,5 @@
 import { arenaTool } from "#harness/areas/arena/tool";
+import { pvpTool } from "#harness/areas/battlegrounds/tool";
 import { calendarTool } from "#harness/areas/calendar/tool";
 import { channelTool } from "#harness/areas/channels/tool";
 import { characterTool } from "#harness/areas/character/tool";
@@ -54,6 +55,7 @@ export const GAME_TOOLS = [
   guildTool,
   channelTool,
   arenaTool,
+  pvpTool,
   calendarTool,
 ] as const;
 
