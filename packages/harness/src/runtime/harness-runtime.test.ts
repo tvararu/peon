@@ -46,7 +46,6 @@ describe("createHarnessRuntime", () => {
       unreadWhispers: 0,
       wake: false,
     });
-
   });
 
   test("connect attaches ready, router, sightings, attacks, progress, snapshots in that order", async () => {

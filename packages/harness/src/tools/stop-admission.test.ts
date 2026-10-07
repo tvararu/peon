@@ -274,7 +274,6 @@ describe("stop hold per-operation admission", () => {
     });
   });
 
-
   test("a stop that lands while an acting call waits for readiness refuses the call", async () => {
     const { handle, rt } = await createTestRuntime();
     const gate = Promise.withResolvers<boolean>();
