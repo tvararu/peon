@@ -10,11 +10,16 @@ export const context = {
   targetGuid: 2n,
 };
 export const MOVE_IDS = [
-  "move_forward",
-  "move_backward",
+  "run_ahead",
+  "veer_left",
+  "veer_right",
+  "turn_left",
+  "turn_right",
+  "turn_around",
   "strafe_left",
   "strafe_right",
-  "stop_moving",
+  "back_up",
+  "stop",
 ];
 
 export function setup(

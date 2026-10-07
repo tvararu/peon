@@ -39,7 +39,7 @@ test("a melee class with no usable spell approaches, then swings", () => {
     "wait",
     ...MOVE_IDS,
   ]);
-  actions.execute("move_forward", context);
+  actions.execute("run_ahead", context);
   control.halt();
   standAt(17);
   const near = actions.observe(context);

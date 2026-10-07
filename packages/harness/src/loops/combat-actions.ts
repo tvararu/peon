@@ -18,12 +18,16 @@ import {
   baseObservation,
 } from "#harness/loops/combat-actions-frame";
 import {
-  MOVE_CANDIDATES,
-  MOVE_DIRECTION_BY_ID,
-  MOVE_LEASE_MS,
-  STOP_MOVING,
   WAIT,
 } from "#harness/loops/combat-actions-movement";
+import {
+  closingText,
+  combatDangerText,
+  combatMoveCandidates,
+  combatMoveOption,
+  snareNames,
+  targetGap,
+} from "#harness/loops/combat-actions-moves";
 import {
   facing,
   immuneTo,
@@ -52,6 +56,7 @@ import { targetReason } from "#harness/loops/combat-actions-target";
 import { approached, ProgressWatch } from "#harness/loops/combat-progress";
 import { RejectionTracker } from "#harness/loops/combat-rejections";
 import type { TacticsContext, TacticsFrame } from "#harness/loops/tactics";
+import { PILOT_DEADMAN_MS } from "#harness/loops/pilot-actions";
 
 type SpellAction = {
   spell?: SpellDefinition;
@@ -68,6 +73,7 @@ export class CombatActions {
   private deadAt: number | undefined;
   private engaged = false;
   private unreachable: { at: number; range: number | undefined } | undefined;
+  private gap: number | undefined;
   private readonly progress = new ProgressWatch();
   private readonly rejections = new RejectionTracker();
 
@@ -83,6 +89,7 @@ export class CombatActions {
     this.deadAt = undefined;
     this.engaged = false;
     this.unreachable = undefined;
+    this.gap = undefined;
     this.progress.reset();
     this.rejections.reset(this.startedAt);
     this.deps.control.halt();
@@ -102,7 +109,9 @@ export class CombatActions {
     const candidates: JevCandidate[] = [WAIT];
     if (channel && !outcome)
       candidates.push(...channelCandidates(state, channel, context.targetGuid));
-    else if (!outcome) this.addCandidates(candidates, spells, state);
+    else if (!outcome) this.addCandidates(candidates, spells, state, context);
+    const closing = closingText(state, this.gap);
+    this.gap = targetGap(state) ?? this.gap;
     const extra = channel
       ? channelObservation(
           channel,
@@ -110,6 +119,7 @@ export class CombatActions {
           this.deps.now(),
         )
       : {};
+    const moves = { deps: this.deps, context, state };
     return {
       candidates,
       observation: withNulls({
@@ -121,6 +131,12 @@ export class CombatActions {
           spells,
         }),
         ...extra,
+        melee: {
+          closing,
+          gapYd: targetGap(state) ?? null,
+          snares: snareNames(state),
+        },
+        danger: combatDangerText(moves),
       }),
       outcome,
     };
@@ -135,7 +151,25 @@ export class CombatActions {
       throw new Error("action_no_longer_legal");
     if (id === "wait") {
       const control = this.deps.control.snapshot();
-      if (control.moving) this.deps.control.drive(control.input, MOVE_LEASE_MS);
+      if (control.moving)
+        this.deps.control.drive(control.input, PILOT_DEADMAN_MS);
+      return;
+    }
+    if (id === "stop") {
+      this.deps.control.halt();
+      return;
+    }
+    const move = combatMoveOption(
+      {
+        deps: this.deps,
+        context,
+        state: this.deps.combat.snapshot(context.targetGuid),
+      },
+      id,
+    );
+    if (move?.input !== undefined) {
+      this.deps.control.face(move.heading);
+      this.deps.control.drive(move.input, PILOT_DEADMAN_MS);
       return;
     }
     if (id === "cancel") {
@@ -163,15 +197,6 @@ export class CombatActions {
       this.deps.combat.petAttack(pet.guid, context.targetGuid);
       return;
     }
-    if (id === "stop_moving") {
-      this.deps.control.halt();
-      return;
-    }
-    const direction = MOVE_DIRECTION_BY_ID[id];
-    if (direction) {
-      this.deps.control.move(direction, MOVE_LEASE_MS);
-      return;
-    }
     this.executeTargeted(id, context);
   }
 
@@ -197,6 +222,7 @@ export class CombatActions {
     candidates: JevCandidate[],
     spells: readonly SpellAction[],
     state: CombatState,
+    context: TacticsContext,
   ): void {
     if (state.target?.health === 0) return;
     if (state.casting?.cancelRequested || state.pendingCast?.cancelRequested)
@@ -208,11 +234,10 @@ export class CombatActions {
       });
       return;
     }
-    if (this.deps.control.snapshot().movementAllowed) {
-      for (const move of MOVE_CANDIDATES)
-        candidates.push({ id: move.id, description: move.description });
-      candidates.push(STOP_MOVING);
-    }
+    if (this.deps.control.snapshot().movementAllowed)
+      candidates.push(
+        ...combatMoveCandidates({ deps: this.deps, context, state }),
+      );
     for (const action of spells)
       if (action.spell && !action.reason)
         candidates.push({

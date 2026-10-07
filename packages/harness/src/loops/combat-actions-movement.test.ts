@@ -4,11 +4,7 @@ import {
   spell,
   standingRequiredSpell,
 } from "@peon/core/test-support/spell-fixtures";
-import {
-  context,
-  MOVE_IDS,
-  setup,
-} from "#test-support/combat-actions-fixtures";
+import { context, setup } from "#test-support/combat-actions-fixtures";
 
 test("observation carries separation and facing to the target", () => {
   const { actions } = setup();
@@ -30,12 +26,12 @@ test("movement candidates are offered exactly when movement is allowed", () => {
   try {
     let frame = actions.observe(context);
     expect(frame.outcome).toBeUndefined();
-    for (const id of MOVE_IDS)
+    for (const id of ["run_ahead", "strafe_left", "strafe_right", "back_up", "stop"])
       expect(frame.candidates.map((c) => c.id)).toContain(id);
     control.forceRoot(1);
     frame = actions.observe(context);
     expect(frame.outcome).toBeUndefined();
-    for (const id of MOVE_IDS)
+    for (const id of ["run_ahead", "strafe_left", "strafe_right", "back_up", "stop"])
       expect(frame.candidates.map((c) => c.id)).not.toContain(id);
   } finally {
     definition.mockRestore();
@@ -46,12 +42,12 @@ test("wait holds the current movement direction by refreshing its lease", () => 
   const { actions, combat, control } = setup();
   const definition = jest.spyOn(combat, "definition").mockReturnValue(spell());
   try {
-    actions.execute("move_forward", context);
+    actions.execute("run_ahead", context);
     expect(control.snapshot().moving).toBe(true);
     const drive = jest.spyOn(control, "drive");
     try {
       actions.execute("wait", context);
-      expect(drive).toHaveBeenCalledWith({ move: "forward" }, 2500);
+      expect(drive).toHaveBeenCalledWith({ move: "forward" }, 1500);
       expect(control.snapshot().moving).toBe(true);
       expect(control.snapshot().input).toEqual({ move: "forward" });
     } finally {
@@ -76,13 +72,13 @@ test("wait is a no-op while stationary", () => {
   }
 });
 
-test("stop_moving halts an active movement lease", () => {
+test("stop halts an active movement lease", () => {
   const { actions, combat, control } = setup();
   const definition = jest.spyOn(combat, "definition").mockReturnValue(spell());
   try {
-    actions.execute("move_forward", context);
+    actions.execute("run_ahead", context);
     expect(control.snapshot().moving).toBe(true);
-    actions.execute("stop_moving", context);
+    actions.execute("stop", context);
     expect(control.snapshot().moving).toBe(false);
   } finally {
     definition.mockRestore();
@@ -95,7 +91,7 @@ test("a standing-required spell executed while moving halts movement before cast
     .spyOn(combat, "definition")
     .mockReturnValue(standingRequiredSpell());
   try {
-    actions.execute("move_forward", context);
+    actions.execute("run_ahead", context);
     expect(control.snapshot().moving).toBe(true);
     actions.execute("spell:17:target", context);
     expect(control.snapshot().moving).toBe(false);
@@ -111,11 +107,42 @@ test("a movement-compatible spell executed while moving does not release the lea
     .spyOn(combat, "definition")
     .mockReturnValue(movementCompatibleSpell());
   try {
-    actions.execute("move_forward", context);
+    actions.execute("run_ahead", context);
     expect(control.snapshot().moving).toBe(true);
     actions.execute("spell:17:target", context);
     expect(control.snapshot().moving).toBe(true);
     expect(combat.snapshot().pendingCast?.spellId).toBe(17);
+  } finally {
+    definition.mockRestore();
+  }
+});
+
+test("movement candidates are the pilot's collision-checked moves", () => {
+  const { actions, combat } = setup();
+  const definition = jest.spyOn(combat, "definition").mockReturnValue(spell());
+  try {
+    const frame = actions.observe(context);
+    expect(frame.outcome).toBeUndefined();
+    const ids = frame.candidates.map((candidate) => candidate.id);
+    for (const id of ["run_ahead", "veer_left", "veer_right", "turn_left", "turn_right", "turn_around", "strafe_left", "strafe_right", "back_up", "stop"])
+      expect(ids).toContain(id);
+    for (const id of ["move_forward", "move_backward", "stop_moving"]) expect(ids).not.toContain(id);
+  } finally {
+    definition.mockRestore();
+  }
+});
+
+test("observation reports the target's distance to melee reach and closing", () => {
+  const { actions, combat } = setup();
+  const definition = jest.spyOn(combat, "definition").mockReturnValue(spell());
+  try {
+    const frame = actions.observe(context);
+    expect(frame.outcome).toBeUndefined();
+    expect(frame.observation["melee"]).toEqual({
+      closing: "unknown",
+      gapYd: 5,
+      snares: [],
+    });
   } finally {
     definition.mockRestore();
   }

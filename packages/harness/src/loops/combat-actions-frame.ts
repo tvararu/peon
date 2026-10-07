@@ -3,6 +3,8 @@ import type {
   CombatState,
   EntityLookup,
   FactionRelation,
+  GroundOracle,
+  NearbyRow,
 } from "@peon/core";
 import {
   auraObservation,
@@ -30,6 +32,9 @@ export type ActionDeps = {
   gear?: () => RangedGear;
   combatLog?: () => AreaState<"combatlog"> | undefined;
   spells?: () => AreaState<"spells"> | undefined;
+  ground?: GroundOracle | undefined;
+  nearby?: () => readonly NearbyRow[];
+  aggro?: (guid: bigint) => boolean;
 };
 
 export type BaseObservationInput = {
