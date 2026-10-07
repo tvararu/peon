@@ -1,0 +1,68 @@
+{
+  "botRisk": "low",
+  "budget": {
+    "minutes": 8,
+    "tools": 16,
+    "turns": 8
+  },
+  "checks": [
+    {
+      "evidence": {
+        "items": [5863]
+      },
+      "expect": "T item 5863 count, summed over every T row, has delta +1 (the agent bought one guild charter named Crimsonpact; the setup stages no charter)",
+      "id": "charter-bought",
+      "source": "truth"
+    },
+    {
+      "evidence": {
+        "delta": ["money"],
+        "truth": ["money"]
+      },
+      "expect": "T delta money equals minus the GL cost in the charters/showlist row (the live guild charter price)",
+      "id": "money",
+      "source": "truth"
+    },
+    {
+      "evidence": {
+        "events": ["charters/showlist"]
+      },
+      "expect": "GL has a charters/showlist row: the agent asked the guild master what charters it sells",
+      "id": "showlist-row",
+      "source": "game_log"
+    },
+    {
+      "expect": "the agent's answer states the signatures needed shown in the GL charters/showlist row (9 on this realm)",
+      "id": "answer-reports",
+      "source": "session"
+    }
+  ],
+  "id": "t9-guild-charter",
+  "navBound": false,
+  "needsWatcher": false,
+  "paneMinutes": 11,
+  "partner": null,
+  "preset": "max80",
+  "setup": [
+    {
+      "body": {
+        "copper": 10000
+      },
+      "endpoint": "money"
+    },
+    {
+      "body": {
+        "map": 571,
+        "o": 0.6,
+        "x": 5765.5,
+        "y": 625.5,
+        "z": 650.3,
+        "zone": 4395
+      },
+      "endpoint": "position"
+    }
+  ],
+  "steers": [],
+  "task": "You are not in a guild. Buy a guild charter named Crimsonpact from the guild master next to you and tell me how many signatures it needs before you can turn it in.",
+  "tier": 9
+}
