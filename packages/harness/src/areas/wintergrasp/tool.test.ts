@@ -108,13 +108,21 @@ describe("wintergrasp accept and decline", () => {
 
   test("leave in the queue exits it", async () => {
     const t = await rig({ state: { battleId: 1, phase: "queued" } });
+    const out = await runWintergrasp({ action: "leave" }, toolCtx(t));
+    expect(out.status).toBe("DONE");
+    expect(t.handle.wintergrasp.act.exitQueue).toHaveBeenCalled();
+    const offered = await rig({ state: { phase: "entry_offered" } });
+    const entered = await runWintergrasp({ action: "leave" }, toolCtx(offered));
+    expect(entered.status).toBe("DONE");
+    expect(offered.handle.wintergrasp.act.exitQueue).toHaveBeenCalled();
+  });
+
+  test("leave with no queue refuses", async () => {
+    const t = await rig({ state: { battleId: undefined, phase: "none" } });
     await expect(
       runWintergrasp({ action: "leave" }, toolCtx(t)),
     ).rejects.toMatchObject({ reason: "no_offer" });
-    const queued = await rig({ state: { phase: "entry_offered" } });
-    const out = await runWintergrasp({ action: "leave" }, toolCtx(queued));
-    expect(out.status).toBe("DONE");
-    expect(queued.handle.wintergrasp.act.exitQueue).toHaveBeenCalled();
+    expect(t.handle.wintergrasp.act.exitQueue).not.toHaveBeenCalled();
   });
 
   test("leave at war hearths out", async () => {

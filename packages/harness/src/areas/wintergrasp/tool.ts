@@ -101,7 +101,7 @@ async function runLeave(
 ): Promise<ToolResult<WintergraspAfter>> {
   const state = ctx.handle.wintergrasp.state();
   if (state.phase === "at_war") return await runLeaveWar(ctx);
-  if (state.phase !== "queue_offered" && state.phase !== "entry_offered")
+  if (state.phase !== "queued" && state.phase !== "entry_offered")
     throw winterRefusal(
       "no_offer",
       "No Wintergrasp queue to leave.",
