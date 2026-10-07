@@ -10,7 +10,7 @@
       "evidence": {
         "events": ["raid/roster"],
         "window": {
-          "steer": 0
+          "after": { "data": { "change": "leader" }, "event": "raid/roster" }
         }
       },
       "expect": "GL has a raid/roster row for the group changing shape (converted to a raid)",
@@ -21,7 +21,7 @@
       "evidence": {
         "events": ["raid/roster"],
         "window": {
-          "steer": 0
+          "after": { "data": { "change": "leader" }, "event": "raid/roster" }
         }
       },
       "expect": "GL has a raid/roster row for the partner moving to group 2",
@@ -32,7 +32,7 @@
       "evidence": {
         "events": ["raid/roster"],
         "window": {
-          "steer": 0
+          "after": { "data": { "change": "leader" }, "event": "raid/roster" }
         }
       },
       "expect": "GL has a raid/roster row for the partner gaining the assistant flag",
@@ -43,7 +43,7 @@
       "evidence": {
         "events": ["raid/roster"],
         "window": {
-          "steer": 0
+          "after": { "data": { "change": "leader" }, "event": "raid/roster" }
         }
       },
       "expect": "GL has a raid/roster row for the partner gaining main tank",
