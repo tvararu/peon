@@ -148,11 +148,14 @@ describe("coverageRows", () => {
   });
 
   test("tells handled, dead and sent core opcodes apart", () => {
-    const { rows } = projectCoverage(["send(GameOpcode.CMSG_BOOTME)"]);
+    const { rows } = projectCoverage([]);
     const status = new Map(rows.map((r) => [r.name, r.status]));
     expect(status.get("SMSG_UPDATE_OBJECT")).toBe("handled");
     expect(status.get("SMSG_TOGGLE_XP_GAIN")).toBe("dead");
-    expect(status.get("CMSG_BOOTME")).toBe("handled");
+    const sent = fixtureRows([
+      "send(GameOpcode.TC9_CMSG_PREPARE_FOR_REDIRECT)",
+    ]);
+    expect(row(sent, "TC9_CMSG_PREPARE_FOR_REDIRECT").status).toBe("handled");
   });
 
   test("lists every opcode once", () => {
