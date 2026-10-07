@@ -1,8 +1,10 @@
+import { withoutRemovedConjured } from "#harness/grader/conjured";
 import { fillConsole, readConsoleLog } from "#harness/grader/draft-console";
 import { observeGameLog, parseGameLog } from "#harness/grader/draft-gamelog";
 import { measureGameLog } from "#harness/grader/draft-measure";
 import { windowOf } from "#harness/grader/draft-window";
 import { parseJsonOutput } from "#harness/grader/exec";
+import { readItemFlags } from "#harness/grader/item-flags";
 import type { EvalCheck } from "#harness/grader/result";
 import type {
   CheckEvidence,
@@ -198,9 +200,11 @@ function positionObserved(pair: Pair, point: { x: number; y: number }): Picked {
 }
 
 export function observeTruth(
-  pair: Pair,
+  recorded: Pair,
   evidence: CheckEvidence = {},
+  itemFlags: Readonly<Record<string, number>> = {},
 ): unknown {
+  const pair = withoutRemovedConjured(recorded, itemFlags);
   if (pair.baseline === null && pair.final === null) return null;
   if (evidence.point !== undefined)
     return positionObserved(pair, evidence.point);
@@ -244,8 +248,12 @@ async function readWho(runDir: string, who: TruthWho): Promise<WhoTruth> {
   return { pair, reason: `${missing.join(" and ")} ${verb} missing` };
 }
 
-function observeWho({ pair, reason }: WhoTruth, evidence?: CheckEvidence) {
-  const observed = observeTruth(pair, evidence);
+function observeWho(
+  { pair, reason }: WhoTruth,
+  evidence?: CheckEvidence,
+  itemFlags: Readonly<Record<string, number>> = {},
+) {
+  const observed = observeTruth(pair, evidence, itemFlags);
   return reason === undefined
     ? observed
     : { ...(observed as Picked | null), reason };
@@ -275,6 +283,7 @@ export async function observedChecks(
     if (source === "truth" && !truths.has(who))
       truths.set(who, await readWho(runDir, who));
   }
+  const flags = await readItemFlags(runDir);
   const rows = await readGameLog(`${runDir}/gamelog.jsonl`);
   const consoleLog = await readConsoleLog(runDir);
   const context = {
@@ -289,7 +298,8 @@ export async function observedChecks(
       const truth = truths.get(evidence?.who ?? "agent");
       return {
         ...base,
-        observed: truth === undefined ? null : observeWho(truth, evidence),
+        observed:
+          truth === undefined ? null : observeWho(truth, evidence, flags),
       };
     }
     if (source === "console")
