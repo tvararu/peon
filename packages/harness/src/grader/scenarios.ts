@@ -244,7 +244,6 @@ export const ROUND_1: readonly string[] = [
   "t9-arena-skirmish",
   "t9-pvp-flag",
   "t9-pvp-queue",
-  "t9-pvp-warsong",
   "t3-pilot-circle",
   "t3-pilot-circle-holdout",
   "t3-pilot-detour",

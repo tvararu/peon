@@ -8,7 +8,9 @@
   "checks": [
     {
       "evidence": {
-        "events": ["battlegrounds/entered"]
+        "events": [
+          "battlegrounds/entered"
+        ]
       },
       "expect": "GL has a battlegrounds/entered row with map 489: the agent entered Warsong Gulch",
       "id": "entered",
@@ -16,7 +18,9 @@
     },
     {
       "evidence": {
-        "events": ["battlegrounds/ended"]
+        "events": [
+          "battlegrounds/ended"
+        ]
       },
       "expect": "GL has a battlegrounds/ended row with a winner: the match ran to its end",
       "id": "ended",
@@ -24,7 +28,9 @@
     },
     {
       "evidence": {
-        "events": ["battlegrounds/left"]
+        "events": [
+          "battlegrounds/left"
+        ]
       },
       "expect": "GL has a battlegrounds/left row after the ended row: the agent left the match",
       "id": "left",
@@ -38,7 +44,7 @@
   "partner": null,
   "preset": "eversong10",
   "setup": [],
-  "spawn": "eversong",
+  "spawn": "eversong-west",
   "steers": [],
   "task": "Join Warsong Gulch, enter when invited, fight for your team until the match ends, then leave. If you die, rez at the spirit guide. Tell me who won.",
   "tier": 9

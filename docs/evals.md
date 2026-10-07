@@ -260,4 +260,5 @@ two scenarios closest to it. Every scenario appears in at least one row.
 | Arena (`arena` tool queue join and leave) | `t9-arena-skirmish` |
 | Arena (`arena` tool inspect) | `t9-arena-inspect` (blocked by the staging gap: the server sends no inspect reply for teamless targets until an arena setup endpoint exists) |
 | PvP (`pvp`, `recover how:spirit_guide`) | `t9-pvp-flag`, `t9-pvp-queue` |
+| PvP Warsong match (`pvp`, `recover how:spirit_guide`) | `t9-pvp-warsong` (not in ROUND_1: needs a bot-filled Warsong Gulch match, which no eval can stage; kept as a staged-only scenario) |
 | Calendar (`calendar` tool create and update) | `t9-calendar-event` |

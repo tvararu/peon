@@ -8,7 +8,9 @@
   "checks": [
     {
       "evidence": {
-        "events": ["battlegrounds/flag"]
+        "events": [
+          "battlegrounds/flag"
+        ]
       },
       "expect": "GL has a battlegrounds/flag row with wants true, then one with wants false",
       "id": "flag-toggle",
@@ -32,7 +34,7 @@
   "partner": null,
   "preset": "fresh",
   "setup": [],
-  "spawn": "eversong",
+  "spawn": "eversong-west",
   "steers": [],
   "task": "Turn your PvP flag on. Then turn it off. Tell me whether the flag was on and whether it is off now.",
   "tier": 9
