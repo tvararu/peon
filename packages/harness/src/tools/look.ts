@@ -104,9 +104,9 @@ function lookBody(
       : [
           statusLine(after),
           headerLine(after),
+          ...grayLine(after),
           ...after.rows.map((unit) => rowLine(unit, after.self.level)),
           ...moreLine(after),
-          ...grayLine(after),
           ...after.remembered.map((unit) => rowLine(unit, after.self.level)),
           nearestLine(after),
         ];

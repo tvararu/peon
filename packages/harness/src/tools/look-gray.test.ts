@@ -50,4 +50,29 @@ describe("look gray marker", () => {
     const text = (await runTool(tool, { find: "hostile", within: 100 })).text;
     expect(text).not.toContain('travel(to: "explore")');
   });
+
+  test("a non-gray hostile beyond the shown rows still blocks the gray line", async () => {
+    const { handle, tool } = await world();
+    const gray = grayLevel(SELF_LEVEL);
+    const crowd = Array.from({ length: 6 }, (_, at) =>
+      hostile(5 + at, BigInt(0x40 + at), gray, "Starving Ghostclaw"),
+    );
+    place(
+      handle,
+      eversong([...crowd, hostile(50, 0x50n, gray + 1, "Springpaw Lynx")]),
+    );
+    const text = (await runTool(tool, { find: "hostile" })).text;
+    expect(text).not.toContain('travel(to: "explore")');
+  });
+
+  test("twenty gray rows keep the gray guidance in the rendered text", async () => {
+    const { handle, tool } = await world();
+    const gray = grayLevel(SELF_LEVEL);
+    const crowd = Array.from({ length: 20 }, (_, at) =>
+      hostile(2 + at, BigInt(0x40 + at), gray, "Starving Ghostclaw"),
+    );
+    place(handle, eversong(crowd));
+    const text = (await runTool(tool, { find: "hostile", within: 100 })).text;
+    expect(text).toContain('travel(to: "explore")');
+  });
 });

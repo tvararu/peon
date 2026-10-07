@@ -43,11 +43,19 @@ export function headerLine({
   return `${rows.length} of ${matched} ${nounOf(filter)} within ${range} yd, ${order}:`;
 }
 
-export function grayLine({ filter, rows, self }: LookAfter): string[] {
-  if (rows.length === 0) return [];
+export function grayLine({
+  filter,
+  more,
+  name,
+  rows,
+  self,
+  within,
+}: LookAfter): string[] {
+  if (rows.length === 0 || name !== undefined) return [];
+  if (within !== undefined && within < LOOK_DEFAULT_YD) return [];
   if (filter !== "any" && filter !== "hostile" && filter !== "attackable")
     return [];
-  const seen = rows.filter((unit) => unit.inView);
+  const seen = [...rows, ...more].filter((unit) => unit.inView);
   const hostiles = seen.filter(
     (unit) => unit.relation === "hostile" && unit.kind === "creature",
   );
