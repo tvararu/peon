@@ -132,6 +132,23 @@ test("an unobserved form is not treated as normal form", () => {
   }
 });
 
+test("a slow aura on the target is a supported combat spell", () => {
+  const { actions, combat } = setup();
+  const data = spell();
+  must(data.effects[0]).applyAura = 33;
+  must(data.effects[0]).effect = 6;
+  const definition = jest.spyOn(combat, "definition").mockReturnValue(data);
+  try {
+    expect(
+      actions
+        .observe(context)
+        .candidates.some((candidate) => candidate.id === "spell:17:target"),
+    ).toBe(true);
+  } finally {
+    definition.mockRestore();
+  }
+});
+
 test("a running channel offers only wait and names the channel for Jev", () => {
   const { actions, combat, combatStore } = setup();
   const data = spell();

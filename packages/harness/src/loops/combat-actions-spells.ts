@@ -15,7 +15,7 @@ import {
 
 const MOVEMENT_INTERRUPT_FLAG = 0x1;
 const AUTO_REPEAT_ATTRIBUTE_EX2 = 0x20;
-const AURAS = new Set([3, 8, 13, 22, 29, 69, 85]);
+const AURAS = new Set([3, 8, 13, 22, 26, 29, 33, 69, 85]);
 const WEAPON_DAMAGE = 58;
 
 export function requiresStanding(spell: SpellDefinition): boolean {

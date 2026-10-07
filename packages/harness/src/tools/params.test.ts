@@ -74,6 +74,11 @@ describe("tool parameter schemas", () => {
     );
   });
 
+  test("engage accepts kite", () => {
+    expect(check(engageParams, { kite: true })).toEqual({ kite: true });
+    expect("kite" in engageParams.properties).toBe(true);
+  });
+
   test("journal needs about; travel needs to; interact needs npc", () => {
     expect(() => check(journalParams, {})).toThrow("Validation failed");
     expect(() => check(travelParams, {})).toThrow("Validation failed");

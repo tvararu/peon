@@ -72,7 +72,10 @@ const NO_ATTACK = "no_supported_combat_actions";
 const OUT_OF_REACH = "objective_targets_out_of_reach";
 
 function instruction(scene: Scene): string {
-  return scene.args.how ?? DEFAULT_FIGHT_INSTRUCTION;
+  if (scene.args.how) return scene.args.how;
+  if (scene.args.kite)
+    return `${DEFAULT_FIGHT_INSTRUCTION}; kite the target: keep it outside its melee reach, back away as it closes and cast at range`;
+  return DEFAULT_FIGHT_INSTRUCTION;
 }
 
 async function single(scene: Scene): Promise<ModeEnd> {

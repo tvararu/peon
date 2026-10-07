@@ -211,6 +211,26 @@ describe("combatlog harness rules", () => {
     });
   });
 
+  test("a melee swing at the character writes combatlog/swing_in", () => {
+    const rows = session();
+    const swing = entry({ amount: 12, kind: "melee", source: BOAR, target: ME });
+    const missed = entry({
+      amount: 0,
+      kind: "melee",
+      outcome: "dodge",
+      source: BOAR,
+      target: ME,
+    });
+    const drafts = [...rows(swing), ...rows(missed)];
+    expect(drafts).toHaveLength(2);
+    expect(drafts[0]).toMatchObject({
+      class: "log",
+      event: "combatlog/swing_in",
+    });
+    expect(drafts[0]?.text).toContain("swings at you");
+    expect(drafts[1]).toMatchObject({ event: "combatlog/swing_in" });
+  });
+
   test("the router writes the rows of area events from the handle", () => {
     const { log, router } = routerSetup({ selfGuid: ME });
     const handle = createMockGame();
@@ -222,6 +242,7 @@ describe("combatlog harness rules", () => {
     handle.triggerAreaEvent("combatlog", closed());
     expect(log.since(0).map((row) => [row.class, row.event])).toEqual([
       ["log", "combatlog/immune"],
+      ["log", "combatlog/swing_in"],
       ["log", "combatlog/killing_blow"],
       ["log", "combatlog/fight"],
     ]);

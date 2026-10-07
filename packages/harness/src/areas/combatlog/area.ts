@@ -111,7 +111,27 @@ function onDispelled(e: Of<"entry">, rc: RuleInput): AreaDraft[] {
   ];
 }
 
+function onSwingIn(e: Of<"entry">, rc: RuleInput): AreaDraft[] {
+  if (e.kind !== "melee" || e.target !== rc.selfGuid) return [];
+  if (e.source === rc.selfGuid || e.source === 0n) return [];
+  const outcome = e.outcome === undefined ? "hits" : e.outcome;
+  return [
+    unitRow(e.source, rc, {
+      class: "log",
+      data: {
+        amount: e.amount,
+        outcome,
+        source: guidText(e.source),
+      },
+      name: "swing_in",
+      text: `${named(e.source, rc)} swings at you (${outcome}).`,
+    }),
+  ];
+}
+
 function onEntry(e: Of<"entry">, state: RuleState, rc: RuleInput) {
+  const swing = onSwingIn(e, rc);
+  if (swing.length > 0) return swing;
   if (e.kind === "dispel" || e.kind === "steal") return onDispelled(e, rc);
   if (e.kind === "environmental") return onEnvironmental(e, rc);
   if (HEAL_KINDS.has(e.kind)) return onHealIn(e, state.healAt, rc);
