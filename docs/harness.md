@@ -198,6 +198,7 @@ A result that is not `DONE` ends with a `Next:` step.
 | `channel` | Joins and leaves chat channels, lists their members, and runs admin actions on a channel it moderates: kick, ban, unban, announce, moderate, invite and the rest. |
 | `character` | Reads play time, draws or sheathes weapons, shows or hides helm and cloak, or changes hairstyle in a barber chair. |
 | `arena` | Reads arena teams and their rosters, invites players and passes the captaincy, inspects a nearby player's teams, and joins or leaves an arena queue at a battlemaster. |
+| `pvp` | Lists battlegrounds, joins and leaves their queues, answers invitations, reads the score and sets the PvP flag. |
 | `calendar` | Lists the calendar, reads one event, creates, updates, removes and copies personal events, invites a named player, answers an invite and reads who is coming. |
 
 `travel`, `engage`, `pilot`, `rest` and `recover` start a run (`r1`, `r2`, …).

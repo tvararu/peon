@@ -259,4 +259,5 @@ two scenarios closest to it. Every scenario appears in at least one row.
 | Guild vault (`guildbank` tool open, guildless refusal) | `t9-guildbank-guildless` |
 | Arena (`arena` tool queue join and leave) | `t9-arena-skirmish` |
 | Arena (`arena` tool inspect) | `t9-arena-inspect` (blocked by the staging gap: the server sends no inspect reply for teamless targets until an arena setup endpoint exists) |
+| PvP (`pvp`, `recover how:spirit_guide`) | `t9-pvp-flag`, `t9-pvp-queue` |
 | Calendar (`calendar` tool create and update) | `t9-calendar-event` |
