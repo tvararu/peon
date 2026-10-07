@@ -3,7 +3,7 @@ import type { TravelAfter } from "#harness/contract/details";
 import type { ToolCtx } from "#harness/contract/services";
 import { distanceTo } from "#harness/ops/range";
 import { Refusal } from "#harness/ops/refusal";
-import { poseView } from "#harness/ops/views";
+import { poseView, selfView } from "#harness/ops/views";
 import { nextCall } from "#harness/tools/next-call";
 import type { TravelArgs } from "#harness/tools/params-travel";
 import type { Goal } from "#harness/tools/travel-report";
@@ -61,6 +61,7 @@ function distanceOf(ctx: ToolCtx<TravelAfter>, goal: Goal): number | undefined {
 }
 
 function isLongOutdoorWalk(ctx: ToolCtx<TravelAfter>, goal: Goal): boolean {
+  if (selfView(ctx).life !== "alive") return false;
   if (ctx.handle.selfstate.state().mounted) return false;
   const pose = poseView(ctx);
   if (!(pose && OPEN_WORLD_MAPS.includes(pose.mapId))) return false;

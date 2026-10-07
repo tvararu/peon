@@ -191,7 +191,7 @@ base, the mesh corner there is 14.93 while the column holds 16.68 and
 `path_corner_disagrees` is correct. The explore fallback blocks that
 bearing.
 
-A point or unit `travel` longer than 100 yd on a continent map (0, 1, 530 and 571) from an unmounted character who knows an outdoor-only ground mount returns `REFUSED` with reason `mount_available` before the walk starts, and its `Next:` step is the `spell` call that mounts. The refusal moves nothing and starts no run. `on_foot: true` walks the route on foot. The harness has no WMO indoor data and the server refuses an indoor mount cast, so a continent map is the outdoor condition; other maps (instances, battlegrounds), routes of 100 yd or less, a mounted character and a character without a learned ground mount walk unchanged (`Spells/Spell.cpp:5911-5913`).
+A point or unit `travel` longer than 100 yd in a straight line on a continent map (0, 1, 530 and 571) from an unmounted, living character who knows an outdoor-only ground mount returns `REFUSED` with reason `mount_available` before the walk starts, and its `Next:` step is the `spell` call that mounts. The refusal moves nothing and starts no run. `on_foot: true` walks the route on foot. The harness has no WMO indoor data and the server refuses an indoor mount cast, so a continent map is the outdoor condition; other maps (instances, battlegrounds), routes of 100 yd or less, a mounted character, a ghost and a character without a learned ground mount walk unchanged (`Spells/Spell.cpp:5911-5913`).
 
 ## Capabilities row
 

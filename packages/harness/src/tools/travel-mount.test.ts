@@ -166,6 +166,13 @@ describe("travel mount offer", () => {
     expect(await travelText(t, "Far Innkeeper")).not.toContain("mount");
   });
 
+  test("a ghost is not refused", async () => {
+    const t = await world();
+    const recovery = { ...t.handle.getRecoveryState(), life: "ghost" as const };
+    t.handle.getRecoveryState = () => recovery;
+    expect(await offer(t, "Far Innkeeper")).toBeUndefined();
+  });
+
   test("a mounted character is not refused", async () => {
     const t = await world({ mounted: true });
     expect(await offer(t, "Far Innkeeper")).toBeUndefined();
