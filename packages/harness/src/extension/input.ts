@@ -60,9 +60,14 @@ export function installInput(pi: ExtensionAPI, rt: HarnessRuntime): void {
       turnToolCalls: 0,
     });
   });
-  pi.on("turn_start", () => {
-    session.humanWaiting = false;
-    session.humanTexts = [];
+  pi.on("message_start", (event) => {
+    if (!session.humanWaiting) return;
+    const text = userText(event.message);
+    if (text === undefined) return;
+    if (session.humanTexts.includes(text)) armDelivered(rt, text);
+    for (const entry of text.split("\n\n")) {
+      if (session.humanTexts.includes(entry)) armDelivered(rt, entry);
+    }
   });
   pi.on("tool_execution_start", (event) => {
     Object.assign(session, {
@@ -75,7 +80,10 @@ export function installInput(pi: ExtensionAPI, rt: HarnessRuntime): void {
     Object.assign(session, { agent: "streaming", tool: undefined });
   });
   pi.on("agent_end", () => {
-    Object.assign(session, { agent: "idle", tool: undefined });
+    Object.assign(session, {
+      agent: "idle",
+      tool: undefined,
+    });
     handToLoop(rt);
   });
   pi.on("message_end", (event) => noteAssistant(rt, event.message));
@@ -139,12 +147,58 @@ function appendHuman(rt: HarnessRuntime, row: HumanRow): void {
   });
 }
 
+function userText(message: AgentMessage): string | undefined {
+  if (!("role" in message) || message.role !== "user") return undefined;
+  const content = message.content;
+  const text =
+    typeof content === "string"
+      ? content
+      : content
+          .flatMap((part) => (part.type === "text" ? [part.text] : []))
+          .join("");
+  return text.length === 0 ? undefined : text;
+}
+
+function armDelivered(rt: HarnessRuntime, text: string): void {
+  const { session } = rt;
+  const delivered = session.deliveredTexts.filter(
+    (seen) => seen === text,
+  ).length;
+  const pending = session.humanTexts.filter((seen) => seen === text).length;
+  if (delivered >= pending) return;
+  session.deliveredTexts = [...session.deliveredTexts, text];
+}
+
 function noteAssistant(rt: HarnessRuntime, message: AgentMessage): void {
   if (!("role" in message) || message.role !== "assistant") return;
   const text = message.content
     .flatMap((part) => (part.type === "text" ? [part.text] : []))
     .join("");
   if (text.trim().length === 0) return;
+  if (hasToolCall(message)) {
+    rt.log.append({
+      class: "log",
+      data: { text },
+      domain: "agent",
+      event: "agent/message",
+      text,
+    });
+    return;
+  }
+  if (failedAssistant(message)) return;
+  if (rt.session.deliveredTexts.length > 0) {
+    const outstanding = [...rt.session.deliveredTexts];
+    rt.session.humanTexts = rt.session.humanTexts.filter((item) => {
+      const at = outstanding.indexOf(item);
+      if (at === -1) return true;
+      outstanding.splice(at, 1);
+      return false;
+    });
+    rt.session.deliveredTexts = outstanding.filter((item) =>
+      rt.session.humanTexts.includes(item),
+    );
+    if (rt.session.humanTexts.length === 0) rt.session.humanWaiting = false;
+  }
   rt.log.append({
     class: "log",
     data: { text },
@@ -152,4 +206,14 @@ function noteAssistant(rt: HarnessRuntime, message: AgentMessage): void {
     event: "agent/message",
     text,
   });
+}
+
+function hasToolCall(message: AgentMessage): boolean {
+  if (!("role" in message) || message.role !== "assistant") return false;
+  return message.content.some((part) => part.type === "toolCall");
+}
+
+function failedAssistant(message: AgentMessage): boolean {
+  if (!("role" in message) || message.role !== "assistant") return false;
+  return message.stopReason === "error" || message.stopReason === "aborted";
 }

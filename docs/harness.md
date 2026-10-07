@@ -304,7 +304,9 @@ The game log records `pilot/started` (objective and position), one
   halts the character.
 
 Other human text while the agent works goes to the agent at the next
-step. Action tools refuse until the agent reads it.
+step. Action tools refuse with `human_waiting` until the agent answers the human
+with a plain agent message (a tool call such as `social` is not an answer);
+read-only tools stay allowed and keep the refusal in place.
 
 ## When chat wakes the agent
 

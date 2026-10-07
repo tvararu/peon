@@ -17,8 +17,8 @@ function wroteText(texts: readonly string[]): string {
 
 function humanWaiting(texts: readonly string[]): Refusal {
   return new Refusal({
-    detail: `${wroteText(texts)} Read it before you act.`,
-    next: "end your turn and read the human's message.",
+    detail: `${wroteText(texts)} Answer it before you act.`,
+    next: "reply to the human now in plain text, as an agent message and not a tool call such as social, then act.",
     reason: "human_waiting",
   });
 }
