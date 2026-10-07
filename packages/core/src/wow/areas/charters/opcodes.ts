@@ -26,5 +26,5 @@ export const CHARTERS_OPCODES = {
   ],
   stubs: [],
   dead: [],
-  unseen: [],
+  unseen: ["MSG_PETITION_DECLINE"],
 } as const satisfies AreaOpcodes;

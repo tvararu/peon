@@ -12,7 +12,7 @@ columns are explained in [the index](../protocol-coverage.md).
 | `0x1bf` | `SMSG_PETITION_SHOW_SIGNATURES` | server | handled |  |
 | `0x1c0` | `CMSG_PETITION_SIGN` | client | handled |  |
 | `0x1c1` | `SMSG_PETITION_SIGN_RESULTS` | server | handled |  |
-| `0x1c2` | `MSG_PETITION_DECLINE` | both | handled |  |
+| `0x1c2` | `MSG_PETITION_DECLINE` | both | handled | not seen live |
 | `0x1c3` | `CMSG_OFFER_PETITION` | client | handled |  |
 | `0x1c4` | `CMSG_TURN_IN_PETITION` | client | handled |  |
 | `0x1c5` | `SMSG_TURN_IN_PETITION_RESULTS` | server | handled |  |
