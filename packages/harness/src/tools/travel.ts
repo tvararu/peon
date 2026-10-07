@@ -38,6 +38,7 @@ import {
   YARDS,
 } from "#harness/tools/travel-goal";
 import { hearthWork } from "#harness/tools/travel-hearth";
+import { mountRefusal } from "#harness/tools/travel-mount";
 import { noteTravel, noteUnstick } from "#harness/tools/travel-recovery";
 import {
   exploreReport,
@@ -421,6 +422,11 @@ async function runTravel(
 ): Promise<Report> {
   const goal = parseGoal(ctx, args.to);
   refuseUnderAttack(ctx);
+  if (goal.kind === "unit" || goal.kind === "point") {
+    const pending = mountRefusal(ctx, goal, args);
+    const refusal = pending && (await pending);
+    if (refusal) throw refusal;
+  }
   noteTravel(ctx, args.to);
   if (goal.kind === "corpse" && selfView(ctx).life === "alive")
     throw new Refusal({

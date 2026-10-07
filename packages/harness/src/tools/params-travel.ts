@@ -7,6 +7,12 @@ export const travelParams = Type.Object({
         'With explore: what to look for. "hostile", "questgiver", "vendor" or part of a unit name. Default hostile: units you can fight that are not gray or critters. Other units do not stop the walk.',
     }),
   ),
+  on_foot: Type.Optional(
+    Type.Boolean({
+      description:
+        "Walk a long route on foot although a ground mount is ready. Default false: the first long outdoor walk by an unmounted character who knows a ground mount is refused with the mount call.",
+    }),
+  ),
   to: Type.String({
     description:
       'A unit id (u4), a unit name, "corpse", "hearth", "explore" or "explore north" (any of north, south, east, west, northeast, northwest, southeast, southwest), "10 yd north" (a distance of 1 to 200 yards and a compass direction), "unstick", "ride <stop>" (for example "ride Thunder Bluff"; needs a boat or zeppelin dock in view), "fly <destination>" (for example "fly Silvermoon City"; needs a flight master and a discovered flight path), or coordinates "8764, -6683" or "8764, -6683, 72.7".',
