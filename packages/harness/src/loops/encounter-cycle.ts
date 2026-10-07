@@ -41,6 +41,7 @@ export class EncounterCycleRuntime {
   private readonly deps: CycleDeps;
   private readonly events = new Emitter<[CycleEvent]>();
   private run: AbortController | undefined;
+  private deferred = new Set<bigint>();
   private disposed = false;
   private recoveryEvents: EventWaiter<RecoveryEvent> | undefined;
   private motionEvents: EventWaiter<ControlEvent> | undefined;
@@ -110,6 +111,7 @@ export class EncounterCycleRuntime {
     const maxStarts = args.maxStarts ?? DEFAULT_MAX_STARTS;
     if (!Number.isInteger(maxStarts) || maxStarts < 1)
       throw new Error("cycle_invalid_max");
+    this.deferred = new Set();
     this.state = {
       active: true,
       phase: "fighting",
@@ -201,9 +203,16 @@ export class EncounterCycleRuntime {
       }
       if (this.state.startsUsed >= this.state.maxStarts)
         return this.stop("max_starts_reached");
-      const failed = await this.engage(record, signal, true);
+      const failed = await this.engage(
+        record,
+        signal,
+        !this.deferred.has(record.guid),
+      );
       signal.throwIfAborted();
-      if (failed === DEFER) continue;
+      if (failed === DEFER) {
+        this.deferred.add(record.guid);
+        continue;
+      }
       const halted = this.noteFailure(record, failed);
       if (halted) return this.stop(halted.cause, halted.detail);
       this.state.currentIndex++;
@@ -334,7 +343,7 @@ export class EncounterCycleRuntime {
   private engage(
     record: CycleTargetRecord,
     signal: AbortSignal,
-    defer: true,
+    defer: boolean,
   ): Promise<CycleStop | typeof DEFER | undefined>;
   private async engage(
     record: CycleTargetRecord,
