@@ -30,8 +30,10 @@
       "actor": 1,
       "argv": ["call", "joinChannel", "[\"peonroom\"]"],
       "at": {
-        "kind": "elapsed",
-        "ms": 45000
+        "delayMs": 15000,
+        "kind": "trigger",
+        "nth": 1,
+        "trigger": "task_landed"
       },
       "windowMs": 120000
     }
@@ -46,6 +48,6 @@
   "setup": [],
   "spawn": "fairbreeze-emotes",
   "steers": [],
-  "task": "Join the channel peonroom with the channel tool, so you own it. The other player joins about 45 seconds after you do; keep checking the member list with list until they join, then remove them with kick. Do not answer until you have kicked them.",
+  "task": "Join the channel peonroom with the channel tool, so you own it. The other player joins about 15 seconds after this message; keep checking the member list with list until they join, then remove them with kick. Do not answer until you have kicked them.",
   "tier": 2
 }
