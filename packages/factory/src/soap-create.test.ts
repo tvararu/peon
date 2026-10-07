@@ -188,12 +188,18 @@ describe("createByProtocol", () => {
     for (const preset of Object.keys(presetSpecs) as Preset[]) {
       if (!isCreatePreset(presetSpecs[preset])) continue;
       const { commands, copies, deps, service } = depsFor(preset);
+      const level = { value: 0 };
       deps.run = (async (command: string) => {
         commands.push(command);
+        const set = /^account set gmlevel \S+ (\d+) -1$/.exec(command);
+        if (set) level.value = Number(set[1]);
         if (command.startsWith("pinfo"))
           return { ok: true, text: pinfoText("FAC0000000001", 0) };
         if (command.startsWith("account info"))
-          return { ok: true, text: accountInfoText("FAC0000000001", 0) };
+          return {
+            ok: true,
+            text: accountInfoText("FAC0000000001", level.value),
+          };
         return { ok: true, text: "" };
       }) as CreateDeps["run"];
       await createByProtocol(preset, deps);
@@ -254,6 +260,23 @@ describe("createByProtocol", () => {
     await expect(
       createByProtocol("eversong55-deathknight", deps),
     ).rejects.toThrow("soap read timed out");
+    expect(created).toBe(false);
+    expect(level.value).toBe(0);
+  });
+
+  test("the death knight is not created until the raise reads back", async () => {
+    const { deps, level } = privilegeDouble("eversong55-deathknight");
+    const inner = deps.run;
+    let created = false;
+    deps.create = (async () => {
+      created = true;
+      return { result: "success" };
+    }) as CreateDeps["create"];
+    deps.run = async (command) =>
+      command.endsWith(" 1 -1") ? { ok: true, text: "" } : inner(command);
+    await expect(
+      createByProtocol("eversong55-deathknight", deps),
+    ).rejects.toThrow("raise");
     expect(created).toBe(false);
     expect(level.value).toBe(0);
   });
