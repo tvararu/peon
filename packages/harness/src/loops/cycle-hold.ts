@@ -1,5 +1,9 @@
 import type { CycleApproach } from "#harness/loops/cycle-approach";
-import { besetStop, pendingAttacker } from "#harness/loops/cycle-beset";
+import {
+  besetStop,
+  pendingAttacker,
+  stuckAttacker,
+} from "#harness/loops/cycle-beset";
 import type { CycleStop } from "#harness/loops/cycle-stop";
 import type { CycleTargetRecord } from "#harness/loops/cycle-types";
 import type { TacticsOutcome } from "#harness/loops/tactics";
@@ -38,6 +42,12 @@ export async function holdApproach(
   }
   const beset = besetStop(queue, attackers?.());
   if (beset) return beset;
+  const others = attackers?.().filter((guid) => guid !== record.guid);
+  const stuck = stuckAttacker(
+    queue.filter((entry) => entry !== record),
+    others,
+  );
+  if (stuck) return stuck;
   const joined = pendingAttacker(queue, record.guid, attackers?.());
   return defer && joined !== undefined ? "defer" : undefined;
 }
