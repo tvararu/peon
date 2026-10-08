@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { validateToolArguments } from "@earendil-works/pi-ai";
+import { elapse, withFakeTimers } from "@peon/core/test-support/fake-time";
 import {
   vehicleParams,
   vehicleSpec,
@@ -13,6 +14,7 @@ import type {
 import type { Refusal } from "#harness/ops/refusal";
 import { createSightings } from "#harness/ops/sightings";
 import { unitViews } from "#harness/ops/views";
+import { createMockGame } from "#test-support/mock-game";
 import {
   contentOf,
   driveGoto,
@@ -97,7 +99,28 @@ describe("vehicle tool spec", () => {
   });
 
   test("expectSendKind accepts the tool kind", async () => {
-    await expectSendKind(vehicleTool, { do: "leave" });
+    await withFakeTimers(async () => {
+      const game = createMockGame();
+      setSelf(game);
+      setUnits(game, [
+        unitRow({
+          distance: 3,
+          guid: PLAYER,
+          name: "Ilsa",
+          player: true,
+          relation: "friendly",
+          x: 3,
+          y: 0,
+        }),
+      ]);
+      const checking = expectSendKind(
+        vehicleTool,
+        { do: "ride_with", player: "Ilsa" },
+        game,
+      );
+      await elapse(6000);
+      await checking;
+    });
   });
 });
 

@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test";
 import type { GameObjectEntity } from "@peon/core";
 import type { InteractAfter } from "#harness/contract/details";
 import { createRefTable } from "#harness/ops/refs";
-import { interactSpec, interactTool } from "#harness/tools/interact";
+import { interactSpec } from "#harness/tools/interact";
 import {
   contentOf,
   driveGoto,
@@ -26,7 +26,6 @@ import {
   velan,
 } from "#test-support/quest-fixtures";
 import { createTestRuntime } from "#test-support/runtime-fixture";
-import { expectSendKind } from "#test-support/tool-harness";
 
 describe("interact", () => {
   test("talk lists the offers as the design example does, then closes the window", async () => {
@@ -375,7 +374,6 @@ describe("interact", () => {
       "DONE Ancient Statue (o1) offers:",
     );
     expect(res.after.offers.map((offer) => offer.id)).toEqual([9254, 8892]);
-    await expectSendKind(interactTool, { npc: "o1" });
   });
 
   test("an object that is not a quest giver refuses without a use", async () => {

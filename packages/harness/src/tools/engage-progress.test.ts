@@ -216,6 +216,7 @@ describe("engage kill names", () => {
       toolCtx<EngageAfter>(t),
     );
     expect(res).toMatchObject({ status: "DONE" });
+    expect(res.detail).toContain("nothing left to kill");
     expect(res.detail).toContain("8325");
   });
 });

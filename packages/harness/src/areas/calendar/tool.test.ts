@@ -1,8 +1,10 @@
 import { describe, expect, jest, test } from "bun:test";
 import { validateToolArguments } from "@earendil-works/pi-ai";
 import type { AreaState } from "@peon/core";
+import { elapse, withFakeTimers } from "@peon/core/test-support/fake-time";
 import { calendarSpec, calendarTool } from "#harness/areas/calendar/tool";
 import { calendarParams } from "#harness/areas/calendar/tool-types";
+import { createMockGame } from "#test-support/mock-game";
 import { contentOf, toolCtx } from "#test-support/ops-fixtures";
 import type { MockHandle } from "#test-support/runtime-fixture";
 import { createTestRuntime } from "#test-support/runtime-fixture";
@@ -110,7 +112,16 @@ describe("calendar tool", () => {
   });
 
   test("expectSendKind passes for the action tool", async () => {
-    await expectSendKind(calendarTool, { do: "create" });
+    await withFakeTimers(async () => {
+      const game = createMockGame();
+      const checking = expectSendKind(
+        calendarTool,
+        { do: "create", title: "Peon proof" },
+        game,
+      );
+      await elapse(8000);
+      await checking;
+    });
   });
 
   test("list reports the stored events", async () => {

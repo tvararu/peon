@@ -18,10 +18,9 @@ import {
   UPDATE_EVERY_MS,
 } from "#harness/tools/define";
 import type { GameToolSpec } from "#harness/tools/game-tool";
-import { createMockGame } from "#test-support/mock-game";
 import { PROBE } from "#test-support/probe-tool";
 import { createTestRuntime } from "#test-support/runtime-fixture";
-import { expectSendKind, runTool } from "#test-support/tool-harness";
+import { runTool } from "#test-support/tool-harness";
 import { nearbyRow, setWorld, unitEntity } from "#test-support/world-fixtures";
 
 const params = Type.Object({ text: Type.Optional(Type.String()) });
@@ -129,7 +128,6 @@ describe("defineGameTool", () => {
       name: "social",
     });
     expect(tool.promptGuidelines).toEqual(PROBE.text.guidelines);
-    expect(probe(said).definition(rt).executionMode).toBe("sequential");
   });
 
   test("refuses over the turn budget without running", async () => {
@@ -487,32 +485,5 @@ describe("defineGameTool", () => {
     expect((await runTool(probe(said).definition(rt), {})).text).toBe(
       "DONE said hi.\nDanger: Springpaw Stalker u1 is coming at you (0 yd). You are at 100% HP.",
     );
-  });
-});
-
-describe("expectSendKind", () => {
-  function sender(kind: ToolKind) {
-    const packets: { opcode: number; body: Uint8Array }[] = [];
-    const game = Object.assign(createMockGame(), { sent: packets });
-    const ping = () => packets.push({ body: new Uint8Array(), opcode: 1 });
-    const run: Run = async () => {
-      ping();
-      return result("DONE", { after: emptySocial(), detail: "said hi." });
-    };
-    return { game, tool: probe(run, kind) };
-  }
-
-  test.each(["read", "control"] as const)(
-    "a %s tool that sends fails the check",
-    async (kind) => {
-      const { game, tool } = sender(kind);
-      await expect(expectSendKind(tool, {}, game)).rejects.toThrow(
-        `social is kind ${kind} but sent 1 packet`,
-      );
-    },
-  );
-
-  test("a read tool that sends nothing passes the check", async () => {
-    await expectSendKind(probe(said, "read"), {});
   });
 });

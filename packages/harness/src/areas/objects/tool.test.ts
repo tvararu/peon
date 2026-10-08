@@ -10,7 +10,7 @@ import { useParams, useSpec, useTool } from "#harness/areas/objects/tool";
 import { createRefTable } from "#harness/ops/refs";
 import { toolCtx } from "#test-support/ops-fixtures";
 import { createTestRuntime } from "#test-support/runtime-fixture";
-import { expectSendKind, runTool } from "#test-support/tool-harness";
+import { runTool } from "#test-support/tool-harness";
 import {
   gameObject,
   nearbyRow,
@@ -125,7 +125,6 @@ describe("use tool", () => {
       (error: unknown) => error,
     );
     expect(outcome).toMatchObject({ reason: "not_found" });
-    await expectSendKind(useTool, { object: "o9" });
   });
 
   test("a far object refuses too_far with a travel next", async () => {

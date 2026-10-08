@@ -266,6 +266,12 @@ describe("puppet call", () => {
     expect(handle.rollLoot).toHaveBeenCalledWith(42n, 3, "need");
   });
 
+  test("selects a target by the decoded guid", async () => {
+    const { handle, paths } = await mockSetup();
+    await ask(paths, { args: ["42"], cmd: "call", method: "selectTarget" });
+    expect(handle.selectTarget).toHaveBeenCalledWith(42n);
+  });
+
   test("refuses a method outside the allow-list without calling anything", async () => {
     const { handle, paths } = await mockSetup();
     const reply = await sendRequest(paths.socket, {

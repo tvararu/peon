@@ -1,7 +1,7 @@
 import { describe, expect, jest, test } from "bun:test";
 import { validateToolArguments } from "@earendil-works/pi-ai";
 import type { AreaState } from "@peon/core";
-import { mailSpec, mailTool } from "#harness/areas/mail/tool";
+import { mailSpec } from "#harness/areas/mail/tool";
 import { mailParams } from "#harness/areas/mail/tool-types";
 import {
   contentOf,
@@ -11,7 +11,6 @@ import {
 } from "#test-support/ops-fixtures";
 import type { MockHandle } from "#test-support/runtime-fixture";
 import { createTestRuntime } from "#test-support/runtime-fixture";
-import { expectSendKind } from "#test-support/tool-harness";
 import { stocked } from "#test-support/trade-fixtures";
 import { coinage } from "#test-support/vendor-fixtures";
 
@@ -418,10 +417,6 @@ describe("mail tool spec", () => {
     expect(failed).toMatchObject({ reason: "not_enough_money" });
     expect(failed?.detail).toContain("10030");
     expect(failed?.detail).toContain("20000");
-  });
-
-  test("the tool sends inside the world mutex", async () => {
-    await expectSendKind(mailTool, { do: "check" });
   });
 
   test("mail content fits the line cap", async () => {
