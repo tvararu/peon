@@ -143,6 +143,25 @@ test("a route that ends blocked is reported as unreachable", () => {
   }
 });
 
+test("a wait chosen as the stall expires leaves the harness route running", () => {
+  let time = 1000;
+  const { actions, combat, control, goTos, motion, plan } = setup(() => time);
+  const definition = jest.spyOn(combat, "definition").mockReturnValue(spell());
+  try {
+    plan.to = { x: 40, y: 0, z: 0 };
+    motion.observe(2n, { mapId: 530, x: 50, y: 0, z: 0, orientation: 0 });
+    actions.observe(context);
+    time = 6000;
+    actions.execute("wait", context);
+    expect(goTos).toEqual([2n]);
+    expect(control.navigationState().active).toBe(true);
+    time = 6100;
+    expect(actions.observe(context).outcome).toBeUndefined();
+  } finally {
+    definition.mockRestore();
+  }
+});
+
 test("a routed approach ends and hands back to Jev once in reach", () => {
   let time = 1000;
   const { actions, combat, control, motion, plan } = setup(() => time);

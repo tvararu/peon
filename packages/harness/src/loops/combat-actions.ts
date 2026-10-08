@@ -135,8 +135,7 @@ export class CombatActions {
     )
       throw new Error("action_no_longer_legal");
     if (id === "wait") {
-      const control = this.deps.control.snapshot();
-      if (control.moving) this.deps.control.drive(control.input, MOVE_LEASE_MS);
+      this.hold();
       return;
     }
     if (id === "cancel") {
@@ -174,6 +173,12 @@ export class CombatActions {
       return;
     }
     this.executeTargeted(id, context);
+  }
+
+  private hold(): void {
+    if (this.route.routed) return;
+    const control = this.deps.control.snapshot();
+    if (control.moving) this.deps.control.drive(control.input, MOVE_LEASE_MS);
   }
 
   private executeTargeted(id: string, context: TacticsContext): void {
