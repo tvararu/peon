@@ -240,7 +240,7 @@ corpse (`Handlers/PetHandler.cpp:287-294`).
 
 ## Capabilities row
 
-No agent verb; the world-service acts `pets.requestPetInfo`,
+No agent verb; the core `WorldHandle` area acts `pets.requestPetInfo`,
 `pets.petCommand`, `pets.petStance`, `pets.petStopAttack`,
 `pets.petCast`, `pets.petAutocast`, `pets.petSetAction`,
 `pets.petSwapActions`, `pets.petCancelAura`, `pets.queryPetName`,

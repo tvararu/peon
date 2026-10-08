@@ -45,7 +45,7 @@ None.
 
 ## Capabilities row
 
-No agent verb; the world-service acts `time.query` and
+No agent verb; the core `WorldHandle` area acts `time.query` and
 `time.requestUiTime` only (R9).
 
 ## Proof
