@@ -113,10 +113,12 @@ flowchart LR
 
 ## Progress
 
-- **Protocol:** core handles 721 of 933 opcodes. See  
+- **Protocol:** core handles all 933 opcodes: 873 have a handler and 60
+  are dead, which the server never sends or never reads. 92 have not
+  been seen live. See
 [docs/protocol-coverage.md](docs/protocol-coverage.md), and
-`mise protocol:coverage` prints them.
-- **Live evals:** 86 scenarios grade a throwaway character against server
+`mise protocol:coverage` prints the counts.
+- **Live evals:** 98 scenarios grade a throwaway character against server
 truth. See [docs/evals.md](docs/evals.md).
 - **Capabilities,** each proven by a scenario in
 [docs/capabilities.md](docs/capabilities.md):
@@ -125,7 +127,9 @@ truth. See [docs/evals.md](docs/evals.md).
   without drawing aggro;
   - items, bags, the bank, mail, vendors and trades;
   - talents and glyphs, pets, vehicles, flight paths and zeppelins;
-  - raids: convert, subgroups, ready checks and marks.
+  - raids: convert, subgroups, ready checks and marks;
+  - death knight runes, guild charters and tabards, calendar events,
+  arena and battleground queues, and Wintergrasp.
 
 ## Scope
 
