@@ -56,6 +56,7 @@ describe("engage stop reasons", () => {
       toolCtx<EngageAfter>(t),
     );
     expect(res).toMatchObject({ reason: "lost", status: "FAILED" });
+    expect(res.detail).toContain("stopped by a manual command");
     expect(res.detail).toContain("Springpaw Stalker");
     expect(res.detail).toContain("HP 200/200, mana 300/300 (100%)");
   });

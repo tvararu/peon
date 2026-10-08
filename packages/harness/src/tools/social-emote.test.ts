@@ -370,4 +370,9 @@ describe("social do:emote", () => {
     expect(out.text).toContain("stopped");
     expect(act).not.toHaveBeenCalled();
   });
+
+  test("the tool runs one call at a time", async () => {
+    const { tool } = await world();
+    expect(tool.executionMode).toBe("sequential");
+  });
 });

@@ -4,6 +4,7 @@ import { withFakeTimers } from "@peon/core/test-support/fake-time";
 import type { InteractAfter } from "#harness/contract/details";
 import { interactSpec } from "#harness/tools/interact";
 import { DIALOG_MS } from "#harness/tools/interact-quest";
+import { interactParams } from "#harness/tools/params-interact";
 import { contentOf, limitProblem, toolCtx } from "#test-support/ops-fixtures";
 import { answer, VELAN, velan } from "#test-support/quest-fixtures";
 import type { TestRuntime } from "#test-support/runtime-fixture";
@@ -76,6 +77,13 @@ async function run(t: TestRuntime, args: { max_cost?: number } = {}) {
 }
 
 describe("interact reset_talents", () => {
+  test("max_cost is a declared non-negative integer parameter", () => {
+    expect(interactParams.properties.max_cost).toMatchObject({
+      minimum: 0,
+      type: "integer",
+    });
+  });
+
   test("without max_cost it names the cost and pays nothing", async () => {
     const { calls, t } = await trainer(OFFERED, {
       cost: 10_000,

@@ -111,17 +111,18 @@ test("a fact the client never observed reaches Jev as null, not a missing key", 
   expect(sent.attackTarget).toBeNull();
 });
 
-test("a running channel never times out", () => {
+test("a running channel suppresses the cast timeouts", () => {
   let time = 1000;
   const { actions, combat, combatStore } = setup(() => time);
   jest.spyOn(combat, "definition").mockReturnValue(spell());
+  combatStore.casts.send(() => {}, 17, 2n);
   combatStore.casts.beginChannel({
-    durationMs: 3000,
+    durationMs: 30_000,
     spellId: 17,
     target: 2n,
   });
-  expect(actions.observe(context).outcome).toBeUndefined();
-  time += 9000;
+  time += 20_000;
+  expect(combatStore.casts.channel).toBeDefined();
   expect(actions.observe(context).outcome).toBeUndefined();
 });
 

@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { readFile } from "node:fs/promises";
+import { readdir, readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { scratchDir } from "@peon/core/test-support/scratch";
 import { createToolStats } from "#harness/eval/stats";
@@ -82,9 +82,18 @@ describe("createToolStats", () => {
     });
   });
 
-  test("stop without start resolves", async () => {
-    const stats = createToolStats({ now: () => 7 });
-    stats.call("look");
-    await stats.stop();
+  test("stop without start writes no file", async () => {
+    const dir = scratchDir("tc-harness-stats-idle");
+    const home = process.cwd();
+    process.chdir(dir);
+    try {
+      const stats = createToolStats({ now: () => 7 });
+      stats.call("look");
+      await stats.stop();
+      expect(await readdir(dir)).toEqual([]);
+      expect(stats.snapshot().tools["look"]).toMatchObject({ calls: 1 });
+    } finally {
+      process.chdir(home);
+    }
   });
 });
