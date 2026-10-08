@@ -39,6 +39,7 @@ export function emptyEngage(): EngageAfter {
     copper: 0,
     current: undefined,
     decisions: [],
+    fallback: 0,
     how: "",
     kills: 0,
     loot: [],

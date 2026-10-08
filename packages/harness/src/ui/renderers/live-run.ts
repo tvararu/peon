@@ -236,7 +236,11 @@ function engageDetail(theme: Theme, after: EngageAfter): string[] {
     after.timeouts > 0
       ? [theme.fg("warning", `Jev timeouts ${after.timeouts}`)]
       : [];
-  return [...targets, ...decisions, ...errors, ...timeouts];
+  const fallback =
+    after.fallback > 0
+      ? [theme.fg("warning", `fallback fight ${after.fallback} actions`)]
+      : [];
+  return [...targets, ...decisions, ...errors, ...timeouts, ...fallback];
 }
 
 function engageBody({

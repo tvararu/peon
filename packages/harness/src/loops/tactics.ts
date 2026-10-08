@@ -10,6 +10,7 @@ import type {
 } from "#harness/jev/contract";
 import { JevTransportError, JevUnavailableError } from "#harness/jev/failure";
 import type { FramingVariant } from "#harness/jev/framing";
+import type { Decision, Run } from "#harness/loops/tactics-run";
 import {
   judge,
   offers,
@@ -56,6 +57,7 @@ export type TacticsDeps<C extends TacticsBase = TacticsContext> = {
   execute: (actionId: string, context: C) => void;
   halt: () => void;
   defend: (context: C) => TacticsDefense;
+  fallback?: (frame: TacticsFrame, context: C) => string | undefined;
   select: JevSelect | undefined;
   now?: () => number;
   maxResultAgeMs?: number;
@@ -125,26 +127,8 @@ export type TacticsEvent =
     }
   | ({ type: "outcome"; runId: string } & TacticsOutcome)
   | { type: "transport"; runId: string; call?: number; error: string }
+  | { type: "fallback"; runId: string; call: number; actionId: string }
   | { type: "stopped"; runId: string; reason: string; state: TacticsState };
-
-type Run<C extends TacticsBase> = {
-  runId: string;
-  context: C & { framing: FramingVariant };
-  select: JevSelect;
-  abort: AbortController;
-  detach: () => void;
-  timeouts: number;
-  transportFailures: number;
-  calls: number;
-};
-
-type Decision<C extends TacticsBase> = {
-  run: Run<C>;
-  call: number;
-  candidates: readonly JevCandidate[];
-  sentAtMs: number;
-  result: JevActionResult;
-};
 
 export class TacticsLoop<C extends TacticsBase = TacticsContext> {
   private readonly deps: TacticsDeps<C>;
@@ -337,16 +321,18 @@ export class TacticsLoop<C extends TacticsBase = TacticsContext> {
       const candidates = withWait(frame.candidates, this.deps.wait);
       const idle = this.deps.wait?.id ?? WAIT_CANDIDATE.id;
       const sentAtMs = this.now();
+      if (run.fallback) this.stepFallback(run, frame);
       if (candidates.some((candidate) => candidate.id !== idle)) {
         run.calls += 1;
         const call = run.calls;
         const result = await this.attempt(run, { ...frame, candidates }, call);
         if (result) this.commit({ run, call, result, candidates, sentAtMs });
       }
-      if (this.live(run)) {
-        const delay = Math.max(0, this.minIntervalMs - (this.now() - sentAtMs));
-        await pause(delay, run.abort.signal);
-      }
+      if (this.live(run))
+        await pause(
+          Math.max(0, this.minIntervalMs - (this.now() - sentAtMs)),
+          run.abort.signal,
+        );
     }
   }
 
@@ -358,6 +344,7 @@ export class TacticsLoop<C extends TacticsBase = TacticsContext> {
     try {
       const result = await this.select(run, frame, call);
       run.timeouts = 0;
+      run.fallback = false;
       run.transportFailures = 0;
       this.state.timeouts.consecutive = 0;
       return result;
@@ -375,14 +362,36 @@ export class TacticsLoop<C extends TacticsBase = TacticsContext> {
     if (error instanceof JevTransportError) {
       run.transportFailures += 1;
       if (run.transportFailures < TRANSPORT_LIMIT) return;
-      const detail = `transport ${error.message} (${TRANSPORT_LIMIT} in a row)`;
-      throw new JevUnavailableError(detail, { cause: error });
+      if (!this.deps.fallback) {
+        const detail = `transport ${error.message} (${TRANSPORT_LIMIT} in a row)`;
+        throw new JevUnavailableError(detail, { cause: error });
+      }
+      run.fallback = true;
+      return;
     }
     if (messageOf(error) !== TIMEOUT) throw error;
     run.timeouts += 1;
     this.state.timeouts.consecutive = run.timeouts;
     this.state.timeouts.total += 1;
-    if (run.timeouts >= MAX_CONSECUTIVE_TIMEOUTS) throw error;
+    if (run.timeouts < MAX_CONSECUTIVE_TIMEOUTS) return;
+    if (!this.deps.fallback) throw error;
+    run.fallback = true;
+  }
+
+  private stepFallback(run: Run<C>, frame: TacticsFrame): void {
+    const choice = this.deps.fallback?.(frame, run.context);
+    if (choice === undefined || !this.live(run)) return;
+    try {
+      this.deps.execute(choice, run.context);
+      this.emit({
+        type: "fallback",
+        runId: run.runId,
+        call: run.calls,
+        actionId: choice,
+      });
+    } catch (error) {
+      this.discard(run, run.calls, messageOf(error), choice);
+    }
   }
 
   private async select(

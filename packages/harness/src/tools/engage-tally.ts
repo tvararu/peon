@@ -20,8 +20,9 @@ export type Tally = {
   startedAt: number;
   xp: number;
   loot: LootLine[];
-  copper: number;
   decisions: JevDecisionView[];
+  copper: number;
+  fallback: number;
   castErrors: Map<string, number>;
   swingErrors: Map<string, number>;
   targets: EngageTarget[];
@@ -49,6 +50,7 @@ export function newTally(ctx: ViewCtx): Tally {
     castErrors: new Map(),
     copper: 0,
     decisions: [],
+    fallback: 0,
     labels: new Map(),
     loot: [],
     pets: new Set(),
@@ -79,6 +81,17 @@ export function decisionKind(actionId: string): JevDecisionView["kind"] {
 }
 
 function noteTactics(ctx: ViewCtx, tally: Tally, event: TacticsEvent): void {
+  if (event.type === "fallback") {
+    tally.fallback += 1;
+    tally.decisions.push({
+      at: ctx.rt.clock.now(),
+      disposition: "applied",
+      kind: decisionKind(event.actionId),
+      label: event.actionId,
+    });
+    if (tally.decisions.length > DECISIONS_KEPT) tally.decisions.shift();
+    return;
+  }
   if (event.type !== "applied" && event.type !== "discarded") return;
   const label =
     event.actionId ?? (event.type === "discarded" ? event.reason : "");
@@ -315,6 +328,7 @@ export function afterOf(
     current: unitViews(ops).find((unit) => unit.guid === hex && unit.alive),
     dealt: figures.dealt,
     decisions: tally.decisions,
+    fallback: tally.fallback,
     healed: figures.healed,
     how,
     immune: figures.immune,

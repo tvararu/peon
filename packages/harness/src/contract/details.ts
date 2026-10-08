@@ -136,6 +136,7 @@ export type EngageAfter = {
   self: VitalsView;
   cast: CastView | undefined;
   decisions: JevDecisionView[];
+  fallback: number;
   timeouts: number;
   castErrors: CodeWord[];
   swingErrors: CodeWord[];

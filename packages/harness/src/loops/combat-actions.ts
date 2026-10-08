@@ -125,6 +125,13 @@ export class CombatActions {
       outcome,
     };
   }
+  fallback(frame: TacticsFrame): string | undefined {
+    const offered: Record<string, true> = {};
+    for (const candidate of frame.candidates) offered[candidate.id] = true;
+    for (const id of ["attack", "face_target", "move_forward", "wait"])
+      if (offered[id]) return id;
+    return undefined;
+  }
 
   execute(id: string, context: TacticsContext): void {
     const frame = this.observe(context);
