@@ -33,7 +33,6 @@ describe("fieldClashes", () => {
         "t7-halt-resume",
         "t0-self-state",
         "t7-question-while-acting",
-        "t3-ghostlands-kill",
       ]),
     ).toEqual([
       "t7-halt-resume and t7-question-while-acting share field fairbreeze-stalkers",
@@ -56,7 +55,7 @@ describe("fieldClashes", () => {
 
   test("scenarios on different fields go together", () => {
     expect(
-      fieldClashes(["t7-halt-resume", "t4-quest-first", "t3-ghostlands-kill"]),
+      fieldClashes(["t7-halt-resume", "t4-quest-first", "t8-pets-stable"]),
     ).toEqual([]);
   });
 });
