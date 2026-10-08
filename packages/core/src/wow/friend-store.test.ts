@@ -191,14 +191,14 @@ describe("FriendStore", () => {
 });
 
 describe("FriendStore.setNote", () => {
-  test("setNote changes the note and emits the update event", () => {
+  test("setNote changes the note and emits no event", () => {
     const store = new FriendStore();
     const events: FriendEvent[] = [];
     store.set([makeFriend({ guid: 1n, name: "Thrall", note: "tank" })]);
     store.onEvent((e) => events.push(e));
     expect(store.setNote(1n, "peon")).toBe(true);
     expect(must(store.all()[0]).note).toBe("peon");
-    expect(events.map((e) => e.type)).toEqual(["friend-online"]);
+    expect(events).toEqual([]);
   });
 
   test("setNote truncates to 48 UTF-8 bytes", () => {

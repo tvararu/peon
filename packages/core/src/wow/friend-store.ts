@@ -94,7 +94,6 @@ export class FriendStore {
     const entry = this.friends.get(guid);
     if (!entry) return false;
     entry.note = truncateNote(note);
-    this.update(guid, {});
     return true;
   }
 

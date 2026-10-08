@@ -1,5 +1,4 @@
 import { describe, expect, test } from "bun:test";
-import { MAX_CONTENT_BYTES } from "#harness/tools/define";
 import {
   crowd,
   eversong,
@@ -9,6 +8,7 @@ import {
   stalker,
   world,
 } from "#test-support/look-fixtures";
+import { MAX_CONTENT_BYTES } from "#test-support/ops-fixtures";
 import { runTool } from "#test-support/tool-harness";
 import { nearbyRow, selfRow, unitEntity } from "#test-support/world-fixtures";
 

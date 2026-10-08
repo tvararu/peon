@@ -44,7 +44,6 @@ export const TURN_BUDGET = 40;
 export const READY_WAIT_MS = 10_000;
 export const UPDATE_EVERY_MS = 500;
 export const MAX_CONTENT_LINES = 12;
-export const MAX_CONTENT_BYTES = 700;
 const LOGGED_TEXT_MAX = 2000;
 
 type Mapped = Pick<

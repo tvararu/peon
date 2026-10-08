@@ -208,7 +208,10 @@ describe("items runtime: socket", () => {
           rig.handle.act.socket(RING, [STRANGER]),
           `gem ${STRANGER} is not in the bags`,
         ],
-        [rig.handle.act.socket(RING, [RING]), `gem ${RING} is not in the bags`],
+        [
+          rig.handle.act.socket(RING, [RING]),
+          `gem ${RING} is the item being socketed`,
+        ],
       ];
       for (const [refusal, reason] of refusals)
         await expect(refusal).rejects.toThrow(reason);
