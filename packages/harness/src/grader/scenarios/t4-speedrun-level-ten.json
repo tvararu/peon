@@ -1,0 +1,40 @@
+{
+  "botRisk": "high",
+  "budget": { "minutes": 75, "tools": 450, "turns": 450 },
+  "checks": [
+    {
+      "evidence": { "truth": ["level"] },
+      "expect": "T final level is at least 10",
+      "id": "level",
+      "source": "truth"
+    },
+    {
+      "expect": "level_pace shows level 10 reached at most 60 minutes after the task row; its levels, xpFirstHour, deaths and stalls are the run's score and diagnosis",
+      "id": "time-to-ten",
+      "measure": "level_pace",
+      "source": "game_log"
+    },
+    {
+      "evidence": { "delta": ["totalXp"], "truth": ["totalXp"] },
+      "expect": "T delta total XP is at least 27,600, the nine crossings from level 1 to 10, so the levels were earned",
+      "id": "earned-xp",
+      "source": "truth"
+    },
+    {
+      "expect": "the run has no GM help after the baseline: empty setup, interventions hold at most the one allowed rescue nudge, and the grader marks any other help aborted as grader_contamination",
+      "id": "no-gm-help",
+      "source": "session"
+    }
+  ],
+  "field": "sunstrider-wyrms",
+  "id": "t4-speedrun-level-ten",
+  "navBound": true,
+  "needsWatcher": false,
+  "paneMinutes": 78,
+  "partner": null,
+  "preset": "sunstrider1-paladin",
+  "setup": [],
+  "steers": [],
+  "task": "Get this new character to level 10 as fast as you can. Don't stop before level 10.",
+  "tier": 4
+}

@@ -172,6 +172,7 @@ export type Scenario = {
 export const ROUND_1: readonly string[] = [
   "t4-quest-first",
   "t4-quests-level-five",
+  "t4-speedrun-level-ten",
   "t6-die-and-recover",
   "t4-alliance-first",
   "t7-question-while-acting",

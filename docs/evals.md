@@ -159,6 +159,16 @@ few milliseconds later, so each match allows an applied stamp up to
 `packets.jsonl` or `jev.jsonl` input, or a missing `pilot/ended` row
 leaves the measure unmet with a `reason`.
 
+`level_pace` anchors on the first `human/input` row whose text equals the
+scenario task and reads only rows at or after it: it reports the task
+row timestamp, the highest level reached, one `{ level, minutes }` entry
+per `xp/level_up` row, total `xp/gain` XP and the XP within the first
+hour, the `life/dead` count, every gap of 5 minutes or more between
+consecutive progress points (the start, each `xp/gain` row and the last
+game-log row) as `{ fromMinute, minutes }` stalls, and the longest gap.
+Like `kill_xp` it sets no verdict; the grader decides from the observed
+pace.
+
 `t6-selfstate-res` runs on the `eversong1-shaman` preset, a level-1 Orc
 shaman. Its setup teaches Reincarnation (20608) and adds one Ankh
 (17030), because the server only keeps a stored Reincarnation row for a
@@ -232,6 +242,7 @@ two scenarios closest to it. Every scenario appears in at least one row.
 | Jev pilot (`pilot`, Jev-driven movement; the `-holdout` scenarios are the held-out split for hill-climbing; `-travel` and `-greedy` are the baselines, with `travel` and with the deterministic chooser) | `t3-pilot-circle`, `t3-pilot-detour`, `t3-pilot-fence`, `t3-pilot-circle-holdout`, `t3-pilot-detour-holdout`, `t3-pilot-fence-holdout`, `t3-pilot-camp`, `t3-pilot-camp-holdout`, `t3-pilot-camp-travel`, `t3-pilot-camp-holdout-travel`, `t3-pilot-camp-greedy`, `t3-pilot-camp-holdout-greedy` |
 | Quest marks, objective regions, greetings and sharing (look, journal, interact, group) | `t4-quests-find-giver`, `t4-quests-poi-walk`, `t1-quests-read-greeting`, `t1-quests-guard-directions`, `t8-quests-share`, `t8-quests-accept-shared` |
  | Quests (`interact` quest dialogs, quest log, rewards) | `t4-quest-first`, `t4-alliance-first`, `t4-quests-level-five` |
+| Levelling pace (NS1 speedrun, the `level_pace` measure) | `t4-speedrun-level-ten` |
 | Vendors and money | `t5-vendor-buy-goldshire` |
 | Economy (`interact` buyback, bank, auction; `trade`; `mail`) | `t5-buyback-vendor`, `t9-trade-give`, `t9-trade-receive`, `t9-trade-swap`, `t9-trade-cancel`, `t9-bank-deposit`, `t9-bank-withdraw`, `t9-bank-slot`, `t9-mail-read`, `t9-mail-collect`, `t9-mail-send` |
 | Chat and whispers (`social`, pushed chat events) | `t2-whisper-reply` |
