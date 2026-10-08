@@ -163,7 +163,7 @@ function createTactics(ports: Ports, jev: JevPort | undefined): TacticsLoop {
     defend: (context) =>
       defendTarget({ combat, control, entity }, context.targetGuid),
     execute: (id, context) => actions.execute(id, context),
-    fallback: (frame) => actions.fallback(frame),
+    fallback: (frame, context) => actions.fallback(frame, context),
     fault: jev?.fault,
     halt,
     observe: (context) => actions.observe(context),

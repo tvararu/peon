@@ -125,12 +125,17 @@ export class CombatActions {
       outcome,
     };
   }
-  fallback(frame: TacticsFrame): string | undefined {
+  fallback(frame: TacticsFrame, context: TacticsContext): string | undefined {
     const offered: Record<string, true> = {};
     for (const candidate of frame.candidates) offered[candidate.id] = true;
-    for (const id of ["attack", "face_target", "move_forward", "wait"])
-      if (offered[id]) return id;
-    return undefined;
+    if (offered["attack"]) return "attack";
+    if (offered["face_target"]) return "face_target";
+    const state = this.deps.combat.snapshot(context.targetGuid);
+    if (this.inMelee(state)) {
+      if (offered["stop_moving"] && this.deps.control.snapshot().moving)
+        return "stop_moving";
+    } else if (offered["move_forward"]) return "move_forward";
+    return offered["wait"] ? "wait" : undefined;
   }
 
   execute(id: string, context: TacticsContext): void {

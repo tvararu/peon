@@ -562,7 +562,7 @@ call also share `call`, which counts from 1 in each `runId`.
 | `exchange` | `call`, `model`, `instructions` (Jev's question), `framing` (the sentence sent, if any), `status`, `elapsedMs`, and `response` (the parsed body, or its text when it isn't JSON) or `error` when no answer came back. |
 | `result` | `call`, `choice`, `probabilities`, `confidence`, `model`, `inputTokens`, `elapsedMs`. |
 | `applied`, `discarded` | `call` and the action taken, or why it wasn't (`stale_age`, `unavailable`, `aborted`, ...). |
-| `fallback` | `call` and the local action taken while Jev is not answering (`attack`, `face_target`, `move_forward`, `wait`). |
+| `fallback` | `call` and the local action taken while Jev is not answering (`attack`, `face_target`, `move_forward`, `stop_moving`, `wait`). |
 | `outcome` | How the fight ended, with the last `observation`. |
 
 A call that times out still gets its `exchange` row, and its `result`
