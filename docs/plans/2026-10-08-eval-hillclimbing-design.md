@@ -16,7 +16,7 @@ note maps each one onto `mise eval` ([evals.md](../evals.md)).
 ## Decision
 
 - **NS1 is one scenario that is the goal itself**:
-  `t4-speedrun-level-ten`, a never-played level 1 Blood Elf priest on
+  `t4-speedrun-level-ten`, a never-played level 1 Blood Elf paladin on
   Sunstrider Isle told to reach level 10 as fast as it can, with a
   75-minute budget. It passes when level 10 lands within 60 minutes of
   the task. Its score is continuous: the XP earned in the first hour,
@@ -24,9 +24,9 @@ note maps each one onto `mise eval` ([evals.md](../evals.md)).
 - **One new measure, `level_pace`**, reads the game log for the minutes
   to each level from the task, the XP in the first hour, deaths and
   stalls. Every other number comes from checks that exist today.
-- **The held-out split is a second start**: the same task for the
-  `elwynn1` human warrior in Northshire. A hillclimber reads only the
-  Sunstrider runs; Northshire scores decide whether a change stays.
+- **The held-out split is a second start**: the same task for a level 1
+  human paladin in Northshire. A hillclimber reads only the Sunstrider
+  runs; Northshire scores decide whether a change stays.
 - **Hillclimbing touches text and settings only**: the system prompt,
   tool and parameter descriptions, Jev's instructions and framing, the
   model and the thinking level. Harness code changes are capability
@@ -111,7 +111,12 @@ check, unlike `t4-quests-level-five`: a speedrun picks quests or
 grinding by speed, and the `xp/gain` rows show the mix.
 
 The task is "Get this new character to level 10 as fast as you can.
-Don't stop before level 10." It starts from preset `fresh` with an empty
+Don't stop before level 10." It starts from the preset
+`sunstrider1-paladin`, a Blood Elf paladin created over the protocol and
+never logged in, which the server places at the Sunstrider Isle start,
+the same point as the `fresh` priest
+(`playercreateinfo` rows for race 10 with classes 2 and 5 in AzerothCore's
+`data/sql/base/db_world/playercreateinfo.sql`). It has an empty
 setup, a budget of 75 minutes (pane 78), and the `sunstrider-wyrms`
 field it shares with the other Sunstrider scenarios, because it hunts
 the same creatures. Runs of one round on one field queue behind each
@@ -140,6 +145,10 @@ All three graded runs failed by the agent answering `done` long before
 the budget, at level 3 or 4. So the commonest failure is quitting, not
 slow play, and the NS1 task says not to stop before level 10. Level 2
 lands at 1.5 minutes in every run; the spread opens from level 3.
+
+The level 1–5 evidence above is a priest; the speedrun is a paladin, so
+the first paladin runs are their own baseline, not a comparison with
+the priest runs.
 
 ## Noise estimate
 
@@ -196,9 +205,8 @@ The article separates infrastructure noise from model variance
 `aborted` covers SOAP, `soap create`, stale truth, model rate limits,
 Jev outages and pane failures ([evals.md](../evals.md#grading-rules)). An
 aborted run counts toward no score. Each run starts from a fresh
-`soap create` account copied from a never-played template, so no state
-from an earlier trial reaches it (`packages/factory/src/soap-presets.ts`,
-`fresh` and `elwynn1`).
+`soap create` account whose character has never logged in, so no state
+from an earlier trial reaches it (`packages/factory/src/soap-presets.ts`).
 
 ## The held-out split
 
@@ -206,20 +214,19 @@ The article splits the cases into a train set the hillclimber may read
 and a test set it never sees ([article], "Overfitting"), and keeps a
 change only when both improve ([article], "/claude-api hillclimb").
 
-- **Train**: `t4-speedrun-level-ten`, preset `fresh`: a Horde Blood Elf
-  priest at the Sunstrider Isle start, map 530.
-- **Test**: the same task and checks with preset `elwynn1`: an Alliance
-  human warrior at the Northshire start, map 0
-  (`packages/factory/src/soap-presets.ts`, `elwynn1`; class and race in
-  `docs/archive/2026-09-26-pi-harness-epic/t1-service-readme.md:251`).
-  It differs in faction, race, class, map and quests, on purpose:
-  players start any race and class. Each split is compared with its own
-  baseline, never with the other, so a change that only helps on
-  Sunstrider shows up as train up, test flat. Map 0 has navigation data
-  and quest runs (`t4-alliance-first`,
-  [capabilities.md](../capabilities.md)). It is built when hillclimbing
-  starts, on the `northshire-kobolds` field that `t4-alliance-first`
-  uses.
+- **Train**: `t4-speedrun-level-ten`, preset `sunstrider1-paladin`: a
+  Horde Blood Elf paladin at the Sunstrider Isle start, map 530.
+- **Test**: the same task and checks for a created Alliance human
+  paladin at the Northshire start, map 0 (`playercreateinfo` race 1,
+  class 2, the point the `elwynn1` warrior template uses in
+  `packages/factory/src/soap-presets.ts`). The class is the same, so the
+  split differs only in faction, race, map, zone and quests: a change
+  that only helps on Sunstrider shows up as train up, test flat. Each
+  split is compared with its own baseline, never with the other. Map 0
+  has navigation data and quest runs (`t4-alliance-first`,
+  [capabilities.md](../capabilities.md)). The Northshire paladin preset
+  and scenario are built when hillclimbing starts, on the
+  `northshire-kobolds` field that `t4-alliance-first` uses.
 - The pilot scenarios already name a held-out split by convention
   (`-holdout`, [evals.md](../evals.md#which-scenarios-to-run)); nothing
   in code keeps a hillclimber from reading them. The split stays a rule
