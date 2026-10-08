@@ -54,13 +54,19 @@ describe("CombatStore.applySpellDelayed", () => {
     expect(changes).toEqual([{ reason: "cast_delayed", type: "cast_started" }]);
   });
 
-  test("pushback on another caster or with no cast changes nothing", () => {
+  test("pushback on another caster changes nothing", () => {
     const { changes, store } = setup();
-    store.applySpellDelayed({ caster: ME, delayMs: 500 });
     store.applySpellStart(applyStart);
     changes.length = 0;
     store.applySpellDelayed({ caster: WOLF, delayMs: 500 });
     expect(store.record(undefined).casting?.durationMs).toBe(3000);
+    expect(changes).toEqual([]);
+  });
+
+  test("pushback with no cast changes nothing and emits nothing", () => {
+    const { changes, store } = setup();
+    store.applySpellDelayed({ caster: ME, delayMs: 500 });
+    expect(store.record(undefined).casting).toBeUndefined();
     expect(changes).toEqual([]);
   });
 });
