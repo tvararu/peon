@@ -43,6 +43,7 @@ export type CheckMeasure =
   | "answer_values"
   | "kill_after_answer"
   | "kill_xp"
+  | "level_pace"
   | "max_attackers"
   | "no_fight_after_stop"
   | "talents_spent"

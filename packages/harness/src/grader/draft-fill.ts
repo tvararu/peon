@@ -276,6 +276,7 @@ export async function observedChecks(
   runDir: string,
   checks: readonly ScenarioCheck[],
   steers: readonly string[] = [],
+  task = "",
 ): Promise<EvalCheck[]> {
   const truths = new Map<TruthWho, WhoTruth>();
   for (const { evidence, source } of checks) {
@@ -290,6 +291,7 @@ export async function observedChecks(
     jev: await readJsonLines(`${runDir}/jev.jsonl`),
     packets: await readJsonLines(`${runDir}/packets.jsonl`),
     steers: [...steers],
+    task,
   };
   return checks.map((check) => {
     const { blockedBy, evidence, expect, id, source } = check;
