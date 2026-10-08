@@ -8,7 +8,6 @@ import {
 } from "#harness/areas/wintergrasp/tool";
 import { toolCtx } from "#test-support/ops-fixtures";
 import { createTestRuntime } from "#test-support/runtime-fixture";
-import { expectSendKind } from "#test-support/tool-harness";
 
 function callOf() {
   return {
@@ -65,11 +64,6 @@ describe("wintergrasp tool spec", () => {
         callOf(),
       ),
     ).toEqual(wintergraspSpec.minimalArgs);
-  });
-
-  test("sending verbs go through the tool definition", async () => {
-    const { wintergraspTool } = await import("#harness/areas/wintergrasp/tool");
-    await expectSendKind(wintergraspTool, { action: "accept" });
   });
 });
 

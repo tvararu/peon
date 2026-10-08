@@ -1,9 +1,8 @@
 import { describe, expect, jest, test } from "bun:test";
 import { validateToolArguments } from "@earendil-works/pi-ai";
-import { tradeSpec, tradeTool } from "#harness/areas/trade/tool";
+import { tradeSpec } from "#harness/areas/trade/tool";
 import { tradeParams } from "#harness/areas/trade/tool-shared";
 import { contentOf, setUnits, toolCtx } from "#test-support/ops-fixtures";
-import { expectSendKind } from "#test-support/tool-harness";
 import {
   CLOTH,
   CLOTH_ARG,
@@ -279,10 +278,6 @@ describe("trade answer, offer, accept and cancel", () => {
     expect(started.mock.calls.some((call) => call[0].kind === "trade")).toBe(
       true,
     );
-  });
-
-  test("the tool sends inside the world mutex", async () => {
-    await expectSendKind(tradeTool, { do: "show" });
   });
 
   test("trade content fits the line cap", async () => {

@@ -1,7 +1,9 @@
 import { describe, expect, jest, test } from "bun:test";
 import { validateToolArguments } from "@earendil-works/pi-ai";
+import { elapse, withFakeTimers } from "@peon/core/test-support/fake-time";
 import { guildSpec, guildTool } from "#harness/areas/guildadmin/tool";
 import { guildParams } from "#harness/areas/guildadmin/tool-types";
+import { createMockGame } from "#test-support/mock-game";
 import {
   contentOf,
   setUnits,
@@ -66,7 +68,16 @@ describe("guild tool", () => {
   });
 
   test("expectSendKind passes for the action tool", async () => {
-    await expectSendKind(guildTool, { do: "rank" });
+    await withFakeTimers(async () => {
+      const game = createMockGame();
+      const checking = expectSendKind(
+        guildTool,
+        { do: "rank", name: "Raider", step: "add" },
+        game,
+      );
+      await elapse(8000);
+      await checking;
+    });
   });
 
   test("rank add sends the name and reports the new rank", async () => {

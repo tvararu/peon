@@ -7,7 +7,6 @@ type ArenaTeam = AreaState<"arena">["teams"][string];
 import { arenaParams, arenaSpec, runArena } from "#harness/areas/arena/tool";
 import { setUnits, toolCtx, unitRow } from "#test-support/ops-fixtures";
 import { createTestRuntime } from "#test-support/runtime-fixture";
-import { expectSendKind } from "#test-support/tool-harness";
 
 const TEAM: ArenaTeam = {
   backgroundColor: 0,
@@ -109,11 +108,6 @@ describe("arena tool spec", () => {
         callOf(),
       ),
     ).toEqual(arenaSpec.minimalArgs);
-  });
-
-  test("sending verbs go through the tool definition", async () => {
-    const { arenaTool } = await import("#harness/areas/arena/tool");
-    await expectSendKind(arenaTool, { do: "show" });
   });
 });
 

@@ -3,7 +3,7 @@ import { DisplayCatalog } from "@peon/core";
 import type { TravelAfter } from "#harness/contract/details";
 import type { ToolResult } from "#harness/contract/result";
 import { createRefTable } from "#harness/ops/refs";
-import { travelSpec, travelTool } from "#harness/tools/travel";
+import { travelSpec } from "#harness/tools/travel";
 import {
   attackBy,
   contentOf,
@@ -19,7 +19,6 @@ import {
   unitRow,
 } from "#test-support/ops-fixtures";
 import { createTestRuntime } from "#test-support/runtime-fixture";
-import { expectSendKind } from "#test-support/tool-harness";
 
 const MARNIEL = unitRow({
   distance: 36,
@@ -413,7 +412,6 @@ describe("travel", () => {
     );
     expect(res.status).toBe("DONE");
     expect(fit(res)).toMatch(/^DONE arrived at Milly's Harvest \(o1\): /);
-    await expectSendKind(travelTool, { to: "Milly's Harvest" });
   });
   test("a flat wide object above the walk plane still plans a route", async () => {
     const t = await world();

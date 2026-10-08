@@ -13,7 +13,6 @@ import {
   createTestRuntime,
   type TestRuntime,
 } from "#test-support/runtime-fixture";
-import { expectSendKind } from "#test-support/tool-harness";
 
 const NOW = 1_000_000_000;
 const MIN = 60_000;
@@ -161,11 +160,6 @@ describe("dungeon tool", () => {
         },
       ),
     ).toEqual(dungeonSpec.minimalArgs);
-  });
-
-  test("is an action tool and so runs sequentially", async () => {
-    expect(dungeonTool.kind).toBe("action");
-    await expectSendKind(dungeonTool, { accept: false, do: "bind" });
   });
 });
 

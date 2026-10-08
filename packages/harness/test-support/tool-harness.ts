@@ -48,8 +48,13 @@ export async function expectSendKind<N extends ToolName, P extends TSchema, A>(
   const before = game.sent.length;
   await runTool(tool.definition(rt), args);
   const sent = game.sent.length - before;
-  if (sent > 0 && (tool.kind === "read" || tool.kind === "control"))
+  const sends = tool.kind === "action" || tool.kind === "run";
+  if (sent > 0 && !sends)
     throw new Error(
       `${tool.name} is kind ${tool.kind} but sent ${sent} packet(s); a sending tool is kind action or run`,
+    );
+  if (sent === 0 && sends)
+    throw new Error(
+      `${tool.name} is kind ${tool.kind} but sent no packets; a tool that sends nothing is kind read or control`,
     );
 }
