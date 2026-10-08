@@ -137,6 +137,6 @@ These have tools or code but no scenario that checks them live:
 - Accept a quest a party member shares (`t8-quests-accept-shared`, the agent's early `accept_invite` is refused as a repeat, so it is not in the group when the partner shares).
 - Changing seats, riding with another player and ejecting a passenger (`vehicle` `seat`, `ride_with`, `eject`).
 - Hearing a GM's answer to its ticket (`tickets/gm_reply` wakes the agent with the answer; there is no verb that files a ticket, so no scenario shows it, and the area doc records the wire proof).
-- Reaching level 10 from a new level-1 Blood Elf paladin within an hour (`t4-speedrun-level-ten`, no run yet).
+- Reach level 10 from a new level-1 Blood Elf paladin within an hour (`t4-speedrun-level-ten`, the agent stops when the harness refuses tool calls past 40 in one turn and no human answers; round 6071 reached level 2 with 792 XP in 21 minutes).
 
 Peon has no tool for the auction house.
