@@ -46,22 +46,30 @@ export class StallRoute {
     return this.start(input);
   }
 
-  private start({ control, guid }: RouteStep): TacticsFrame["outcome"] {
+  private start(input: RouteStep): TacticsFrame["outcome"] {
+    const { control, guid } = input;
     try {
       control.goTo(guid);
     } catch {
-      return { status: "blocked", reason: UNREACHABLE };
+      return this.refused(input);
     }
     this.routing = true;
     return undefined;
   }
 
-  private follow({ control, now, range }: RouteStep): TacticsFrame["outcome"] {
-    const { active, blockedReason, replan } = control.navigationState();
+  private refused({ control, now, range }: RouteStep): TacticsFrame["outcome"] {
+    if (control.navigationState().refusal === "unreachable")
+      return { status: "blocked", reason: UNREACHABLE };
+    this.stall = { at: now, range };
+    return undefined;
+  }
+
+  private follow(input: RouteStep): TacticsFrame["outcome"] {
+    const { now, range } = input;
+    const { active, blockedReason, replan } = input.control.navigationState();
     if (active || replan?.pending) return undefined;
     this.routing = false;
-    if (blockedReason !== undefined)
-      return { status: "blocked", reason: UNREACHABLE };
+    if (blockedReason !== undefined) return this.refused(input);
     this.stall = { at: now, range };
     return undefined;
   }

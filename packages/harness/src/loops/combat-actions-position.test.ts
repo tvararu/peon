@@ -109,7 +109,7 @@ test("a refused route is reported as unreachable", () => {
   const { actions, combat, goTos, motion, plan } = setup(() => time);
   const definition = jest.spyOn(combat, "definition").mockReturnValue(spell());
   try {
-    plan.refusal = "pathfind_find_path failed";
+    plan.refusal = "pathfind_find_path failed (UNKNOWN_PATH)";
     motion.observe(2n, { mapId: 530, x: 50, y: 0, z: 0, orientation: 0 });
     expect(actions.observe(context).outcome).toBeUndefined();
     time = 6000;
@@ -132,7 +132,7 @@ test("a route that ends blocked is reported as unreachable", () => {
     expect(actions.observe(context).outcome).toBeUndefined();
     time = 6000;
     expect(actions.observe(context).outcome).toBeUndefined();
-    routes.refuse(undefined, "obstructed");
+    routes.refuse(undefined, "pathfind_find_path failed (UNKNOWN_PATH)");
     time = 6500;
     expect(actions.observe(context).outcome).toEqual({
       status: "blocked",
@@ -157,6 +157,30 @@ test("a wait chosen as the stall expires leaves the harness route running", () =
     expect(control.navigationState().active).toBe(true);
     time = 6100;
     expect(actions.observe(context).outcome).toBeUndefined();
+  } finally {
+    definition.mockRestore();
+  }
+});
+
+test("a route interrupted for a non-path cause is retried, not unreachable", () => {
+  let time = 1000;
+  const { actions, combat, goTos, motion, plan, routes } = setup(() => time);
+  const definition = jest.spyOn(combat, "definition").mockReturnValue(spell());
+  try {
+    plan.to = { x: 40, y: 0, z: 0 };
+    motion.observe(2n, { mapId: 530, x: 50, y: 0, z: 0, orientation: 0 });
+    actions.observe(context);
+    time = 6000;
+    actions.observe(context);
+    routes.refuse(undefined, "navigation_origin_changed");
+    time = 6100;
+    expect(actions.observe(context).outcome).toBeUndefined();
+    time = 11_099;
+    expect(actions.observe(context).outcome).toBeUndefined();
+    expect(goTos).toEqual([2n]);
+    time = 11_100;
+    expect(actions.observe(context).outcome).toBeUndefined();
+    expect(goTos).toEqual([2n, 2n]);
   } finally {
     definition.mockRestore();
   }
