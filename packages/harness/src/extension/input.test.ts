@@ -350,7 +350,7 @@ describe("installInput", () => {
   test("tracks the agent state through a turn", async () => {
     const { fake, rt } = await setup();
     await fake.emit({ type: "agent_start" });
-    expect(rt.session).toMatchObject({ agent: "streaming", turnToolCalls: 0 });
+    expect(rt.session.agent).toBe("streaming");
     rt.session.humanWaiting = true;
     rt.session.humanTexts = ["rest first"];
     await fake.emit({ timestamp: 0, turnIndex: 0, type: "turn_start" });

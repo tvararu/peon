@@ -58,7 +58,6 @@ export function installInput(pi: ExtensionAPI, rt: HarnessRuntime): void {
       agent: "streaming",
       previousTurnStartSeq: session.turnStartSeq,
       turnStartSeq: rt.log.lastSeq(),
-      turnToolCalls: 0,
     });
   });
   pi.on("message_start", (event) => {

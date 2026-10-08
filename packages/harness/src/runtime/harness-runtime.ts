@@ -62,7 +62,6 @@ function initialSession(wake: boolean): SessionFlags {
     stopped: false,
     tool: undefined,
     turnStartSeq: 0,
-    turnToolCalls: 0,
     unreadWhispers: 0,
     wake,
   };

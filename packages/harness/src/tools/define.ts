@@ -40,7 +40,6 @@ import type { GameToolModule, GameToolSpec } from "#harness/tools/game-tool";
 import { admitAgent } from "#harness/tools/human-admission";
 import { askHuman, nextCall } from "#harness/tools/next-call";
 import { scrub } from "#harness/tools/scrub";
-export const TURN_BUDGET = 40;
 export const READY_WAIT_MS = 10_000;
 export const UPDATE_EVERY_MS = 500;
 export const MAX_CONTENT_LINES = 12;
@@ -266,7 +265,6 @@ function openCall<P extends TSchema, N extends ToolName, A>({
   spec,
   toolCallId,
 }: Call<P, N, A>): void {
-  rt.session.turnToolCalls += 1;
   const data = {
     args: scrub(args, rt.profile.client.password),
     name: spec.name,
@@ -302,12 +300,6 @@ async function admit<P extends TSchema, N extends ToolName, A>(
   call: Call<P, N, A>,
 ): Promise<Game> {
   const { rt, spec } = call;
-  if (rt.session.turnToolCalls > TURN_BUDGET)
-    throw new Refusal({
-      detail: "report to the human now.",
-      next: "end your turn and report to the human.",
-      reason: "turn_budget",
-    });
   const handle = rt.requireHandle();
   const acting = ACTING.has(spec.kind);
   const stopOk = spec.allowStopped?.(call.args) === true;

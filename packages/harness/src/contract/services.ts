@@ -184,7 +184,6 @@ export type SessionFlags = {
   deliveredTexts: readonly string[];
   stopped: boolean;
   agent: AgentState;
-  turnToolCalls: number;
   tool: string | undefined;
   lastToolCallAt: number | undefined;
   turnStartSeq: number;

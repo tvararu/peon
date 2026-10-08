@@ -12,7 +12,6 @@ import { Refusal } from "#harness/ops/refusal";
 export const TIME_CODES: readonly string[] = [
   "not_ready",
   "offline",
-  "turn_budget",
   "busy",
   "human_waiting",
   "stopped",
