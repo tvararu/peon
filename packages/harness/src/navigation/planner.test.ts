@@ -73,7 +73,7 @@ describe("grounded navigation", () => {
 
   test("rejects a route surface without headroom beneath another", () => {
     const map = native({
-      findHeights: (x) => (x === 5 ? [0, 1.5] : [0]),
+      findHeights: (x) => (x >= 4.5 && x <= 5.5 ? [0, 1.5] : [0]),
     });
     expect(() => navigation(map).plan(530, start, end)).toThrow(/ambiguous/);
   });

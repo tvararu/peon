@@ -183,8 +183,17 @@ one floor the mesh routes is the destination, several still refuse with
 `ambiguous_floor` listing only those floors, and none refuses with the most
 specific cause. A creature target takes the column floor within 0.25 yd of
 the creature's observed z and never falls back to another floor when that
-floor has no route. A pocket where collision data refuses the mesh
-corridor stays refused: in Silvermoon City the route from the landing at
+floor has no route. When the mesh corridor is refused at a point (a gap in
+a platform that the mesh bridges, a lost ground trace), the planner tries
+waypoints on the walker's floor in a ring of 8, 16 and 32 yd around that
+point and plans the start to the waypoint and the waypoint to the
+destination as two ordinary routes, each walked under the same ground
+rules. The shortest pair of the smallest ring that works is the route; no
+pair means the original refusal stands. The return check of each step
+takes the floor the walker stands on even when the route leaves a
+multi-floor start, so a lower floor under the platform no longer rejects
+the step. A pocket where collision data refuses the mesh
+corridor and no waypoint avoids it stays refused: in Silvermoon City the route from the landing at
 the flight master to a point 20 yd east runs 70 yd south through the stair
 base, the mesh corner there is 14.93 while the column holds 16.68 and
 14.67, and the 14.67 floor passes under a surface 0.55 yd above it, so

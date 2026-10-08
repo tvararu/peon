@@ -7,6 +7,7 @@ import {
 } from "@peon/core";
 import { checkCollision } from "#harness/navigation/collision";
 import { groundFloors } from "#harness/navigation/column";
+import { refusedAt } from "#harness/navigation/detour";
 import { traceHeight } from "#harness/navigation/height";
 import {
   groundError,
@@ -182,18 +183,16 @@ export function stepCorner(
     const tail = walk.points.at(-1);
     if (tail === undefined) throw new Error("ground route point missing");
     const swim = walk.swims.at(-1) ?? false;
-    const made = cornerStep(
-      tail,
-      {
-        x: from.x + (to.x - from.x) * ratio,
-        y: from.y + (to.y - from.y) * ratio,
-      },
-      {
-        ...walk.rules,
-        ambiguity: walk.leavingStart ? START_EXIT_AMBIGUITY : ROUTE_AMBIGUITY,
-        continuity: !walk.leavingStart,
-      },
-    );
+    const at = {
+      x: from.x + (to.x - from.x) * ratio,
+      y: from.y + (to.y - from.y) * ratio,
+    };
+    const rules = {
+      ...walk.rules,
+      ambiguity: walk.leavingStart ? START_EXIT_AMBIGUITY : ROUTE_AMBIGUITY,
+      continuity: !walk.leavingStart,
+    };
+    const made = refusedWhere(at, () => cornerStep(tail, at, rules));
     void swim;
     walk.points.push(made.point);
     walk.swims.push(made.swimming);
@@ -202,6 +201,14 @@ export function stepCorner(
   const corner = walk.points.at(-1);
   if (corner === undefined) throw new Error("ground route point missing");
   return corner;
+}
+
+function refusedWhere<T>(at: Probe, step: () => T): T {
+  try {
+    return step();
+  } catch (error) {
+    throw isGroundError(error) ? refusedAt(error, at) : error;
+  }
 }
 
 export type CornerCheck = {

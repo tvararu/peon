@@ -14,10 +14,16 @@ import {
   settleStart,
 } from "#harness/navigation/column";
 import {
+  checkStart,
+  loadCorridor,
+  rejectSnap,
+} from "#harness/navigation/corridor";
+import {
   checkDestination,
   destinationFloor,
   routableFloor,
 } from "#harness/navigation/destination";
+import { detourPoints, refusalAt, refusedAt } from "#harness/navigation/detour";
 import {
   connectedHeight,
   stepHeight,
@@ -72,8 +78,6 @@ export type Navigation = {
 };
 
 export type MeshSnap = { point: NavPoint; onMesh: boolean };
-
-const ADT_STEP = 64;
 
 export type GroundWalk = CornerWalk;
 export type GroundStep = {
@@ -272,7 +276,47 @@ function planDestination(
   }
 }
 
+const DETOUR_RULES: RouteRules = { climb: CORNER_RISE, columnFallback: true };
+
 function planRoute(map: NativeMap, from: NavPoint, to: NavPoint): GroundRoute {
+  try {
+    return walkCorridor(map, from, to);
+  } catch (error) {
+    if (!isGroundError(error)) throw error;
+    const points = detourPoints({
+      from,
+      map,
+      plan: (a, b) => detourLeg(map, a, b),
+      refusal: error,
+      to,
+    });
+    if (points === undefined) throw error;
+    return new GroundRoute(points, map, DETOUR_RULES);
+  }
+}
+
+function detourLeg(
+  map: NativeMap,
+  from: NavPoint,
+  to: NavPoint,
+): GroundRoute | undefined {
+  try {
+    return walkCorridor(map, from, to);
+  } catch (error) {
+    const lost =
+      error instanceof Error &&
+      (classifyNavigationRefusal(error.message) === "unreachable" ||
+        error.message.includes("snapped off"));
+    if (isGroundError(error) || lost) return undefined;
+    throw error;
+  }
+}
+
+function walkCorridor(
+  map: NativeMap,
+  from: NavPoint,
+  to: NavPoint,
+): GroundRoute {
   loadCorridor(map, from, to);
   checkStart(map, from);
   checkDestination(map, to);
@@ -309,15 +353,18 @@ function columnRoute(
   candidates: readonly (readonly NavPoint[])[],
   refusal: Error,
 ): GroundRoute {
+  let deepest = refusal;
   for (const [index, points] of candidates.entries()) {
     const climb = index === 0 ? CORNER_RISE : 0;
     try {
       return new GroundRoute(points, map, { climb, columnFallback: true });
     } catch (error) {
       if (!isGroundError(error)) throw error;
+      if (index === 0) deepest = error;
     }
   }
-  throw refusal;
+  const at = refusalAt(deepest);
+  throw at === undefined ? refusal : refusedAt(refusal, at);
 }
 
 function lostHeight(error: Error): boolean {
@@ -421,7 +468,7 @@ function groundPoint(
     : traced;
   const point = { x, y, z };
   const heights = checkRouteGround(map, point, from, ambiguity);
-  const back = returnHeight(map, point, from, { columnFallback, continuity });
+  const back = returnHeight(map, point, from, columnFallback);
   if (!Number.isFinite(back) || Math.abs(back - from.z) > GROUND_ERROR)
     throw groundError("ground corridor changes surface");
   checkCollision(map, from, point, climb);
@@ -432,11 +479,11 @@ function returnHeight(
   map: NativeMap,
   point: NavPoint,
   from: NavPoint,
-  rules: Pick<StepRules, "columnFallback" | "continuity">,
+  columnFallback: boolean,
 ): number {
-  const back = traceHeight(map, point, from, rules.columnFallback);
-  const settled = !(rules.continuity && Number.isFinite(back));
-  if (settled || Math.abs(back - from.z) <= GROUND_ERROR) return back;
+  const back = traceHeight(map, point, from, columnFallback);
+  if (!Number.isFinite(back) || Math.abs(back - from.z) <= GROUND_ERROR)
+    return back;
   return continuousFloor(columnHeights(map, from.x, from.y), back, point.z);
 }
 
@@ -461,30 +508,6 @@ function checkRouteGround(
   return heights;
 }
 
-function checkStart(map: NativeMap, point: NavPoint): number[] {
-  validateNativePoint(point);
-  const surface = surfaceAt(map, point, point.z);
-  if (surface !== undefined && Math.abs(surface - point.z) <= GROUND_ERROR)
-    return [surface];
-  const heights = columnHeights(map, point.x, point.y);
-  if (heights.every((height) => Math.abs(height - point.z) > GROUND_ERROR))
-    throw groundError("position disagrees with ground height");
-  if (!clearAbove(heights, point.z))
-    throw groundError("ambiguous ground column at start");
-  return heights;
-}
-
-function loadCorridor(map: NativeMap, from: NavPoint, to: NavPoint): void {
-  const steps = Math.max(1, Math.ceil(distance2d(from, to) / ADT_STEP));
-  for (let i = 0; i <= steps; i++) {
-    const ratio = i / steps;
-    map.loadAdtAt(
-      from.x + (to.x - from.x) * ratio,
-      from.y + (to.y - from.y) * ratio,
-    );
-  }
-}
-
 function meshSnap(map: NativeMap, raw: NavPoint): MeshSnap | undefined {
   const from = settleStart(map, raw);
   let point: NavPoint | undefined;
@@ -501,24 +524,5 @@ function meshSnap(map: NativeMap, raw: NavPoint): MeshSnap | undefined {
     return { onMesh: true, point };
   } catch {
     return { onMesh: false, point };
-  }
-}
-
-function rejectSnap(
-  label: string,
-  requested: NavPoint,
-  actual: NavPoint,
-): void {
-  validateNativePoint(actual);
-  const dx = Math.abs(actual.x - requested.x);
-  const dy = Math.abs(actual.y - requested.y);
-  const roundX = Math.abs(Math.fround(requested.x) - requested.x) + 1e-6;
-  const roundY = Math.abs(Math.fround(requested.y) - requested.y) + 1e-6;
-  if (
-    dx > roundX ||
-    dy > roundY ||
-    Math.abs(actual.z - requested.z) > GROUND_ERROR
-  ) {
-    throw new Error(`${label} snapped off the requested ground position`);
   }
 }
