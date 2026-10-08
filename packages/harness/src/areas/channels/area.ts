@@ -130,12 +130,4 @@ function onEvent(event: ChannelsEvent, rc: RuleInput): readonly AreaDraft[] {
 export const channelsHarness = defineHarnessArea({
   area: "channels",
   rules: () => ({ event: (event, rc) => onEvent(event, rc) }),
-  worldActs: [
-    "channelAdmin",
-    "listChannel",
-    "channelMemberCount",
-    "setChannelWatch",
-    "clearChannelWatch",
-    "declineChannelInvite",
-  ],
 });

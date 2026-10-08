@@ -42,5 +42,4 @@ export const ambienceHarness = defineHarnessArea({
       return [];
     },
   }),
-  worldActs: [],
 });

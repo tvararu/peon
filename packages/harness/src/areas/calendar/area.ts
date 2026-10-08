@@ -80,22 +80,4 @@ export const calendarHarness = defineHarnessArea({
       return [];
     },
   }),
-  worldActs: [
-    "get",
-    "event",
-    "pending",
-    "create",
-    "update",
-    "remove",
-    "copy",
-    "invite",
-    "answer",
-    "signup",
-    "setStatus",
-    "removeInvite",
-    "setModerator",
-    "complain",
-    "filterGuild",
-    "arenaTeam",
-  ],
 });

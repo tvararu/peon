@@ -23,5 +23,4 @@ function onEvent(event: TicketsEvent, _rc: RuleInput): readonly AreaDraft[] {
 export const ticketsHarness = defineHarnessArea({
   area: "tickets",
   rules: () => ({ event: (event, rc) => onEvent(event, rc) }),
-  worldActs: [],
 });

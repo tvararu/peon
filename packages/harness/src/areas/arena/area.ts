@@ -148,19 +148,4 @@ function onEvent(event: ArenaEvent, rc: RuleInput): readonly AreaDraft[] {
 export const arenaHarness = defineHarnessArea({
   area: "arena",
   rules: () => ({ event: (event, rc) => onEvent(event, rc) }),
-  worldActs: [
-    "refresh",
-    "query",
-    "roster",
-    "invite",
-    "accept",
-    "decline",
-    "leave",
-    "remove",
-    "disband",
-    "setLeader",
-    "inspect",
-    "joinQueue",
-    "leaveQueue",
-  ],
 });

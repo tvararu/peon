@@ -1,6 +1,5 @@
 import { describe, expect, test } from "bun:test";
 import type { AreaEvent, AreaState } from "@peon/core";
-import { guildadminHarness } from "#harness/areas/guildadmin/area";
 import { areaDrafts, areaRuleSet, attachDrafts } from "#harness/areas/rules";
 import { createMockGame } from "#test-support/mock-game";
 import { testRuleInput } from "#test-support/rule-fixtures";
@@ -90,11 +89,5 @@ describe("guildadmin harness rules", () => {
       data: { code: 2 },
       event: "guildadmin/emblem_result",
     });
-  });
-
-  test("the world acts are the guildadmin acts", () => {
-    expect(guildadminHarness.worldActs).toContain("openTabardVendor");
-    expect(guildadminHarness.worldActs).toContain("setInfoText");
-    expect(guildadminHarness.worldActs).toHaveLength(11);
   });
 });

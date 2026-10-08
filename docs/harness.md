@@ -452,9 +452,7 @@ Code inside the repository can call `onWorld(pi, use)` from
   owner holds the character. `claim.act` has `move`, `drive`, `jump`, `face`, `faceGuid`,
   `stopMoving`, `selectTarget`, `cast`, `attack`, `stopAttack`,
   `cancelCast`, `useItem`, `talk`, the loot calls, `sendSay` and
-  `sendWhisper`; each returns a promise. `claim.areas.<area>` has only the
-  acts that the area's harness module lists in `worldActs`, under the
-  same rules. Each claim is its own grant.
+  `sendWhisper`; each returns a promise. Each claim is its own grant.
   A later claim by any owner at the same or a higher rank takes the
   character from it and stops every run, so the claim is lost for good:
   every send rejects with `not_owner`, and `claim.onLost` fires. A send

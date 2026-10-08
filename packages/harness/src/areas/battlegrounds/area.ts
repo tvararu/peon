@@ -270,18 +270,4 @@ function onEvent(
 export const battlegroundsHarness = defineHarnessArea({
   area: "battlegrounds",
   rules: () => ({ event: (event, rc) => onEvent(event, rc) }),
-  worldActs: [
-    "setPvp",
-    "inspectHonor",
-    "list",
-    "hello",
-    "join",
-    "answer",
-    "leaveQueue",
-    "requestScore",
-    "requestCarriers",
-    "leaveBattleground",
-    "reportAfk",
-    "queueSpiritGuide",
-  ],
 });

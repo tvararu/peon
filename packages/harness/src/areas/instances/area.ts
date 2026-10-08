@@ -222,11 +222,4 @@ function rule(event: InstancesEvent): AreaDraft[] {
 export const instancesHarness = defineHarnessArea({
   area: "instances",
   rules: () => ({ event: rule }),
-  worldActs: [
-    "answerBind",
-    "requestLockouts",
-    "resetInstances",
-    "setDifficulty",
-    "setLockoutExtended",
-  ],
 });

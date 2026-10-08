@@ -91,19 +91,4 @@ function onEvent(event: GuildBankEvent, rc: RuleInput): readonly AreaDraft[] {
 export const guildbankHarness = defineHarnessArea({
   area: "guildbank",
   rules: () => ({ event: (event, rc) => onEvent(event, rc) }),
-  worldActs: [
-    "openVault",
-    "queryTab",
-    "buyTab",
-    "renameTab",
-    "depositMoney",
-    "withdrawMoney",
-    "depositItem",
-    "withdrawItem",
-    "moveWithinBank",
-    "setTabText",
-    "queryLog",
-    "queryText",
-    "queryMoneyWithdrawn",
-  ],
 });

@@ -85,5 +85,4 @@ export const unitmotionHarness = defineHarnessArea({
       },
     };
   },
-  worldActs: [],
 });

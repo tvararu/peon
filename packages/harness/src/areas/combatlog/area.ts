@@ -189,5 +189,4 @@ export const combatlogHarness = defineHarnessArea({
     const state: RuleState = { healAt: new Map(), seen: new Set() };
     return { event: (e, rc) => combatlogRows(e, state, rc) };
   },
-  worldActs: [],
 });

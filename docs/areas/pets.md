@@ -279,7 +279,7 @@ nothing. Happiness words come from the pet's happiness level
 (`Entities/Pet/Pet.cpp:894-898`, `src/server/shared/SharedDefines.h:261`),
 and family names from the creature family list
 (`src/server/shared/SharedDefines.h:2644-2670`). Sends run inside
-`ctx.rt.mutex.run` through `claim.areas.pets` and settle with `settle`
+`ctx.rt.mutex.run` and settle with `settle`
 (subscribe before send). `call`, `revive` and `dismiss` cast the owner's
 spell found by name (Call Pet 883, Dismiss Pet 2641,
 `Entities/Pet/Pet.cpp:450`) and settle `DONE` on a `bar` event, `FAILED`

@@ -128,5 +128,4 @@ export const objectsHarness = defineHarnessArea({
       }
     },
   }),
-  worldActs: ["use", "open", "readPage"],
 });

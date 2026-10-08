@@ -284,5 +284,4 @@ export const raidHarness = defineHarnessArea({
   area: "raid",
   glyph: "party",
   rules: () => ({ event: rule }),
-  worldActs: [],
 });

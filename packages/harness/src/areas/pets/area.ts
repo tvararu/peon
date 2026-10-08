@@ -176,15 +176,4 @@ export const petsHarness = defineHarnessArea({
       },
     };
   },
-  worldActs: [
-    "petCommand",
-    "petStance",
-    "petStopAttack",
-    "requestPetInfo",
-    "petCast",
-    "petAutocast",
-    "renamePet",
-    "abandonPet",
-    "learnPetTalent",
-  ],
 });

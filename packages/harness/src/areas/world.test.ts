@@ -1,7 +1,7 @@
-import { describe, expect, mock, test } from "bun:test";
+import { describe, expect, test } from "bun:test";
 import type { Unsubscribe, WorldHandle } from "@peon/core";
 import { Emitter } from "@peon/core/lib/emitter";
-import { areaActs, areaViews } from "#harness/areas/world";
+import { areaViews } from "#harness/areas/world";
 
 type ClockState = { readonly speed: number; readonly marks: number[] };
 type ClockEvent = { readonly type: "synced"; readonly at: { t: number } };
@@ -11,22 +11,19 @@ type ClockView = {
 };
 
 const REGISTRY = {
-  clock: { area: "clock", worldActs: ["sync"] },
+  clock: { area: "clock" },
 } as const;
 
 function fixture() {
   const store: ClockState = { marks: [1, 2], speed: 0.01 };
   const events = new Emitter<[ClockEvent]>();
-  const sync = mock(async (n: number) => n * 2);
-  const hidden = mock(() => "hidden");
   const handle = {
     clock: {
-      act: { hidden, sync },
       onEvent: (cb: (event: ClockEvent) => void) => events.subscribe(cb),
       state: () => store,
     },
   } as unknown as WorldHandle;
-  return { events, handle, hidden, store, sync };
+  return { events, handle, store };
 }
 
 describe("areaViews", () => {
@@ -59,48 +56,5 @@ describe("areaViews", () => {
     off();
     off();
     expect(events.size).toBe(0);
-  });
-});
-
-describe("areaActs", () => {
-  test("only the listed world acts exist and each runs through guard", async () => {
-    const { handle, hidden, sync } = fixture();
-    const guarded: string[] = [];
-    const acts = areaActs(
-      REGISTRY,
-      () => handle,
-      <T>(act: () => Promise<T>) => {
-        guarded.push("guard");
-        return act();
-      },
-    );
-    expect(await acts.clock.sync(21)).toBe(42);
-    expect(sync).toHaveBeenCalledWith(21);
-    expect(guarded).toEqual(["guard"]);
-    expect(Object.keys(acts.clock)).toEqual(["sync"]);
-    expect("hidden" in acts.clock).toBe(false);
-    // @ts-expect-error
-    expect(acts.clock.hidden).toBeUndefined();
-    expect(hidden).not.toHaveBeenCalled();
-  });
-
-  test("a guard refusal stops the act before it reaches the handle", async () => {
-    const { handle, sync } = fixture();
-    const acts = areaActs(
-      REGISTRY,
-      () => handle,
-      () => Promise.reject(new Error("not_owner")),
-    );
-    await expect(acts.clock.sync(1)).rejects.toThrow("not_owner");
-    expect(sync).not.toHaveBeenCalled();
-  });
-
-  test("an act with no live handle refuses offline", async () => {
-    const acts = areaActs(
-      REGISTRY,
-      () => undefined,
-      (act) => act(),
-    );
-    await expect(acts.clock.sync(1)).rejects.toThrow("offline");
   });
 });

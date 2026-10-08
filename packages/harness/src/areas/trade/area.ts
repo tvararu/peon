@@ -141,14 +141,4 @@ function onEvent(event: TradeEvent, rc: RuleInput): readonly AreaDraft[] {
 export const tradeHarness = defineHarnessArea({
   area: "trade",
   rules: () => ({ event: onEvent }),
-  worldActs: [
-    "acceptTrade",
-    "answerTrade",
-    "cancelTrade",
-    "offerGold",
-    "offerItem",
-    "requestTrade",
-    "unacceptTrade",
-    "withdrawItem",
-  ],
 });

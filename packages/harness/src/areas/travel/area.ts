@@ -119,5 +119,4 @@ function onEvent(event: TravelEvent, rc: RuleInput): readonly AreaDraft[] {
 export const travelHarness = defineHarnessArea({
   area: "travel",
   rules: () => ({ event: onEvent }),
-  worldActs: ["bindActivate", "openTaxiMap", "activateTaxi"],
 });

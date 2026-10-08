@@ -157,5 +157,4 @@ export const selfstateHarness = defineHarnessArea({
       }
     },
   }),
-  worldActs: ["dismount", "selfResurrect"],
 });

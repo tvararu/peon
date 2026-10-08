@@ -152,5 +152,4 @@ export const talentsHarness = defineHarnessArea({
     const memo: TalentsMemo = { pendingResetPoints: undefined };
     return { event: (event, rc) => rows(event, rc, memo) };
   },
-  worldActs: ["learnTalents", "resetTalents", "applyGlyph", "removeGlyph"],
 });

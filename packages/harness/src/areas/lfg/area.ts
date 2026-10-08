@@ -322,16 +322,4 @@ export const lfgHarness = defineHarnessArea({
       event: (event, rc) => rule(event, rc, memo),
     };
   },
-  worldActs: [
-    "requestDungeons",
-    "requestPartyLocks",
-    "requestStatus",
-    "answerProposal",
-    "join",
-    "leave",
-    "setComment",
-    "setRoles",
-    "teleport",
-    "voteKick",
-  ],
 });

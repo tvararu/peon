@@ -36,9 +36,8 @@ const REGISTRY = {
       event: (event: FixtureEvent) =>
         event.type === "flood" ? [] : [synced(event.type)],
     }),
-    worldActs: [],
   },
-  beta: { area: "beta", worldActs: [] },
+  beta: { area: "beta" },
 };
 
 describe("area rules", () => {

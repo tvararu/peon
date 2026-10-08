@@ -1,12 +1,7 @@
 import type { Unsubscribe, WorldHandle } from "@peon/core";
 import { ignoreFailure } from "@peon/core/lib/ignore-failure";
 import { HARNESS_AREAS } from "#harness/areas/registry";
-import {
-  type AreaClaimActs,
-  areaActs,
-  areaViews,
-  type WorldRegistry,
-} from "#harness/areas/world";
+import { areaViews, type WorldRegistry } from "#harness/areas/world";
 import type { HarnessRuntime } from "#harness/contract/services";
 import type {
   ControlHolder,
@@ -63,9 +58,7 @@ export function createWorldService(
   };
   const service: WorldService = Object.freeze({
     claim: (owner: ControlOwner, reason: string) =>
-      disposed
-        ? undefined
-        : claim({ claims, owner, reason, registry, rt, track }),
+      disposed ? undefined : claim({ claims, owner, reason, rt, track }),
     connection: rt.connection,
     control: Object.freeze({
       onOwner: (cb: Parameters<WorldService["control"]["onOwner"]>[0]) =>
@@ -185,13 +178,12 @@ type ClaimInit = {
   claims: Set<LiveClaim>;
   owner: ControlOwner;
   reason: string;
-  registry: WorldRegistry;
   rt: WorldRuntime;
   track: (off: Unsubscribe) => Unsubscribe;
 };
 
 function claim(init: ClaimInit): Claim | undefined {
-  const { claims, owner, reason, registry, rt, track } = init;
+  const { claims, owner, reason, rt, track } = init;
   const granted = rt.control.claim(owner, reason);
   if (!granted.granted) return undefined;
   const { grant } = granted;
@@ -223,14 +215,8 @@ function claim(init: ClaimInit): Claim | undefined {
       rt.mutex.run(() =>
         (online()[key] as (...args: never[]) => unknown)(...args),
       );
-  const guard = async <T>(act: () => Promise<T>): Promise<T> =>
-    await rt.mutex.run(() => {
-      online();
-      return act();
-    });
   return Object.freeze({
     act: Object.freeze(picked<WorldActuators>(ACT_KEYS, send)),
-    areas: areaActs(registry, rt.handle, guard) as AreaClaimActs,
     held,
     onLost(cb: (to: ControlHolder) => void) {
       if (lost) {
