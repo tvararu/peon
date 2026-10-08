@@ -1,7 +1,7 @@
 # Evals for the 1–10 speedrun and the 1–80 run
 
-Date: 2026-10-08. Status: design; the NS1 scenario and its measure are
-the prototype, nothing else is built.
+Date: 2026-10-08. Status: design; the NS1 scenario, its preset and its
+measure are built and have one graded baseline, nothing else is built.
 Issue: #607.
 
 Question: how do we measure Peon against its two goals, NS1 (an
@@ -21,9 +21,12 @@ note maps each one onto `mise eval` ([evals.md](../evals.md)).
   75-minute budget. It passes when level 10 lands within 60 minutes of
   the task. Its score is continuous: the XP earned in the first hour,
   which reaches 27,600 when the character makes level 10 within it.
-- **One new measure, `level_pace`**, reads the game log for the minutes
+- **One new measure, `level_pace`**, reads the game log for the seconds
   to each level from the task, the XP in the first hour, deaths and
   stalls. Every other number comes from checks that exist today.
+- **The first baseline scores 792 of 27,600** (level 2 when it stopped
+  at 21 minutes) and stops on the harness's 40-tool-call turn budget,
+  not on pace; see [Baseline](#baseline-round-6071).
 - **The held-out split is a second start**: the same task for a level 1
   human paladin in Northshire. A hillclimber reads only the Sunstrider
   runs; Northshire scores decide whether a change stays.
@@ -78,7 +81,7 @@ goal's pass rule, and hillclimbing climbs the continuous score.
 |---|---|---|
 | Final level | truth `level` (`packages/harness/src/grader/draft-fill.ts:106`) | yes |
 | XP earned over the run | truth `delta: ["totalXp"]` (`draft-fill.ts:138`) | yes |
-| Minutes to each level from the task | `xp/level_up` rows (`packages/harness/src/events/rules-xp.ts:130`) against the task's `human/input` row | `level_pace` |
+| Seconds to each level from the task | `xp/level_up` rows (`packages/harness/src/events/rules-xp.ts:130`) against the task's `human/input` row | `level_pace` |
 | XP in the first hour (the score) | `xp/gain` `amount` (`rules-xp.ts:42-64`) up to 60 minutes after the task | `level_pace` |
 | Deaths | `life/dead` rows (`packages/harness/src/events/rules-life.ts:43`) | countable today; reported by `level_pace` |
 | Stalls | gaps of 5 minutes or more between progress rows (`xp/gain`) | `level_pace` |
@@ -95,10 +98,12 @@ plumbing change is the task text in `MeasureContext`
 (`packages/harness/src/grader/draft-anchors.ts:6-10`), which holds the
 steer texts today. Row times lag the server by at most a second
 (`XP_SOURCE_WAIT_MS`, `packages/harness/src/events/rules-xp.ts:11`).
-Its `observed` holds the start time, the minutes to each level, the
-final level, the XP over the run and in the first hour, the death count,
-the stalls and the longest gap. It sets no `met`: the check's `expect`
-states the threshold and the grader decides, as with `kill_xp`.
+Its `observed` holds the start time, the exact seconds to each level,
+the final level, the XP over the run and in the first hour, the death
+count, the stalls and the longest gap; thresholds compare exact times,
+and only the reported minutes are rounded. It sets no `met`: the
+check's `expect` states the threshold and the grader decides, as with
+`kill_xp`.
 
 The scenario's checks are the pass rule only: final level at least 10,
 level 10 within 60 minutes of the task (`level_pace`), XP earned at
@@ -142,13 +147,45 @@ with the same arithmetic `level_pace` uses:
 | 1101 | fail | 2: 1.4, 3: 7.8 | 1710 | 110 | 0 | 2.8 | `done` at 15.5 |
 
 All three graded runs failed by the agent answering `done` long before
-the budget, at level 3 or 4. So the commonest failure is quitting, not
-slow play, and the NS1 task says not to stop before level 10. Level 2
-lands at 1.5 minutes in every run; the spread opens from level 3.
+the budget, at level 3 or 4, and each logged three `turn_budget`
+refusals before its last answer (round 722 logged six). The harness
+refuses every tool call after 40 in one human turn
+(`TURN_BUDGET`, `packages/harness/src/tools/define.ts:43,305-309`) with
+"report to the human now"; in an eval no human answers, so the run ends
+`done` ([evals.md](../evals.md#run-a-scenario)). The last answers also
+name navigation refusals near the Sunspire. Level 2 lands at 1.5
+minutes in every run; the spread opens from level 3.
 
 The level 1–5 evidence above is a priest; the speedrun is a paladin, so
 the first paladin runs are their own baseline, not a comparison with
 the priest runs.
+
+## Baseline: round 6071
+
+One graded run of `t4-speedrun-level-ten` at `39bd7a8d` (run conditions:
+`openai-codex/gpt-6-luna`, thinking `off`, Jev `jev-1.13.0`, scenario
+hash `e57e4f1b9b93`). Verdict `fail`, 1 of 4 checks met (`no-gm-help`).
+
+| Number | Value |
+|---|---|
+| XP in the first hour (the score) | 792 of 27,600 |
+| Final level | 2 (level 2 at 550.7 s) |
+| Deaths | 0 |
+| Stalls (5 minutes or more) | none; longest gap 3.8 minutes |
+| Wall time to the last answer | 1282 s of the 4500 s budget |
+| Tool calls, turns | 82 of 450, 84 |
+| Kills, quests turned in | 13 kill credits; "Reclaiming Sunstrider Isle", "Paladin Training" |
+
+The run ended the same way as the level 1–5 runs: `travel` refused
+`turn_budget` twice, and the agent reported "the tool's turn budget now
+requires me to report" and stopped with 54 minutes left. Before that,
+`travel` failed twice with `no_ground` (`UNKNOWN_HEIGHT`) and `engage`
+refused `target_unreachable` on a cub in view. So NS1 cannot pass today
+for a harness reason before any question of pace: an unattended goal
+gets about 40 tool calls per human message, and a 1–10 run needs many
+hundreds. How an autonomous goal keeps going is a design call for the
+maintainer, outside this eval. Evidence:
+`~/.local/state/peon-overnight/artifacts/ns1-eval/round-6071-t4-speedrun-level-ten-1/`.
 
 ## Noise estimate
 
@@ -197,6 +234,12 @@ verdict changed ([article], "Diagnostic checks").
   `docs/plans/2026-10-05-jev-pilot-units-design.md`).
 - The NS1 pass rule rests on truth and `level_pace`, so only `no-gm-help`
   and the friction are judgement calls.
+- Measured on round 6071: two graders agreed on the verdict and on all
+  four `met` values. They agreed the blocker was `gave-up-early` at the
+  `turn_budget` refusal, but filed it under different areas (`core` and
+  `tool`), and their other three friction items differed in category.
+  So the verdict and checks are repeatable and the friction is not:
+  friction diagnoses a run, and never feeds a score.
 
 ## Plumbing checks
 
@@ -264,8 +307,8 @@ The causes and a Peon example of each:
 
 | Cause | Example |
 |---|---|
-| Model | the agent quits early (the level-five rounds 901, 1001, 1101 above) |
-| Harness | navmesh refusals near the Sunspire stopped a level-five run (round 723) |
+| Model | after `engage` refused `target_unreachable` on a cub in view, the agent called `travel` instead of the `look` the result's `Next:` line named (round 6071, `session.jsonl:171-172`) |
+| Harness | `turn_budget` ends an unattended turn after 40 tool calls (round 6071; level-five rounds 901, 1001, 1101), and navmesh refusals near the Sunspire stopped a level-five run (round 723) |
 | Task | the shrine task's "first sentence" was ambiguous (#448) |
 | Grader | windowed checks drafted unmet on clean runs (#493) |
 | Environment | only gray creatures in view near Tranquillien (#519, #603) |
@@ -339,8 +382,8 @@ Calls for the maintainer before any NS2 segment is built:
 
 ## Next steps
 
-1. Build `level_pace` and `t4-speedrun-level-ten` (issue #607), run one
-   graded baseline, grade it twice, and record the numbers here.
+1. Decide how an autonomous goal keeps going past `TURN_BUDGET` (a
+   harness design call): until then NS1 ends at about 40 tool calls.
 2. Run three replicas to estimate the noise.
 3. Let `mise eval run` pass a model and thinking level through, then run
    the scaling check on the baseline.
