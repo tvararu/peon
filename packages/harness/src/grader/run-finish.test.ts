@@ -346,14 +346,16 @@ describe("writeOutcome", () => {
 
   test("a check blocked by a named gap carries it into the draft", async () => {
     const { exec } = router();
-    const ghostlands = loadScenario("t3-ghostlands-kill");
+    const quest = loadScenario("t4-quest-first");
     const st = await state(exec, {
       end: "done",
       exitMs: NOW,
       scenario: {
-        ...ghostlands,
-        checks: ghostlands.checks.map((check) =>
-          check.id === "two-kills" ? { ...check, blockedBy: "P9:gap" } : check,
+        ...quest,
+        checks: quest.checks.map((check) =>
+          check.id === "rewarded-packet"
+            ? { ...check, blockedBy: "P9:gap" }
+            : check,
         ),
       },
       taskMs: NOW - 72_000,
@@ -364,7 +366,7 @@ describe("writeOutcome", () => {
     ).json()) as EvalResult;
     expect(draft.blockedBy).toEqual(["P9:gap"]);
     expect(
-      draft.checks.find((check) => check.id === "two-kills"),
+      draft.checks.find((check) => check.id === "rewarded-packet"),
     ).toMatchObject({
       blockedBy: "P9:gap",
       met: false,

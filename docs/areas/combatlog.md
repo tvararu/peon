@@ -276,7 +276,7 @@ No verb (N23).
 | `SMSG_FEIGN_DEATH_RESISTED` | `dead` | both send sites are inside comment blocks | `Spells/Auras/SpellAuraEffects.cpp:2953-2958` |
 | `SMSG_HEALTH_UPDATE` | `dead` | no send site: only the opcode list and the opcode table name it | `Server/Protocol/Opcodes.h:1181` |
 
-Flood guard, measured on a `t3-ghostlands-kill` run with
+Flood guard, measured on a Ghostlands kill eval run with
 `--packet-trace headers`: 3 fights, 0 `combatlog/*` rows in each, and 243
 game log rows (240 `log`, 3 `passive`) over 12 agent turns, about 20 rows
 per turn. The run received 25 `SMSG_ATTACKERSTATEUPDATE`, 15
@@ -298,7 +298,7 @@ Run one at level 80 ran out of mana after four Fireballs
 Angershade at 95 of 158 health; run two at level 10 died to the mobs
 before a cast landed. Neither trace held a kill log.
 
-Fight totals, measured on a `t3-ghostlands-kill` run (round 21, verdict
+Fight totals, measured on a Ghostlands kill eval run (round 21, verdict
 `pass`): one `engage` call killed two Shadowpine Oracles and answered
 `DONE killed 2 Shadowpine Oracle ... +342 XP. Dealt 649, took 131.`. The
 game log held two `combatlog/fight` rows, `Fight over: dealt 328, took

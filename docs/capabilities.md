@@ -20,7 +20,6 @@ or the page names one that does not exist.
 | Answer whispers from another player | `t2-whisper-reply` | A chat line with no echo within 2 s is `UNCONFIRMED`. |
 | Emote at a player or NPC | `t2-emotes-partner` | Only emotes the server lists; none while dead; no ready check. |
 | Join a channel it owns and kick another player off it | `t2-channels-kick` | Kicking, banning and the other admin verbs need the channel moderated by the caller, usually as its owner. An admin call the server does not answer is `UNCONFIRMED`. |
-| Kill creatures at its level, one at a time, with Jev choosing the actions | `t3-ghostlands-kill` | Needs Jev: after repeated failed Jev calls the fight ends as `jev_unavailable`. A hunter can end up in melee range, because `travel` stops 3 yd from a unit, so no scenario proves ranged hunter play. |
 | Move with Jev choosing every input: run a circle, walk around an obstacle, jump a low fence (`pilot`) | `t3-pilot-circle`, `t3-pilot-detour`, `t3-pilot-fence`, `t3-pilot-circle-holdout`, `t3-pilot-detour-holdout`, `t3-pilot-fence-holdout` | Rounds 7687 and 7702 (with creatures in the frame) each passed 18 of 18 replicas: about 4.5 decisions a second at a 200–225 ms Jev p50, no server corrections. Needs Jev and namigator data for the map. |
 | Walk past hostile creatures without drawing aggro, with Jev steering (`pilot`) | `t3-pilot-camp`, `t3-pilot-camp-holdout`; baselines `t3-pilot-camp-travel`, `t3-pilot-camp-holdout-travel`, `t3-pilot-camp-greedy`, `t3-pilot-camp-holdout-greedy` | Round 7702 passed 6 of 6 camp replicas; on the same camps the greedy chooser passed 1 of 4 and `travel` 1 of 4. Aggro ranges are inferred from levels, not observed: the server's aggro rate, detection auras and line of sight are unknown to the client. Gray creatures add no danger; any other creature that attacks ends the pilot run. |
 | Take a quest, do it and turn it in | `t4-quest-first`, `t4-alliance-first` | An accept or a turn-in the server does not answer is `UNCONFIRMED`; the agent checks the quest log before it tries again. A turn-in names the reputation changes the reward carried, and `journal` log search with `since: last_turn` reaches back to the previous turn's start. |
@@ -35,7 +34,7 @@ or the page names one that does not exist.
 | Buy back an item sold by mistake | `t5-buyback-vendor` | Only items sold this session. |
 | Die, then come back to life | `t6-die-and-recover` | |
 | Come back to life where it died, with Reincarnation and an Ankh | `t6-selfstate-res` | Shaman only: the `eversong1-shaman` preset. One Ankh covers one self-resurrection; a later death is not recovered. |
-| Stop on command and resume | `t7-halt-resume` | |
+| Kill named creatures with Jev choosing the actions, stop on command and resume | `t7-halt-resume` | Needs Jev: after repeated failed Jev calls the fight ends as `jev_unavailable`. A hunter can end up in melee range, because `travel` stops 3 yd from a unit, so no scenario proves ranged hunter play. |
 | Answer a question while an action runs | `t7-question-while-acting` | |
 | Wear better gear and put a bag on | `t8-items-equip-upgrade` | |
 | Take off worn gear and keep it in bags | `t8-items-unequip` | |
@@ -100,6 +99,9 @@ or the page names one that does not exist.
 ## Not shown by any scenario
 
 These have tools or code but no scenario that checks them live:
+- Choosing creatures at its level and pulling one at a time (`engage`,
+  `look`): no scenario checks the target choice or the pull size live.
+
 - Changing ranks, member notes and the info text, and reading permissions and
   the event log (`guild` `rank`, `note`, `officer_note`, `info_text`,
   `permissions`, `log`), and saving an emblem as a leader: a scenario needs
