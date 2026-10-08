@@ -376,6 +376,26 @@ describe("awaitCycle", () => {
     expect(end.error).toBe("cycle_empty_queue");
   });
 
+  test("a rejected start carries no state", async () => {
+    const handle = createMockGame();
+    const stale = handle.getCycleState();
+    handle.getCycleState = () => ({
+      ...stale,
+      active: false,
+      stopCause: "objective_complete",
+    });
+    handle.startCycle = jest.fn(async () => {
+      throw new Error("cycle_empty_queue");
+    });
+    const end = await awaitCycle(handle, {
+      guids: [],
+      instruction: "fight",
+      maxStarts: 1,
+      signal: new AbortController().signal,
+    });
+    expect(end).toEqual({ error: "cycle_empty_queue", state: undefined });
+  });
+
   test("stops a cycle whose signal is already aborted", async () => {
     const handle = createMockGame();
     const controller = new AbortController();

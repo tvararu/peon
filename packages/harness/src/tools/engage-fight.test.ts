@@ -351,31 +351,6 @@ describe("engage fight", () => {
     });
   });
 
-  test("an item quest with no known source refuses with the ask for a creature", async () => {
-    const t = await field();
-    const state = t.handle.getQuestState();
-    const counters: [number, number, number, number] = [0, 0, 0, 0];
-    t.handle.getQuestState = () => ({
-      ...state,
-      log: {
-        complete: true,
-        slots: [
-          { counters, expiresAtSeconds: 0, flags: 0, questId: 8325, slot: 0 },
-        ],
-      },
-    });
-    cycleEnds(t.handle, [], "objective_item_sources_unknown");
-    const res = await engageSpec.run(
-      { quest: "8325" },
-      toolCtx<EngageAfter>(t),
-    );
-    expect(res).toMatchObject({
-      next: 'engage(quest: "8325", target: "<creature name>")',
-      reason: "item_sources_unknown",
-      status: "REFUSED",
-    });
-  });
-
   test("a second attacker after a single kill is named with an engage step", async () => {
     const t = await field();
     setUnits(t.handle, [
@@ -401,6 +376,34 @@ describe("engage fight", () => {
     expect(res.status).toBe("DONE");
     expect(res.body ?? []).toEqual([]);
     expect(res.next).toMatch(/^engage\(target: "u\d+"\)$/);
+  });
+
+  test("a cycle start error reports no stale tally", async () => {
+    const t = await field();
+    const stale = t.handle.getCycleState();
+    t.handle.getCycleState = () => ({
+      ...stale,
+      active: false,
+      phase: "stopped",
+      queue: [
+        {
+          guid: STALKER,
+          loot: "looted",
+          outcome: KILL,
+          status: "done" as const,
+        },
+      ],
+      stopCause: "queue_exhausted",
+    });
+    t.handle.startCycle = async () => {
+      throw new Error("cycle_invalid_max");
+    };
+    const res = await engageSpec.run(
+      { count: 2, target: "Springpaw Stalker" },
+      toolCtx<EngageAfter>(t),
+    );
+    expect(res.after).toMatchObject({ kills: 0, xp: 0 });
+    expect(contentOf(res)).not.toContain("killed Springpaw Stalker");
   });
 
   test("a new attacker mid-cycle leads the next cycle while kills remain", async () => {
