@@ -373,6 +373,7 @@ async function draftResult(st: RunState): Promise<DraftResult> {
       st.runDir,
       st.scenario.checks,
       st.scenario.steers.map((steer) => steer.text),
+      st.scenario.task,
     ),
     conditions: await conditionsOf(st.runDir, st.scenario),
     efficiency: efficiency({

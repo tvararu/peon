@@ -167,6 +167,15 @@ export const presetSpecs = {
     y: 588.49,
     z: 660.94,
   },
+  "sunstrider1-paladin": {
+    create: { class: 2, gender: 1, race: 10, ...zeroFace },
+    faction: "horde",
+    map: 530,
+    stage: [],
+    x: 10_349.6,
+    y: -6357.29,
+    z: 33.4,
+  },
 } as const satisfies Record<string, PresetSpec>;
 
 export type Preset = keyof typeof presetSpecs;
@@ -189,6 +198,7 @@ export const presets: Preset[] = [
   "eversong55-deathknight",
   "eversong10-fishing",
   "eversong1-shaman",
+  "sunstrider1-paladin",
 ];
 
 const languages: Record<Faction, number> = { alliance: 7, horde: 1 };

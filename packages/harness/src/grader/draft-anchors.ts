@@ -7,6 +7,7 @@ export type MeasureContext = {
   jev: unknown[] | null;
   packets: unknown[] | null;
   steers: string[];
+  task: string;
 };
 
 const field = (row: GameLogRow, key: string): unknown =>
