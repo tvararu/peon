@@ -52,7 +52,7 @@ async function fill(lines: string[], task: string = TASK) {
 }
 
 describe("level_pace", () => {
-  test("levels carry minutes from the task and xpFirstHour cuts at 60 minutes", async () => {
+  test("levels carry seconds from the task and xpFirstHour cuts at 60 minutes", async () => {
     const check = await fill([
       input(1, TASK, T0),
       gain(2, 100, T0 + 10 * MIN),
@@ -64,14 +64,29 @@ describe("level_pace", () => {
     expect(check?.observed).toMatchObject({
       finalLevel: 3,
       levels: [
-        { level: 2, minutes: 10 },
-        { level: 3, minutes: 70 },
+        { level: 2, seconds: 600 },
+        { level: 3, seconds: 4200 },
       ],
       start: T0,
       xp: 300,
       xpFirstHour: 100,
     });
     expect(check?.met).toBe(false);
+  });
+
+  test("a level 10 two seconds past the hour keeps its exact time and line", async () => {
+    const check = await fill([
+      input(1, TASK, T0),
+      gain(2, 27_600, T0 + 60 * MIN + 2000),
+      up(3, 10, T0 + 60 * MIN + 2000),
+      tick(4, T0 + 61 * MIN),
+    ]);
+    expect(check?.observed).toMatchObject({
+      finalLevel: 10,
+      levels: [{ level: 10, seconds: 3602 }],
+      xpFirstHour: 0,
+    });
+    expect(check?.ref).toBe("gamelog.jsonl:3");
   });
 
   test("the start anchors on the task text past an earlier input", async () => {
@@ -105,6 +120,18 @@ describe("level_pace", () => {
         { fromMinute: 4, minutes: 8 },
         { fromMinute: 12, minutes: 8 },
       ],
+    });
+  });
+
+  test("a gap just under 5 minutes is no stall and exactly 5 minutes is", async () => {
+    const check = await fill([
+      input(1, TASK, T0),
+      gain(2, 100, T0 + 5 * MIN - 2000),
+      gain(3, 100, T0 + 10 * MIN - 2000),
+      tick(4, T0 + 10 * MIN),
+    ]);
+    expect(check?.observed).toMatchObject({
+      stalls: [{ fromMinute: 5, minutes: 5 }],
     });
   });
 

@@ -161,11 +161,13 @@ leaves the measure unmet with a `reason`.
 
 `level_pace` anchors on the first `human/input` row whose text equals the
 scenario task and reads only rows at or after it: it reports the task
-row timestamp, the highest level reached, one `{ level, minutes }` entry
-per `xp/level_up` row, total `xp/gain` XP and the XP within the first
-hour, the `life/dead` count, every gap of 5 minutes or more between
-consecutive progress points (the start, each `xp/gain` row and the last
-game-log row) as `{ fromMinute, minutes }` stalls, and the longest gap.
+row timestamp, the highest level reached, one `{ level, seconds }` entry
+per `xp/level_up` row with the exact seconds from the task, total
+`xp/gain` XP and the XP within the first hour, the `life/dead` count,
+every gap of 5 minutes or more between consecutive progress points (the
+start, each `xp/gain` row and the last game-log row) as
+`{ fromMinute, minutes }` stalls, and the longest gap. The thresholds
+compare exact times; only the reported minutes are rounded to a tenth.
 Like `kill_xp` it sets no verdict; the grader decides from the observed
 pace.
 

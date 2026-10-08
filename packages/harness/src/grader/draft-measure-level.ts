@@ -16,6 +16,15 @@ const numberOf = (value: unknown): number =>
 
 const minutesOf = (ms: number): number => Math.round(ms / 6000) / 10;
 
+type Gap = { fromMs: number; ms: number };
+
+function gapsOf(points: readonly number[]): Gap[] {
+  return points.slice(1).map((ts, index) => {
+    const from = points[index] ?? ts;
+    return { fromMs: from - (points[0] ?? from), ms: ts - from };
+  });
+}
+
 export function levelPace(
   rows: readonly GameLogRow[],
   { task }: MeasureContext,
@@ -32,21 +41,17 @@ export function levelPace(
   const levels = ups
     .map((row) => ({
       level: numberOf(field(row, "level")),
-      minutes: minutesOf(timeOf(row) - startMs),
+      seconds: (timeOf(row) - startMs) / 1000,
     }))
     .sort((a, b) => a.level - b.level);
   const ten = ups.find((row) => numberOf(field(row, "level")) === 10);
   const last = after.at(-1);
-  const points = [
+  const gaps = gapsOf([
     startMs,
     ...gains.map(timeOf),
     ...(last ? [timeOf(last)] : []),
-  ];
-  const gaps = points.slice(1).map((ts, index) => ({
-    fromMinute: minutesOf((points[index] ?? startMs) - startMs),
-    minutes: minutesOf(ts - (points[index] ?? startMs)),
-  }));
-  const longest = gaps.reduce((max, gap) => Math.max(max, gap.minutes), 0);
+  ]);
+  const longest = gaps.reduce((max, gap) => Math.max(max, gap.ms), 0);
   return {
     line: (ten ?? start).line,
     observed: {
@@ -56,8 +61,13 @@ export function levelPace(
           ? null
           : Math.max(...levels.map(({ level }) => level)),
       levels,
-      longestGapMinutes: Math.round(longest * 10) / 10,
-      stalls: gaps.filter(({ minutes }) => minutes * 60_000 >= STALL_MS),
+      longestGapMinutes: minutesOf(longest),
+      stalls: gaps
+        .filter(({ ms }) => ms >= STALL_MS)
+        .map(({ fromMs, ms }) => ({
+          fromMinute: minutesOf(fromMs),
+          minutes: minutesOf(ms),
+        })),
       start: startMs,
       xp: amounts.reduce((total, amount) => total + amount, 0),
       xpFirstHour: gains

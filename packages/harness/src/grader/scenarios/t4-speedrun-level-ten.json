@@ -9,7 +9,7 @@
       "source": "truth"
     },
     {
-      "expect": "level_pace shows level 10 reached at most 60 minutes after the task row; its levels, xpFirstHour, deaths and stalls are the run's score and diagnosis",
+      "expect": "level_pace lists level 10 at most 3600 seconds after the task row; its levels, xpFirstHour, deaths and stalls are the run's score and diagnosis",
       "id": "time-to-ten",
       "measure": "level_pace",
       "source": "game_log"
