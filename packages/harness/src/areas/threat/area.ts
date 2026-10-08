@@ -170,5 +170,4 @@ export const threatHarness = defineHarnessArea({
     const mem: Memory = { engaged: new Set(), warned: new Map() };
     return { event: (e, rc) => threatRows(e, mem, rc) };
   },
-  worldActs: [],
 });

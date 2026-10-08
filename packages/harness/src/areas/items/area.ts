@@ -414,15 +414,4 @@ export const itemsHarness = defineHarnessArea({
     attach: (state, rc) => attachRows(state, rc),
     event: (event, rc) => eventRow(event, rc),
   }),
-  worldActs: [
-    "equip",
-    "equipTo",
-    "move",
-    "open",
-    "read",
-    "setAmmo",
-    "socket",
-    "split",
-    "unequip",
-  ],
 });

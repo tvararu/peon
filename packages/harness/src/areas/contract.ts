@@ -1,4 +1,4 @@
-import type { AreaActsOf, AreaEventOf, AreaName, AreaState } from "@peon/core";
+import type { AreaEventOf, AreaName, AreaState } from "@peon/core";
 import type { LogClass } from "#harness/contract/log";
 import type { RuleInput } from "#harness/events/rules";
 import type { GlyphName } from "#harness/ui/glyphs";
@@ -18,19 +18,14 @@ export type AreaRules<K extends AreaName> = {
   attach?: (state: AreaState<K>, rc: RuleInput) => readonly AreaDraft[];
 };
 
-export type HarnessArea<
-  K extends AreaName,
-  W extends keyof AreaActsOf<K> & string,
-> = {
+export type HarnessArea<K extends AreaName> = {
   readonly area: K;
   readonly glyph?: GlyphName;
-  readonly worldActs: readonly W[];
   rules?: () => AreaRules<K>;
 };
 
-export function defineHarnessArea<
-  K extends AreaName,
-  const W extends keyof AreaActsOf<K> & string,
->(area: HarnessArea<K, W>): HarnessArea<K, W> {
+export function defineHarnessArea<K extends AreaName>(
+  area: HarnessArea<K>,
+): HarnessArea<K> {
   return area;
 }

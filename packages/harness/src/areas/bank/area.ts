@@ -71,5 +71,4 @@ function onEvent(event: BankEvent, rc: RuleInput): readonly AreaDraft[] {
 export const bankHarness = defineHarnessArea({
   area: "bank",
   rules: () => ({ event: (event, rc) => onEvent(event, rc) }),
-  worldActs: ["openBank", "deposit", "withdraw", "buyBankSlot"],
 });

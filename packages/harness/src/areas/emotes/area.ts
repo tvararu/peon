@@ -23,5 +23,4 @@ function onEvent(event: EmotesEvent): readonly AreaDraft[] {
 export const emotesHarness = defineHarnessArea({
   area: "emotes",
   rules: () => ({ event: (event) => onEvent(event) }),
-  worldActs: [],
 });

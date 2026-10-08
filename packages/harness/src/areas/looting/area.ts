@@ -42,5 +42,4 @@ function rule(event: LootingEvent, rc: RuleInput): AreaDraft[] {
 export const lootingHarness = defineHarnessArea({
   area: "looting",
   rules: () => ({ event: rule }),
-  worldActs: [],
 });

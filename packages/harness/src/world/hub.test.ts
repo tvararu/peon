@@ -1,4 +1,4 @@
-import { describe, expect, mock, test } from "bun:test";
+import { describe, expect, test } from "bun:test";
 import type { Entity, EntityEvent, UnitEntity } from "@peon/core";
 import { createWorldService } from "#harness/world/hub";
 import type { WorldSession } from "#harness/world/service";
@@ -7,18 +7,15 @@ import { createTestRuntime } from "#test-support/runtime-fixture";
 
 const EVENT: EntityEvent = { guid: 0n, type: "disappear" };
 
-const CLOCK = { clock: { area: "clock", worldActs: ["sync"] } } as const;
-type ClockActs = { clock: { sync: () => Promise<unknown> } };
+const CLOCK = { clock: { area: "clock" } } as const;
 
 function withClock(game: MockGame) {
-  const sync = mock(async () => "synced");
-  return Object.assign(game, {
+  Object.assign(game, {
     clock: {
-      act: { sync },
       onEvent: () => () => undefined,
       state: () => ({ speed: 0.01 }),
     },
-  }).clock.act.sync;
+  });
 }
 
 async function setup() {
@@ -202,27 +199,6 @@ describe("createWorldService snapshots", () => {
 });
 
 describe("createWorldService areas", () => {
-  test("claim.areas sends a listed act and refuses not_owner once the claim is lost", async () => {
-    const { first, rt, world } = await setup();
-    const sync = withClock(first);
-    await rt.connect();
-    const claim = world.claim("loop", "probe");
-    const areas = claim?.areas as unknown as ClockActs;
-    expect(await areas.clock.sync()).toBe("synced");
-    world.claim("agent", "probe");
-    await expect(areas.clock.sync()).rejects.toThrow("not_owner");
-    expect(sync).toHaveBeenCalledTimes(1);
-  });
-
-  test("claim.areas refuses offline with no session", async () => {
-    const { first, world } = await setup();
-    const sync = withClock(first);
-    const claim = world.claim("loop", "probe");
-    const areas = claim?.areas as unknown as ClockActs;
-    await expect(areas.clock.sync()).rejects.toThrow("offline");
-    expect(sync).not.toHaveBeenCalled();
-  });
-
   test("session.areas reads frozen area state", async () => {
     const { first, rt, world } = await setup();
     withClock(first);

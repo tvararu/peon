@@ -180,5 +180,4 @@ export const questsHarness = defineHarnessArea({
       },
     };
   },
-  worldActs: ["answerShare", "queryGiverStatuses", "queryPoi", "shareQuest"],
 });

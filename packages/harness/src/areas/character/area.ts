@@ -27,17 +27,4 @@ function onEvent(event: CharacterEvent, _rc: RuleInput): readonly AreaDraft[] {
 export const characterHarness = defineHarnessArea({
   area: "character",
   rules: () => ({ event: onEvent }),
-  worldActs: [
-    "changeFaction",
-    "changeRace",
-    "customizeCharacter",
-    "deleteCharacter",
-    "playedTime",
-    "renameCharacter",
-    "setCloakShown",
-    "setHelmShown",
-    "setSheathed",
-    "styleAtBarber",
-    "whois",
-  ],
 });

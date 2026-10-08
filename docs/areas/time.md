@@ -2,10 +2,9 @@
 
 The `time` area parses the game time the server sends at login and asks
 the server once per login for the seconds until the daily quest reset.
-World-service code reads it through `session.areas.time.state()`, sends
-a fresh query with `claim.areas.time.query()`, and asks for the
-server's game clock with `claim.areas.time.requestUiTime()`, which
-fills `uiTime` (Unix seconds) and `uiTimeAt`. The `ui_time` event
+World-service code reads it through `session.areas.time.state()`. The
+area's `query` act sends a fresh query, and its `requestUiTime` act asks
+for the server's game clock and fills `uiTime` (Unix seconds) and `uiTimeAt`. The `ui_time` event
 writes no log row.
 
 ## Wire notes
@@ -46,7 +45,7 @@ None.
 
 ## Capabilities row
 
-No agent verb; the world-service acts `time.query` and
+No agent verb; the core `WorldHandle` area acts `time.query` and
 `time.requestUiTime` only (R9).
 
 ## Proof

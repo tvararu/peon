@@ -111,15 +111,4 @@ export const vehiclesHarness = defineHarnessArea({
       return [];
     },
   }),
-  worldActs: [
-    "spellClick",
-    "exitVehicle",
-    "nextSeat",
-    "prevSeat",
-    "switchSeat",
-    "enterPlayerVehicle",
-    "ejectPassenger",
-    "changeSeatOnControlled",
-    "dismissControlled",
-  ],
 });

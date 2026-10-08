@@ -1,6 +1,6 @@
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import type { Unsubscribe, WorldHandle } from "@peon/core";
-import type { AreaClaimActs, AreaViews } from "#harness/areas/world";
+import type { AreaViews } from "#harness/areas/world";
 import type { ConnectionState } from "#harness/contract/config";
 import type { GameLogEntry } from "#harness/contract/log";
 import type {
@@ -115,7 +115,6 @@ export type WorldRefusal = "not_owner" | "offline";
 export type Claim = {
   readonly owner: ControlOwner;
   readonly act: WorldActuators;
-  readonly areas: AreaClaimActs;
   held: () => boolean;
   onLost: (cb: (to: ControlHolder) => void) => Unsubscribe;
   release: () => void;

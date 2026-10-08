@@ -155,15 +155,4 @@ function onEvent(event: ChartersEvent, rc: RuleInput): readonly AreaDraft[] {
 export const chartersHarness = defineHarnessArea({
   area: "charters",
   rules: () => ({ event: (event, rc) => onEvent(event, rc) }),
-  worldActs: [
-    "showList",
-    "buy",
-    "query",
-    "showSignatures",
-    "rename",
-    "offer",
-    "sign",
-    "decline",
-    "turnIn",
-  ],
 });

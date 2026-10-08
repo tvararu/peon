@@ -141,5 +141,4 @@ export const reputationHarness = defineHarnessArea({
       }
     },
   }),
-  worldActs: ["setAtWar", "setInactive", "setWatched"],
 });

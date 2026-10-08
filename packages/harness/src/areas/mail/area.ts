@@ -81,15 +81,4 @@ function onEvent(event: MailEvent, _rc: RuleInput): readonly AreaDraft[] {
 export const mailHarness = defineHarnessArea({
   area: "mail",
   rules: () => ({ event: (event, rc) => onEvent(event, rc) }),
-  worldActs: [
-    "listMail",
-    "markMailRead",
-    "queryNextMail",
-    "takeMailMoney",
-    "takeMailItem",
-    "returnMail",
-    "deleteMail",
-    "copyMailText",
-    "sendMail",
-  ],
 });

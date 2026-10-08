@@ -21,5 +21,4 @@ function onEvent(
 export const guardHarness = defineHarnessArea({
   area: "guard",
   rules: () => ({ event: onEvent }),
-  worldActs: [],
 });

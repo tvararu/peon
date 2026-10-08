@@ -46,17 +46,4 @@ function onAttach(_state: AreaState<"guildadmin">): readonly AreaDraft[] {
 export const guildadminHarness = defineHarnessArea({
   area: "guildadmin",
   rules: () => ({ attach: onAttach, event: onEvent }),
-  worldActs: [
-    "info",
-    "disband",
-    "permissions",
-    "eventLog",
-    "addRank",
-    "setRank",
-    "removeLowestRank",
-    "setNote",
-    "setInfoText",
-    "saveEmblem",
-    "openTabardVendor",
-  ],
 });

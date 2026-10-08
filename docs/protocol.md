@@ -236,7 +236,7 @@ first column says.
 | core `areas/<area>/area.ts` | always | `defineArea({ name, opcodes, eventTypes, store, register, runtime })` |
 | core `areas/<area>/<part>.ts` | before a file reaches 500 non-blank lines | a split by responsibility |
 | `test-support/areas/<area>.ts` in core | when tests share packets | packet builders |
-| harness `areas/<area>/area.ts` and test | when the area needs wake or passive rows, journal rows, login-time state or world acts | `defineHarnessArea(...)` |
+| harness `areas/<area>/area.ts` and test | when the area needs wake or passive rows, journal rows or login-time state | `defineHarnessArea(...)` |
 | harness `areas/<area>/tool.ts` and test | when the area adds a tool | a `defineGameTool` module |
 | harness `grader/scenarios/t<tier>-<area>-<slug>.json` | when the area adds an agent verb | the eval scenario |
 | `docs/areas/<area>.md` | always | wire facts where AzerothCore and wow_messages differ, what is left out and why, the proposed capabilities row and the proof table |

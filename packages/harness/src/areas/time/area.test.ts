@@ -1,6 +1,5 @@
-import { describe, expect, jest, test } from "bun:test";
+import { describe, expect, test } from "bun:test";
 import type { AreaEvent, AreaState } from "@peon/core";
-import { flushMicrotasks } from "@peon/core/test-support/microtasks";
 import { areaDrafts, areaRuleSet, attachDrafts } from "#harness/areas/rules";
 import { createWorldService } from "#harness/world/hub";
 import type { WorldSession } from "#harness/world/service";
@@ -8,7 +7,6 @@ import { createMockGame } from "#test-support/mock-game";
 import { testRuleInput } from "#test-support/rule-fixtures";
 import { createTestRuntime } from "#test-support/runtime-fixture";
 
-const QUERY_TIME = 0x1_ce;
 const NOON = { day: 28, hour: 12, minute: 5, month: 9, weekday: 1, year: 2026 };
 const SPEED = Math.fround(0.016_666_67);
 const SYNCED: AreaState<"time"> = {
@@ -20,7 +18,6 @@ const SYNCED: AreaState<"time"> = {
   uiTime: undefined,
   uiTimeAt: undefined,
 };
-const UI_TIMER_UPDATE = 0x4_f6;
 
 function timeEvent(type: "set_speed" | "query_reply"): AreaEvent {
   return { area: "time", event: { state: SYNCED, type } };
@@ -97,45 +94,6 @@ describe("time harness rules", () => {
 });
 
 describe("time through the world service", () => {
-  test("claim.areas.time.query refuses not_owner once the claim is lost", async () => {
-    const { game, world } = await connected();
-    const claim = world.claim("loop", "probe");
-    world.claim("agent", "probe");
-    await expect(claim?.areas.time.query()).rejects.toThrow("not_owner");
-    expect(game.sent.filter((p) => p.opcode === QUERY_TIME)).toEqual([]);
-  });
-
-  test("claim.areas.time.query refuses offline with no session", async () => {
-    const game = createMockGame();
-    const { rt } = await createTestRuntime({
-      connect: false,
-      parts: { login: async () => game },
-    });
-    const claim = createWorldService(rt).service.claim("loop", "probe");
-    await expect(claim?.areas.time.query()).rejects.toThrow("offline");
-    expect(game.sent).toEqual([]);
-  });
-
-  test("claim.areas.time.requestUiTime sends one CMSG_WORLD_STATE_UI_TIMER_UPDATE", async () => {
-    const { game, world } = await connected();
-    const claim = world.claim("loop", "probe");
-    jest.useFakeTimers();
-    try {
-      const settled = claim?.areas.time.requestUiTime().then(
-        () => "resolved",
-        (error: Error) => error.message,
-      );
-      await flushMicrotasks();
-      expect(
-        game.sent.filter((p) => p.opcode === UI_TIMER_UPDATE),
-      ).toHaveLength(1);
-      jest.advanceTimersByTime(5000);
-      expect(await settled).toBe("timeout");
-    } finally {
-      jest.useRealTimers();
-    }
-  });
-
   test("session.areas.time.state() is a frozen copy", async () => {
     const { game, world } = await connected();
     game.triggerAreaEvent("time", { state: SYNCED, type: "query_reply" });

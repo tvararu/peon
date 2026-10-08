@@ -64,5 +64,4 @@ function onEvent(event: WintergraspEvent): readonly AreaDraft[] {
 export const wintergraspHarness = defineHarnessArea({
   area: "wintergrasp",
   rules: () => ({ event: (event) => onEvent(event) }),
-  worldActs: ["answerQueue", "answerEntry", "exitQueue", "hearthAndResurrect"],
 });

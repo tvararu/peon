@@ -50,5 +50,4 @@ export const transportsHarness = defineHarnessArea({
   rules: () => ({
     event: (event) => [row(event)],
   }),
-  worldActs: ["poseAt", "dataStatus", "board", "leave"],
 });

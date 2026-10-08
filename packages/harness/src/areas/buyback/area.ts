@@ -89,5 +89,4 @@ export const buybackHarness = defineHarnessArea({
     const seen = new Map<bigint, Listed["list"][number]>();
     return { event: (event, rc) => onEvent(event, seen, rc) };
   },
-  worldActs: ["buyback"],
 });
