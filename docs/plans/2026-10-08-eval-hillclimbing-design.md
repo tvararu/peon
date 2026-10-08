@@ -24,9 +24,10 @@ note maps each one onto `mise eval` ([evals.md](../evals.md)).
 - **One new measure, `level_pace`**, reads the game log for the seconds
   to each level from the task, the XP in the first hour, deaths and
   stalls. Every other number comes from checks that exist today.
-- **The first baseline scores 792 of 27,600** (level 2 when it stopped
-  at 21 minutes) and stops on the harness's 40-tool-call turn budget,
-  not on pace; see [Baseline](#baseline-round-6071).
+- **The baseline scores 2317 of 27,600** (level 4 at the 75-minute
+  budget, 6 deaths) once the harness's per-turn tool budget is gone; the
+  first run scored 792 because that budget stopped it at 21 minutes. See
+  [Baseline: round 6101](#baseline-round-6101).
 - **The held-out split is a second start**: the same task for a level 1
   human paladin in Northshire. A hillclimber reads only the Sunstrider
   runs; Northshire scores decide whether a change stays.
@@ -147,14 +148,14 @@ with the same arithmetic `level_pace` uses:
 | 1101 | fail | 2: 1.4, 3: 7.8 | 1710 | 110 | 0 | 2.8 | `done` at 15.5 |
 
 All three graded runs failed by the agent answering `done` long before
-the budget, at level 3 or 4, and each logged three `turn_budget`
-refusals before its last answer (round 722 logged six). The harness
-refuses every tool call after 40 in one human turn
-(`TURN_BUDGET`, `packages/harness/src/tools/define.ts:43,305-309`) with
-"report to the human now"; in an eval no human answers, so the run ends
-`done` ([evals.md](../evals.md#run-a-scenario)). The last answers also
-name navigation refusals near the Sunspire. Level 2 lands at 1.5
-minutes in every run; the spread opens from level 3.
+the budget, at level 3 or 4, and each logged three refusals from the
+harness's per-turn tool budget before its last answer (round 722 logged
+six). At those shas the harness refused every tool call after 40 in one
+human turn with "report to the human now"; in an eval no human answers,
+so the run ended `done` ([evals.md](../evals.md#run-a-scenario)). #610
+removes that budget. The last answers also name navigation refusals near
+the Sunspire. Level 2 lands at 1.5 minutes in every run; the spread opens
+from level 3.
 
 The level 1–5 evidence above is a priest; the speedrun is a paladin, so
 the first paladin runs are their own baseline, not a comparison with
@@ -176,16 +177,53 @@ hash `e57e4f1b9b93`). Verdict `fail`, 1 of 4 checks met (`no-gm-help`).
 | Tool calls, turns | 82 of 450, 84 |
 | Kills, quests turned in | 13 kill credits; "Reclaiming Sunstrider Isle", "Paladin Training" |
 
-The run ended the same way as the level 1–5 runs: `travel` refused
-`turn_budget` twice, and the agent reported "the tool's turn budget now
-requires me to report" and stopped with 54 minutes left. Before that,
-`travel` failed twice with `no_ground` (`UNKNOWN_HEIGHT`) and `engage`
-refused `target_unreachable` on a cub in view. So NS1 cannot pass today
-for a harness reason before any question of pace: an unattended goal
-gets about 40 tool calls per human message, and a 1–10 run needs many
-hundreds. How an autonomous goal keeps going is a design call for the
-maintainer, outside this eval. Evidence:
+The run ended the same way as the level 1–5 runs: `travel` hit the
+per-turn tool budget twice, and the agent reported "the tool's turn
+budget now requires me to report" and stopped with 54 minutes left.
+Before that, `travel` failed twice with `no_ground` (`UNKNOWN_HEIGHT`)
+and `engage` refused `target_unreachable` on a cub in view. Evidence:
 `~/.local/state/peon-overnight/artifacts/ns1-eval/round-6071-t4-speedrun-level-ten-1/`.
+
+## Baseline: round 6101
+
+The same conditions as round 6071 with the per-turn tool budget removed
+(#610): harness `536fd78a`, `openai-codex/gpt-6-luna`, thinking `off`,
+Jev `jev-1.13.0`, scenario hash `e57e4f1b9b93`. This is the first NS1
+run that plays its whole budget, so it is the baseline the loop starts
+from. Verdict `fail`, 1 of 4 checks met (`no-gm-help`).
+
+| Number | Value |
+|---|---|
+| XP in the first hour (the score) | 2317 of 27,600 |
+| Final level | 4 (level 2 at 636.8 s, 3 at 2024.4 s, 4 at 4501.1 s) |
+| Deaths | 6, all to Tenders and Feral Tenders |
+| Stalls (5 minutes or more) | 4, from minutes 34 (5.5), 50.7 (7.3), 58.3 (5.8) and 64.1 (5.0) |
+| Wall time | 4561 s, ended by the 75-minute budget |
+| Tool calls | 342 of 450; `engage` 88, `travel` 81, `look` 48 |
+| Quests turned in | 5: 8325 (651 s), 8326 (2024 s), 9676 (2042 s), 8327 (2432 s), 8346 (3497 s) |
+
+Where the time went:
+
+- `engage` held the clock for 2444 s of 4561. Springpaw Lynxes took
+  44–80 s and Feral Tenders 52–72 s a kill; `engage` stopped on
+  `low_mana` 7 times and `no_progress` 7 times, and refused
+  `target_unreachable` 3 times (#613).
+- Leaving the Sunspire after the class quest failed for about 4.5
+  minutes (2048–2313 s) with `no_ground`, `ambiguous_ground_column`,
+  `path_corner_disagrees` and `no_path` (#611): the first stall.
+- Jev's provider answered HTTP 503 and 529 from minute 52 to 72, and 20
+  `engage` calls failed `jev_unavailable`, 18 of them with creatures
+  attacking; two of the deaths fall in that window and three of the
+  stalls overlap it (#614). The rules count Jev as infrastructure only
+  when it is down for the whole run, so the run stands, but the score
+  carries that noise.
+- The agent ended its turn to say it could not go on five times
+  (minutes 7, 20 twice, 52 and 65: off the navmesh, a corpse it could
+  not reach, Jev down). Only the task and the budget stop came from the
+  human; the harness's own wake messages resumed the agent each time.
+
+Evidence:
+`~/.local/state/peon-overnight/artifacts/ns1-eval/round-6101-t4-speedrun-level-ten-1/`.
 
 ## Noise estimate
 
@@ -236,8 +274,11 @@ verdict changed ([article], "Diagnostic checks").
   and the friction are judgement calls.
 - Measured on round 6071: two graders agreed on the verdict and on all
   four `met` values. They agreed the blocker was `gave-up-early` at the
-  `turn_budget` refusal, but filed it under different areas (`core` and
-  `tool`), and their other three friction items differed in category.
+  per-turn tool budget refusal, but filed it under different areas
+  (`core` and `tool`), and their other three friction items differed in
+  category. Round 6101 repeated it: the same verdict and `met` values;
+  both friction lists led with the Jev outage and named the deaths, and
+  each had one item the other lacked.
   So the verdict and checks are repeatable and the friction is not:
   friction diagnoses a run, and never feeds a score.
 
@@ -308,7 +349,7 @@ The causes and a Peon example of each:
 | Cause | Example |
 |---|---|
 | Model | after `engage` refused `target_unreachable` on a cub in view, the agent called `travel` instead of the `look` the result's `Next:` line named (round 6071, `session.jsonl:171-172`) |
-| Harness | `turn_budget` ends an unattended turn after 40 tool calls (round 6071; level-five rounds 901, 1001, 1101), and navmesh refusals near the Sunspire stopped a level-five run (round 723) |
+| Harness | `engage` cannot fight while Jev is unavailable (round 6101, #614), and navmesh refusals near the Sunspire stopped a level-five run (round 723) and stalled NS1 (round 6101, #611) |
 | Task | the shrine task's "first sentence" was ambiguous (#448) |
 | Grader | windowed checks drafted unmet on clean runs (#493) |
 | Environment | only gray creatures in view near Tranquillien (#519, #603) |
@@ -382,8 +423,8 @@ Calls for the maintainer before any NS2 segment is built:
 
 ## Next steps
 
-1. Decide how an autonomous goal keeps going past `TURN_BUDGET` (a
-   harness design call): until then NS1 ends at about 40 tool calls.
+1. Fix the harness causes round 6101 found (#611, #613, #614) through
+   the normal PR process; each fix starts a new baseline.
 2. Run three replicas to estimate the noise.
 3. Let `mise eval run` pass a model and thinking level through, then run
    the scaling check on the baseline.

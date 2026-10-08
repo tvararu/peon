@@ -11,12 +11,7 @@ import { createAttackLedger } from "#harness/ops/danger";
 import { createRefTable } from "#harness/ops/refs";
 import { Refusal } from "#harness/ops/refusal";
 import { createRepeatGuard } from "#harness/ops/repeat-guard";
-import {
-  defineGameTool,
-  result,
-  TURN_BUDGET,
-  UPDATE_EVERY_MS,
-} from "#harness/tools/define";
+import { defineGameTool, result, UPDATE_EVERY_MS } from "#harness/tools/define";
 import type { GameToolSpec } from "#harness/tools/game-tool";
 import { PROBE } from "#test-support/probe-tool";
 import { createTestRuntime } from "#test-support/runtime-fixture";
@@ -99,7 +94,6 @@ describe("defineGameTool", () => {
       "tool/call",
       "tool/result",
     ]);
-    expect(rt.session.turnToolCalls).toBe(1);
   });
 
   test("the tool/result row carries the result text, cut at 2000 characters", async () => {
@@ -128,16 +122,6 @@ describe("defineGameTool", () => {
       name: "social",
     });
     expect(tool.promptGuidelines).toEqual(PROBE.text.guidelines);
-  });
-
-  test("refuses over the turn budget without running", async () => {
-    const { rt } = await createTestRuntime();
-    rt.session.turnToolCalls = TURN_BUDGET;
-    const run = jest.fn(said);
-    const text = (await runTool(probe(run).definition(rt), {})).text;
-    expect(text).toContain("REFUSED turn_budget");
-    expect(text).toContain("Next: end your turn");
-    expect(run).not.toHaveBeenCalled();
   });
 
   test("refuses offline", async () => {

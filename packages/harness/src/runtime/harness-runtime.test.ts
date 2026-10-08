@@ -42,7 +42,6 @@ describe("createHarnessRuntime", () => {
       stopped: false,
       tool: undefined,
       turnStartSeq: 0,
-      turnToolCalls: 0,
       unreadWhispers: 0,
       wake: false,
     });
