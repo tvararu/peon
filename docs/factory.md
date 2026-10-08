@@ -70,8 +70,10 @@ Presets: `fresh`, `eversong10`, `max80`, `eversong10-warrior`,
 from the `TCPRESETS` account (read only); a `PEON_PRESET_<NAME>` key in
 `soap.env` (`-` as `_`) overrides the template. `eversong1-shaman` is a
 created level-1 Orc shaman staged only to the Eversong point, so eval
-setup can teach it Reincarnation 20608 and hand it an Ankh 17030. The
-created presets `eversong10-shaman`, `eversong10-warlock`,
+setup can teach it Reincarnation 20608 and hand it an Ankh 17030.
+`sunstrider1-paladin` is a created level-1 Blood Elf paladin at the
+Sunstrider Isle start, never logged in, with no staging. The created
+presets `eversong10-shaman`, `eversong10-warlock`,
 `eversong10-rogue`, `eversong10-druid` and `eversong55-deathknight` are
 built over the protocol instead: `soap create` sends `CMSG_CHAR_CREATE`
 without logging in, then stages position, level, money, items and spells
