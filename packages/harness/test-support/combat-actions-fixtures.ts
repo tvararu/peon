@@ -54,7 +54,7 @@ export function setup(
     send() {},
     ticks: () => 0,
   });
-  const { control, routes } = routedControl(runtime, nowFn);
+  const { control, goTos, plan, routes } = routedControl(runtime, nowFn);
 
   control.observeSelf({
     position: { mapId: 530, orientation: 0, x: 0, y: 0, z: 0 },
@@ -115,7 +115,9 @@ export function setup(
     combatStore,
     control,
     fields,
+    goTos,
     motion,
+    plan,
     routes,
     sent,
     store,

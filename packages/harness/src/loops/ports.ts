@@ -31,6 +31,7 @@ export type ControlPort = {
   snapshot: () => ControlState;
   navigationState: () => NavigationState;
   face: (orientation: number) => void;
+  goTo: (guid: bigint) => void;
   move: (direction: MovementDirection, durationMs: number) => void;
   drive: (input: MovementInput, durationMs: number) => void;
   jump: () => void;
@@ -77,6 +78,7 @@ export function controlPort(handle: WorldHandle, travel: Travel): ControlPort {
   return {
     drive: (input, durationMs) => handle.drive(input, durationMs),
     face: (orientation) => handle.face(orientation),
+    goTo: (guid) => travel.goTo({ guid, kind: "guid" }),
     halt: (reason) => handle.stopMoving(reason),
     jump: () => handle.jump(),
     move: (direction, durationMs) => handle.move(direction, durationMs),

@@ -49,14 +49,12 @@ test("a melee class with no usable spell approaches, then swings", () => {
   expect(combat.snapshot().pendingAttack).toBe(2n);
 });
 
-test("a melee class that stops closing in is unreachable, not blocked", () => {
-  const { actions, advance } = warrior(20);
+test("a melee class that stops closing in is routed to the target", () => {
+  const { actions, advance, goTos } = warrior(20);
   expect(actions.observe(context).outcome).toBeUndefined();
   advance(2000);
   expect(actions.observe(context).outcome).toBeUndefined();
   advance(5000);
-  expect(actions.observe(context).outcome).toEqual({
-    status: "blocked",
-    reason: "target_unreachable",
-  });
+  expect(actions.observe(context).outcome).toBeUndefined();
+  expect(goTos).toEqual([2n]);
 });

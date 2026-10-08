@@ -9,7 +9,7 @@ import {
   walkTowardTarget,
 } from "#harness/navigation/goto";
 import type { NativeMap } from "#harness/navigation/native";
-import { createNavigation } from "#harness/navigation/planner";
+import { createNavigation, GroundRoute } from "#harness/navigation/planner";
 import {
   RouteFollower,
   type RouteHandle,
@@ -47,10 +47,28 @@ export function routeHandle(control: ControlRuntime): RouteHandle {
 
 export function routedControl(control: ControlRuntime, now: () => number) {
   const routes = new RouteFollower({ handle: routeHandle(control), now });
+  const goTos: bigint[] = [];
+  const plan: { refusal?: string; to: NavPoint } = { to: { x: 0, y: 0, z: 0 } };
   const port = Object.assign(control, {
+    goTo(guid: bigint) {
+      goTos.push(guid);
+      if (plan.refusal !== undefined) {
+        routes.refuse(undefined, plan.refusal);
+        throw new Error(plan.refusal);
+      }
+      const pose = control.snapshot().pose;
+      if (!pose) throw new Error("no_pose");
+      routes.navigate(
+        new GroundRoute(
+          [{ x: pose.x, y: pose.y, z: pose.z }, plan.to],
+          native(),
+        ),
+        plan.to,
+      );
+    },
     navigationState: () => routes.state(),
   });
-  return { control: port, routes };
+  return { control: port, goTos, plan, routes };
 }
 
 export function routeSetup(over: Parameters<typeof setup>[0] = {}) {

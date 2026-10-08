@@ -49,8 +49,9 @@ import {
   unsupportedSpell,
 } from "#harness/loops/combat-actions-spells";
 import { targetReason } from "#harness/loops/combat-actions-target";
-import { approached, ProgressWatch } from "#harness/loops/combat-progress";
+import { ProgressWatch } from "#harness/loops/combat-progress";
 import { RejectionTracker } from "#harness/loops/combat-rejections";
+import { StallRoute } from "#harness/loops/combat-route";
 import type { TacticsContext, TacticsFrame } from "#harness/loops/tactics";
 
 type SpellAction = {
@@ -60,14 +61,13 @@ type SpellAction = {
   reason?: string;
   supported: boolean;
 };
-const UNREACHABLE_TIMEOUT_MS = 5000;
 
 export class CombatActions {
   private readonly deps: ActionDeps;
   private startedAt = 0;
   private deadAt: number | undefined;
   private engaged = false;
-  private unreachable: { at: number; range: number | undefined } | undefined;
+  private readonly route = new StallRoute();
   private readonly progress = new ProgressWatch();
   private readonly rejections = new RejectionTracker();
 
@@ -82,7 +82,7 @@ export class CombatActions {
     this.startedAt = this.deps.now();
     this.deadAt = undefined;
     this.engaged = false;
-    this.unreachable = undefined;
+    this.route.reset();
     this.progress.reset();
     this.rejections.reset(this.startedAt);
     this.deps.control.halt();
@@ -102,7 +102,8 @@ export class CombatActions {
     const candidates: JevCandidate[] = [WAIT];
     if (channel && !outcome)
       candidates.push(...channelCandidates(state, channel, context.targetGuid));
-    else if (!outcome) this.addCandidates(candidates, spells, state);
+    else if (!(outcome || this.route.routed))
+      this.addCandidates(candidates, spells, state);
     const extra = channel
       ? channelObservation(
           channel,
@@ -391,20 +392,13 @@ export class CombatActions {
       )
     )
       return { status: "blocked", reason: "no_supported_combat_actions" };
-    if (this.targetReachable(context, state, spells)) {
-      this.unreachable = undefined;
-      return undefined;
-    }
-    const range = separation(state);
-    const last = this.unreachable;
-    if (!last || approached(range, last.range)) {
-      this.unreachable = { at: now, range };
-      return undefined;
-    }
-    last.range ??= range;
-    if (now - last.at >= UNREACHABLE_TIMEOUT_MS)
-      return { status: "blocked", reason: "target_unreachable" };
-    return undefined;
+    return this.route.step({
+      control: this.deps.control,
+      guid: context.targetGuid,
+      now,
+      range: separation(state),
+      reachable: this.targetReachable(context, state, spells),
+    });
   }
 
   private targetReachable(

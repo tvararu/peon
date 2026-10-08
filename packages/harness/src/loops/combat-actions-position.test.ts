@@ -79,18 +79,12 @@ test("dead target waits for real credit and offers no attack or spell", () => {
   }
 });
 
-test("an unreachable target stops after the persistence threshold", () => {
+test("a target out of reach is routed to once Jev stops closing in", () => {
   let time = 1000;
-  const { actions, combat, motion } = setup(() => time);
+  const { actions, combat, goTos, motion } = setup(() => time);
   const definition = jest.spyOn(combat, "definition").mockReturnValue(spell());
   try {
-    motion.observe(2n, {
-      mapId: 530,
-      x: 50,
-      y: 0,
-      z: 0,
-      orientation: 0,
-    });
+    motion.observe(2n, { mapId: 530, x: 50, y: 0, z: 0, orientation: 0 });
     let frame = actions.observe(context);
     expect(frame.outcome).toBeUndefined();
     expect(frame.candidates.map((candidate) => candidate.id)).toEqual([
@@ -98,23 +92,83 @@ test("an unreachable target stops after the persistence threshold", () => {
       ...MOVE_IDS,
     ]);
     time = 5999;
-    frame = actions.observe(context);
-    expect(frame.outcome).toBeUndefined();
+    expect(actions.observe(context).outcome).toBeUndefined();
+    expect(goTos).toEqual([]);
     time = 6000;
     frame = actions.observe(context);
-    expect(frame.outcome).toEqual({
-      status: "blocked",
-      reason: "target_unreachable",
-    });
+    expect(frame.outcome).toBeUndefined();
+    expect(goTos).toEqual([2n]);
     expect(frame.candidates.map((candidate) => candidate.id)).toEqual(["wait"]);
   } finally {
     definition.mockRestore();
   }
 });
 
-test("a target re-entering range resets the unreachable persistence threshold", () => {
+test("a refused route is reported as unreachable", () => {
   let time = 1000;
-  const { actions, combat, motion } = setup(() => time);
+  const { actions, combat, goTos, motion, plan } = setup(() => time);
+  const definition = jest.spyOn(combat, "definition").mockReturnValue(spell());
+  try {
+    plan.refusal = "pathfind_find_path failed";
+    motion.observe(2n, { mapId: 530, x: 50, y: 0, z: 0, orientation: 0 });
+    expect(actions.observe(context).outcome).toBeUndefined();
+    time = 6000;
+    expect(actions.observe(context).outcome).toEqual({
+      status: "blocked",
+      reason: "target_unreachable",
+    });
+    expect(goTos).toEqual([2n]);
+  } finally {
+    definition.mockRestore();
+  }
+});
+
+test("a route that ends blocked is reported as unreachable", () => {
+  let time = 1000;
+  const { actions, combat, motion, routes } = setup(() => time);
+  const definition = jest.spyOn(combat, "definition").mockReturnValue(spell());
+  try {
+    motion.observe(2n, { mapId: 530, x: 50, y: 0, z: 0, orientation: 0 });
+    expect(actions.observe(context).outcome).toBeUndefined();
+    time = 6000;
+    expect(actions.observe(context).outcome).toBeUndefined();
+    routes.refuse(undefined, "obstructed");
+    time = 6500;
+    expect(actions.observe(context).outcome).toEqual({
+      status: "blocked",
+      reason: "target_unreachable",
+    });
+  } finally {
+    definition.mockRestore();
+  }
+});
+
+test("a routed approach ends and hands back to Jev once in reach", () => {
+  let time = 1000;
+  const { actions, combat, control, motion, plan } = setup(() => time);
+  const definition = jest.spyOn(combat, "definition").mockReturnValue(spell());
+  try {
+    plan.to = { x: 40, y: 0, z: 0 };
+    motion.observe(2n, { mapId: 530, x: 50, y: 0, z: 0, orientation: 0 });
+    actions.observe(context);
+    time = 6000;
+    actions.observe(context);
+    expect(control.navigationState().active).toBe(true);
+    motion.observe(2n, { mapId: 530, x: 10, y: 0, z: 0, orientation: 0 });
+    const frame = actions.observe(context);
+    expect(frame.outcome).toBeUndefined();
+    expect(control.navigationState().active).toBe(false);
+    expect(
+      frame.candidates.some((candidate) => candidate.id === "spell:17:target"),
+    ).toBe(true);
+  } finally {
+    definition.mockRestore();
+  }
+});
+
+test("a target re-entering range resets the stall threshold", () => {
+  let time = 1000;
+  const { actions, combat, goTos, motion } = setup(() => time);
   const definition = jest.spyOn(combat, "definition").mockReturnValue(spell());
   try {
     motion.observe(2n, {
@@ -149,19 +203,18 @@ test("a target re-entering range resets the unreachable persistence threshold", 
     expect(actions.observe(context).outcome).toBeUndefined();
     time = 6000;
     expect(actions.observe(context).outcome).toBeUndefined();
+    expect(goTos).toEqual([]);
     time = 9000;
-    expect(actions.observe(context).outcome).toEqual({
-      status: "blocked",
-      reason: "target_unreachable",
-    });
+    expect(actions.observe(context).outcome).toBeUndefined();
+    expect(goTos).toEqual([2n]);
   } finally {
     definition.mockRestore();
   }
 });
 
-test("closing on an out-of-range target restarts the unreachable bound", () => {
+test("closing on an out-of-range target restarts the stall bound", () => {
   let time = 1000;
-  const { actions, combat, motion } = setup(() => time);
+  const { actions, combat, goTos, motion } = setup(() => time);
   const definition = jest.spyOn(combat, "definition").mockReturnValue(spell());
   const at = (ms: number, x: number) => {
     time = ms;
@@ -174,10 +227,9 @@ test("closing on an out-of-range target restarts the unreachable bound", () => {
     expect(at(8000, 47)).toBeUndefined();
     expect(at(12_000, 46.5)).toBeUndefined();
     expect(at(12_999, 47.5)).toBeUndefined();
-    expect(at(13_000, 46.5)).toEqual({
-      status: "blocked",
-      reason: "target_unreachable",
-    });
+    expect(goTos).toEqual([]);
+    expect(at(13_000, 46.5)).toBeUndefined();
+    expect(goTos).toEqual([2n]);
   } finally {
     definition.mockRestore();
   }
