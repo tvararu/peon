@@ -18,7 +18,6 @@ import {
   UPDATE_EVERY_MS,
 } from "#harness/tools/define";
 import type { GameToolSpec } from "#harness/tools/game-tool";
-import { createMockGame } from "#test-support/mock-game";
 import { PROBE } from "#test-support/probe-tool";
 import { createTestRuntime } from "#test-support/runtime-fixture";
 import { runTool } from "#test-support/tool-harness";
