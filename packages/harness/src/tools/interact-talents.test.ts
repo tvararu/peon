@@ -1,4 +1,5 @@
 import { describe, expect, jest, test } from "bun:test";
+import { validateToolArguments } from "@earendil-works/pi-ai";
 import type { AreaActsOf, QuestDialog } from "@peon/core";
 import { withFakeTimers } from "@peon/core/test-support/fake-time";
 import type { InteractAfter } from "#harness/contract/details";
@@ -76,12 +77,35 @@ async function run(t: TestRuntime, args: { max_cost?: number } = {}) {
   );
 }
 
+function validated(extra: { max_cost: number }) {
+  return validateToolArguments(
+    { description: "probe", name: "interact", parameters: interactParams },
+    {
+      arguments: { do: "reset_talents", npc: "Velan", ...extra },
+      id: "call-1",
+      name: "interact",
+      type: "toolCall",
+    },
+  );
+}
+
 describe("interact reset_talents", () => {
-  test("max_cost is a declared non-negative integer parameter", () => {
-    expect(interactParams.properties.max_cost).toMatchObject({
-      minimum: 0,
-      type: "integer",
+  test("a negative max_cost is refused before any call", () => {
+    expect(() => validated({ max_cost: -1 })).toThrow();
+  });
+
+  test("max_cost reaches the act as the most the reset may pay", async () => {
+    const { calls, t } = await trainer(OFFERED, {
+      cost: 10_000,
+      freePoints: 3,
+      outcome: "reset",
     });
+    const args = validated({ max_cost: 10_000 });
+    await interactSpec.run(
+      { ...args, npc: "Velan Brightoak" },
+      toolCtx<InteractAfter>(t),
+    );
+    expect(calls[0]?.maxCost).toBe(10_000);
   });
 
   test("without max_cost it names the cost and pays nothing", async () => {
