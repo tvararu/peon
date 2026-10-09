@@ -152,7 +152,11 @@ The harness reads no `WOW_*` variable. Only `--profile` (or its default
 - **Fight helper.** `engage` uses Jev for split-second fight decisions. Jev
   needs `TYPESAFE_API_KEY` in the environment. Without it, `engage`
   refuses with `no_combat_helper` and the footer shows a red `no-jev`
-  chip.
+  chip. When Jev stops answering mid-fight, `engage` keeps fighting
+  without it: it holds auto-attack on the target, faces it, closes to
+  melee range, and retries Jev on every decision so Jev takes over again
+  when it answers. The result names the fallback fight and its action
+  count.
 - **Protected accounts.** The harness refuses the accounts `ADMIN`,
   `DEITY`, `Y`, `AUCTIONHOUSE`, `TCFACTORY`, `TCPRESETS`, and every
   account that starts with `RNDBOT`. There is
@@ -558,7 +562,7 @@ call also share `call`, which counts from 1 in each `runId`.
 | `exchange` | `call`, `model`, `instructions` (Jev's question), `framing` (the sentence sent, if any), `status`, `elapsedMs`, and `response` (the parsed body, or its text when it isn't JSON) or `error` when no answer came back. |
 | `result` | `call`, `choice`, `probabilities`, `confidence`, `model`, `inputTokens`, `elapsedMs`. |
 | `applied`, `discarded` | `call` and the action taken, or why it wasn't (`stale_age`, `unavailable`, `aborted`, ...). |
-| `transport` | A failed call or loop: the `error` (`jev_timeout`, `TypeSafe HTTP 503`, ...), with `call` when it was one call. |
+| `fallback` | `call` and the local action taken while Jev is not answering (`attack`, `face_target`, `move_forward`, `stop_moving`, `wait`). |
 | `outcome` | How the fight ended, with the last `observation`. |
 
 A call that times out still gets its `exchange` row, and its `result`

@@ -157,6 +157,34 @@ describe("engage fight", () => {
     expect(res).toMatchObject({ reason: "jev_unavailable", status: "FAILED" });
   });
 
+  test("fallback tactics events name the fallback fight in the kill line", async () => {
+    const t = await field();
+    tactics(t.handle, (runId) => {
+      t.handle.triggerTacticsEvent({
+        actionId: "attack",
+        call: 0,
+        runId,
+        type: "fallback",
+      });
+      t.handle.triggerTacticsEvent({
+        actionId: "attack",
+        call: 0,
+        runId,
+        type: "fallback",
+      });
+      outcome(t.handle, runId, KILL);
+    });
+    lootsFang(t.handle);
+    const res = await engageSpec.run(
+      { loot: false, target: "Springpaw Stalker" },
+      toolCtx<EngageAfter>(t),
+    );
+    expect(res.status).toBe("DONE");
+    expect(res.after).toMatchObject({ fallback: 2, kills: 1 });
+    expect(res.detail).toContain("Fought without the fight helper");
+    expect(res.detail).toContain("2 fallback actions");
+  });
+
   test("count 3 runs a cycle and reports PARTLY with the kills it got", async () => {
     const t = await field();
     cycleEnds(

@@ -259,6 +259,12 @@ function creditText(tally: Tally, secs: number): string {
   return `killed ${killNames(tally)} in ${secs} s, server kill credit; no XP for ${refs} (${why}).`;
 }
 
+function fallbackNote(tally: Tally): string {
+  return tally.fallback > 0
+    ? ` Fought without the fight helper (${tally.fallback} fallback actions).`
+    : "";
+}
+
 function killedRefs(tally: Tally): string {
   return tally.targets
     .filter((target) => target.outcome === "killed")
@@ -404,7 +410,7 @@ function doneReport(
   if (complete)
     return result("DONE", {
       after,
-      detail: `${creditText(tally, foughtSecs(scene, secs))}${gains(scene)}`,
+      detail: `${creditText(tally, foughtSecs(scene, secs))}${fallbackNote(tally)}${gains(scene)}`,
       next: also,
     });
 }
@@ -442,7 +448,7 @@ function outcomeReport(scene: Scene, end: ModeEnd, secs: number): Report {
   if (killed > 0)
     return result("PARTLY", {
       after,
-      detail: `${after.kills} of ${after.wanted} kills (${refs})${noXpNote(tally)}. Stopped: ${stopText(stop)}.${gains(scene)}`,
+      detail: `${after.kills} of ${after.wanted} kills (${refs})${noXpNote(tally)}. Stopped: ${stopText(stop)}.${fallbackNote(tally)}${gains(scene)}`,
       next:
         also ??
         toFar ??
@@ -451,7 +457,7 @@ function outcomeReport(scene: Scene, end: ModeEnd, secs: number): Report {
     });
   return result(end.blocked ? "REFUSED" : "FAILED", {
     after,
-    detail: `${far ? unreachedText(far) : failText(stop)} ${vitalsLine(scene.ops)}`,
+    detail: `${far ? unreachedText(far) : failText(stop)}${fallbackNote(tally)} ${vitalsLine(scene.ops)}`,
     next:
       also ??
       toFar ??

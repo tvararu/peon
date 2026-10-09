@@ -56,6 +56,7 @@ const engage: EngageAfter = {
     { at: 1, disposition: "applied", kind: "spell", label: "Smite" },
     { at: 2, disposition: "discarded", kind: "move", label: "step back" },
   ],
+  fallback: 0,
   how: "",
   kills: 1,
   loot: [{ count: 1, itemId: 2966, name: "Dragonhawk Egg", quality: 1 }],
