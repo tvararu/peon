@@ -90,7 +90,7 @@ describe("lost height traces", () => {
       },
       findHeights: (x) => {
         if (x < 5) return [0];
-        return x < 5.25 ? [-shelf, shelf] : [shelf];
+        return x < 6 ? [-shelf, shelf] : [shelf];
       },
     });
     expect(() =>

@@ -54,5 +54,17 @@ describe.skipIf(!(present && patched()))(
       );
       expect(route.points.at(-1)).toMatchObject({ x: 10_350, y: -6357 });
     });
+
+    test("leaves the Sunspire from the paladin trainer's floor", () => {
+      const trainer = { x: 10_366.4, y: -6428.7, z: 38.5 };
+      for (const to of [
+        { x: 10_332, y: -6298 },
+        { x: 10_372, y: -6370 },
+        { x: 10_406, y: -6396 },
+      ])
+        expect(nav().planGround(530, trainer, to).points.at(-1)).toMatchObject(
+          to,
+        );
+    });
   },
 );
