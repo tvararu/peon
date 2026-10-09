@@ -116,7 +116,9 @@ export type FightEnd = {
   outcome: TacticsOutcome | undefined;
   error: string | undefined;
 };
-export type CycleEnd = { state: CycleState; error: string | undefined };
+export type CycleEnd =
+  | { state: CycleState; error: string | undefined }
+  | { state: undefined; error: string };
 
 const JEV_UNAVAILABLE = "jev_unavailable";
 
@@ -269,9 +271,11 @@ async function cycleEnd({
   start,
 }: CycleWait): Promise<CycleEnd> {
   let unsubscribe: () => void = ignoreFailure;
+  let began = false;
   const stopped = new Promise<void>((resolve) => {
     unsubscribe = handle.onCycleEvent((event) => {
       if (event.type === "stopped") resolve();
+      if (event.type === "started") began = true;
       if (event.type === "started" && signal.aborted) handle.stopCycle();
     });
   });
@@ -281,7 +285,10 @@ async function cycleEnd({
     await Promise.race([stopped, start().then(() => stopped)]);
     return { error: undefined, state: handle.getCycleState() };
   } catch (error) {
-    return { error: messageOf(error), state: handle.getCycleState() };
+    const message = messageOf(error);
+    return began
+      ? { error: message, state: handle.getCycleState() }
+      : { error: message, state: undefined };
   } finally {
     unsubscribe();
     signal.removeEventListener("abort", onAbort);

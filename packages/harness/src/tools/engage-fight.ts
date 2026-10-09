@@ -167,18 +167,25 @@ async function cycle(scene: Scene): Promise<ModeEnd> {
       maxStarts: choice.wanted - kills(tally),
       signal: ops.signal,
     });
+    if (end.state === undefined)
+      return {
+        blocked: false,
+        error: end.error,
+        jev: undefined,
+        stopCause: undefined,
+      };
     noteCycle(ops, tally, end.state);
     blocked &&= allBlocked(end.state);
     if (end.error !== undefined || end.state.stopCause !== "queue_exhausted")
       break;
   }
-  const stopCause = end?.state.stopCause;
+  const stopCause = end?.state?.stopCause;
   return {
     blocked: end !== undefined && blocked,
     error: end?.error,
     jev: stopCause === JEV_UNAVAILABLE ? JEV_UNAVAILABLE : undefined,
     stopCause,
-    stopDetail: end?.state.stopDetail,
+    stopDetail: end?.state?.stopDetail,
   };
 }
 
@@ -191,6 +198,13 @@ async function quest(scene: Scene): Promise<ModeEnd> {
     signal: ops.signal,
     sources: choice.sources,
   });
+  if (end.state === undefined)
+    return {
+      blocked: false,
+      error: end.error,
+      jev: undefined,
+      stopCause: undefined,
+    };
   noteCycle(ops, tally, end.state);
   const stopCause = end.state.stopCause;
   return {
@@ -295,7 +309,10 @@ function stopped(scene: Scene, end: ModeEnd): Report | undefined {
       next: askHuman("The fight helper stopped answering. What should I do?"),
       reason: JEV_UNAVAILABLE,
     });
-  if (end.stopCause === "objective_item_sources_unknown")
+  if (
+    end.stopCause === "objective_item_sources_unknown" ||
+    end.error === "objective_item_sources_unknown"
+  )
     return result("REFUSED", {
       after,
       detail:
